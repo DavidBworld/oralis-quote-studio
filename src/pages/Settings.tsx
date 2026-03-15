@@ -4,8 +4,6 @@ import { toast } from "sonner";
 import {
   loadSettings,
   saveSettings,
-  defaultCoefficients,
-  uid,
   formatEURCoeff,
   type AppSettings,
   type CoefficientRow,
@@ -13,6 +11,7 @@ import {
   type CatalogProduct,
   type CatalogPose,
 } from "@/lib/settings-data";
+import { uid } from "@/lib/quote-data";
 
 const inputCls = "w-full px-3 py-2 bg-card border border-border text-sm font-body focus:outline-none focus:ring-1 focus:ring-accent";
 const labelCls = "block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1";
