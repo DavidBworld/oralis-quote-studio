@@ -10,22 +10,27 @@ import {
   lineMontantHT,
   type Quote,
 } from "@/lib/quote-data";
+import { loadSettings, getLegalMention, type AppSettings } from "@/lib/settings-data";
 
 export default function QuotePreview() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
 
   useEffect(() => {
     const all = loadQuotes();
     const found = all.find((q) => q.id === id);
     if (found) setQuote(found);
     else navigate("/");
+    setSettings(loadSettings());
   }, [id]);
 
-  if (!quote) return null;
+  if (!quote || !settings) return null;
 
   const totals = calcTotals(quote.lignes);
+  const c = settings.company;
+  const docS = settings.documentDevis;
 
   // Extract acompte percentage from conditions
   const acompteMatch = quote.conditionsPaiement.match(/(\d+)%/);
@@ -58,20 +63,31 @@ export default function QuotePreview() {
 
       {/* Print container */}
       <div className="print-container max-w-[210mm] mx-auto my-8 bg-card p-12 border border-border no-print:shadow-none">
+        {/* Custom header text */}
+        {docS.enTete && (
+          <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">{docS.enTete}</p>
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-start mb-8 page-break-avoid">
-          <div>
-            <h1 className="font-display text-4xl font-bold text-accent tracking-wider">ORALIS</h1>
-            <p className="text-xs text-muted-foreground mt-1">
-              Pergola Bioclimatique &amp; Jardin d'Hiver Sur-Mesure
-            </p>
+          <div className="flex items-start gap-4">
+            {docS.afficherLogo && settings.logo && (
+              <img src={settings.logo} alt="Logo" className="w-16 h-16 object-contain" />
+            )}
+            <div>
+              <h1 className="font-display text-4xl font-bold text-accent tracking-wider">ORALIS</h1>
+              <p className="text-xs text-muted-foreground mt-1">
+                Pergola Bioclimatique &amp; Jardin d'Hiver Sur-Mesure
+              </p>
+            </div>
           </div>
           <div className="text-right text-xs text-muted-foreground leading-relaxed">
-            <p>ORALIS SAS</p>
-            <p>12 Avenue des Champs-Élysées</p>
-            <p>75008 Paris, France</p>
-            <p>contact@pergola-oralis.com</p>
-            <p>pergola-oralis.com</p>
+            <p>{c.nom}</p>
+            <p>{c.rue}</p>
+            <p>{c.codePostal} {c.ville}, {c.pays}</p>
+            <p>{c.telephone}</p>
+            <p>{c.email}</p>
+            <p>{c.siteWeb}</p>
           </div>
         </div>
 
@@ -144,11 +160,8 @@ export default function QuotePreview() {
           </thead>
           <tbody>
             {quote.lignes.map((line, i) => (
-              <>
-                <tr
-                  key={line.id}
-                  className={i % 2 === 1 ? "bg-muted/30" : ""}
-                >
+              <React.Fragment key={line.id}>
+                <tr className={i % 2 === 1 ? "bg-muted/30" : ""}>
                   <td className="py-2.5 pr-4">
                     <span className="font-medium">{line.designation}</span>
                     {line.description && (
@@ -179,7 +192,7 @@ export default function QuotePreview() {
                     <td className="py-1.5 text-right text-xs">{formatEUR(opt.prixHT)}</td>
                   </tr>
                 ))}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -249,15 +262,33 @@ export default function QuotePreview() {
           )}
 
           <p className="text-[11px] text-muted-foreground mt-6">
-            Devis valable {quote.validite} jours. TVA selon pays du chantier. Garantie décennale. ORALIS SAS — SIRET XXXXXXXXX
+            Devis valable {quote.validite} jours. TVA selon pays du chantier. {getLegalMention(settings)}
           </p>
 
-          <div className="mt-8 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground mb-8">
-              Bon pour accord — Date et signature :
-            </p>
-            <div className="border-b border-dotted border-foreground/30 w-64 h-12" />
-          </div>
+          {docS.zoneSignature && (
+            <div className="mt-8 pt-4 border-t border-border">
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-8">
+                    {docS.texteSignatureClient} — Date et signature :
+                  </p>
+                  <div className="border-b border-dotted border-foreground/30 w-64 h-12" />
+                </div>
+                {docS.texteSignatureEntreprise && (
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground mb-8">
+                      {docS.texteSignatureEntreprise}
+                    </p>
+                    <div className="border-b border-dotted border-foreground/30 w-48 h-12 ml-auto" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {docS.piedDePage && (
+            <p className="text-[11px] text-muted-foreground mt-4 whitespace-pre-line">{docS.piedDePage}</p>
+          )}
         </div>
       </div>
     </div>
