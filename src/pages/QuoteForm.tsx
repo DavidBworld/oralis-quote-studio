@@ -554,7 +554,7 @@ export default function QuoteForm() {
           />
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Devis valable {quote.validite} jours. TVA selon pays du chantier. Garantie décennale. ORALIS SAS — SIRET XXXXXXXXX
+          Devis valable {quote.validite} jours. TVA selon pays du chantier. {getLegalMention(settings)}
         </p>
       </section>
 
