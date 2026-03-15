@@ -90,6 +90,11 @@ export default function QuoteForm() {
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
 
+  const settings = loadSettings();
+  const TVA_RATES = getEnabledTVARates(settings);
+  const catalogDesignations = settings.catalogProduits.map((p) => p.designation);
+  const allProductSuggestions = [...PRODUCT_CATALOG, ...catalogDesignations.filter((d) => !PRODUCT_CATALOG.includes(d))];
+
   useEffect(() => {
     const all = loadQuotes();
     if (id && id !== "nouveau") {
