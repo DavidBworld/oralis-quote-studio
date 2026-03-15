@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import QuoteForm from "./pages/QuoteForm";
 import QuotePreview from "./pages/QuotePreview";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,14 @@ const App = () => (
             }
           />
           <Route path="/devis/:id/apercu" element={<QuotePreview />} />
+          <Route
+            path="/parametres"
+            element={
+              <AppLayout>
+                <Settings />
+              </AppLayout>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

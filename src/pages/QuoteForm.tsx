@@ -14,7 +14,6 @@ import {
   lineMontantHT,
   PRODUCT_CATALOG,
   OPTION_CATALOG,
-  TVA_RATES,
   VALIDITE_OPTIONS,
   PAYS_OPTIONS,
   STATUT_LABELS,
@@ -22,6 +21,7 @@ import {
   type QuoteLine,
   type QuoteOption,
 } from "@/lib/quote-data";
+import { loadSettings, getEnabledTVARates, getLegalMention } from "@/lib/settings-data";
 
 function AutocompleteInput({
   value,
@@ -89,6 +89,11 @@ export default function QuoteForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
+
+  const settings = loadSettings();
+  const TVA_RATES = getEnabledTVARates(settings);
+  const catalogDesignations = settings.catalogProduits.map((p) => p.designation);
+  const allProductSuggestions = [...PRODUCT_CATALOG, ...catalogDesignations.filter((d) => !PRODUCT_CATALOG.includes(d))];
 
   useEffect(() => {
     const all = loadQuotes();
@@ -353,7 +358,7 @@ export default function QuoteForm() {
                 <AutocompleteInput
                   value={line.designation}
                   onChange={(v) => updateLine(line.id, { designation: v })}
-                  suggestions={PRODUCT_CATALOG}
+                  suggestions={allProductSuggestions}
                   placeholder="Sélectionner ou saisir..."
                 />
               </div>
@@ -549,7 +554,7 @@ export default function QuoteForm() {
           />
         </div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Devis valable {quote.validite} jours. TVA selon pays du chantier. Garantie décennale. ORALIS SAS — SIRET XXXXXXXXX
+          Devis valable {quote.validite} jours. TVA selon pays du chantier. {getLegalMention(settings)}
         </p>
       </section>
 
