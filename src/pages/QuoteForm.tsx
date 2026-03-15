@@ -358,7 +358,7 @@ export default function QuoteForm() {
                 <AutocompleteInput
                   value={line.designation}
                   onChange={(v) => updateLine(line.id, { designation: v })}
-                  suggestions={PRODUCT_CATALOG}
+                  suggestions={allProductSuggestions}
                   placeholder="Sélectionner ou saisir..."
                 />
               </div>
