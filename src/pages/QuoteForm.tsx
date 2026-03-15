@@ -14,7 +14,6 @@ import {
   lineMontantHT,
   PRODUCT_CATALOG,
   OPTION_CATALOG,
-  TVA_RATES,
   VALIDITE_OPTIONS,
   PAYS_OPTIONS,
   STATUT_LABELS,
@@ -22,6 +21,7 @@ import {
   type QuoteLine,
   type QuoteOption,
 } from "@/lib/quote-data";
+import { loadSettings, getEnabledTVARates, getLegalMention } from "@/lib/settings-data";
 
 function AutocompleteInput({
   value,
