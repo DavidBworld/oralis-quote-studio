@@ -53,14 +53,14 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+      {/* Header bar */}
+      <div className="flex items-center justify-between mb-10">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-foreground">
+          <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
             Tableau de bord
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-[13px] text-muted-foreground mt-1 font-body">
             Gestion des devis ORALIS
           </p>
         </div>
@@ -77,21 +77,21 @@ export default function Dashboard() {
       <div className="relative mb-6">
         <Search
           size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
         />
         <input
           type="text"
           placeholder="Rechercher par client ou n° de devis..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-card border border-border text-sm font-body placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+          className="form-input pl-11 pr-4 h-11 rounded-lg shadow-card"
         />
       </div>
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <div className="bg-card border border-border p-16 text-center">
-          <FileText size={48} className="mx-auto text-muted-foreground/30 mb-4" />
+        <div className="luxury-card p-16 text-center">
+          <FileText size={48} className="mx-auto text-muted-foreground/20 mb-4" />
           <h2 className="font-display text-xl text-foreground mb-2">
             Aucun devis trouvé
           </h2>
@@ -111,84 +111,74 @@ export default function Dashboard() {
           )}
         </div>
       ) : (
-        <div className="bg-card border border-border overflow-hidden">
+        <div className="bg-card border border-border rounded-lg overflow-hidden shadow-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                  N° Devis
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                  Client
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                  Montant TTC
-                </th>
-                <th className="text-center px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-muted-foreground text-xs uppercase tracking-wider">
-                  Actions
-                </th>
+              <tr className="table-header-dark">
+                <th className="text-left">N° Devis</th>
+                <th className="text-left">Client</th>
+                <th className="text-left">Date</th>
+                <th className="text-right">Montant TTC</th>
+                <th className="text-center">Statut</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((q) => {
+              {filtered.map((q, i) => {
                 const { totalTTC } = calcTotals(q.lignes);
                 return (
                   <tr
                     key={q.id}
-                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors duration-150"
+                    className={`border-b border-border last:border-0 transition-colors duration-150 hover:bg-accent/5 ${
+                      i % 2 === 1 ? "bg-background" : "bg-card"
+                    }`}
                   >
-                    <td className="px-4 py-3 font-medium font-body">
+                    <td className="px-4 py-3.5 font-medium font-mono text-[13px]">
                       {q.numero}
                     </td>
-                    <td className="px-4 py-3">
-                      {q.client.prenom} {q.client.nom}
+                    <td className="px-4 py-3.5">
+                      <span className="font-medium">{q.client.prenom} {q.client.nom}</span>
                       {q.client.societe && (
-                        <span className="text-muted-foreground ml-1">
+                        <span className="text-muted-foreground ml-1.5 text-xs">
                           — {q.client.societe}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <td className="px-4 py-3.5 text-muted-foreground">
                       {formatDate(q.date)}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium">
+                    <td className="px-4 py-3.5 text-right font-medium font-mono text-[13px]">
                       {formatEUR(totalTTC)}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3.5 text-center">
                       <span
-                        className={`inline-block px-2.5 py-0.5 text-xs font-medium tracking-wide ${statusClass[q.statut]}`}
+                        className={`inline-block px-3 py-1 text-[11px] font-semibold tracking-wide ${statusClass[q.statut]}`}
                       >
                         {STATUT_LABELS[q.statut]}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => navigate(`/devis/${q.id}`)}
-                          className="p-1.5 hover:bg-muted transition-colors"
+                          className="p-2 rounded hover:bg-muted transition-colors"
                           title="Modifier"
                         >
-                          <Pencil size={14} />
+                          <Pencil size={14} className="text-muted-foreground" />
                         </button>
                         <button
                           onClick={() => navigate(`/devis/${q.id}/apercu`)}
-                          className="p-1.5 hover:bg-muted transition-colors"
+                          className="p-2 rounded hover:bg-muted transition-colors"
                           title="Aperçu"
                         >
-                          <Eye size={14} />
+                          <Eye size={14} className="text-muted-foreground" />
                         </button>
                         <button
                           onClick={() => duplicateQuote(q)}
-                          className="p-1.5 hover:bg-muted transition-colors"
+                          className="p-2 rounded hover:bg-muted transition-colors"
                           title="Dupliquer"
                         >
-                          <Copy size={14} />
+                          <Copy size={14} className="text-muted-foreground" />
                         </button>
                       </div>
                     </td>

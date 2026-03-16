@@ -13,9 +13,6 @@ import {
 } from "@/lib/settings-data";
 import { uid } from "@/lib/quote-data";
 
-const inputCls = "w-full px-3 py-2 bg-card border border-border text-sm font-body focus:outline-none focus:ring-1 focus:ring-accent";
-const labelCls = "block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1";
-
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [activeTab, setActiveTab] = useState<"entreprise" | "tarifs" | "bibliotheque">("entreprise");
@@ -37,17 +34,17 @@ export default function Settings() {
   ];
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <h1 className="font-display text-3xl font-semibold mb-1">Paramètres</h1>
-      <p className="text-sm text-muted-foreground mb-8">Configuration de l'application ORALIS</p>
+    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+      <h1 className="font-display text-[28px] font-semibold mb-1 tracking-tight">Paramètres</h1>
+      <p className="text-[13px] text-muted-foreground mb-8 font-body">Configuration de l'application ORALIS</p>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-border">
+      <div className="flex gap-0 mb-8 border-b border-border">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`px-5 py-2.5 text-sm font-medium tracking-wide transition-colors -mb-px border-b-2 ${
+            className={`px-6 py-3 text-[13px] font-medium tracking-wide transition-all duration-200 -mb-px border-b-2 ${
               activeTab === t.key
                 ? "border-accent text-accent"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -107,75 +104,75 @@ function EntrepriseTab({
   return (
     <div className="space-y-6">
       {/* Section A: Company details */}
-      <section className="bg-card border border-border p-6">
-        <h2 className="font-display text-lg font-semibold mb-4">Détails de l'entreprise</h2>
+      <section className="luxury-card">
+        <h2 className="section-title">Détails de l'entreprise</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className={labelCls}>Nom de l'entreprise</label>
-            <input type="text" value={c.nom} onChange={(e) => updateCompany({ nom: e.target.value })} className={inputCls} />
+            <label className="form-label">Nom de l'entreprise</label>
+            <input type="text" value={c.nom} onChange={(e) => updateCompany({ nom: e.target.value })} className="form-input" />
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Adresse (rue)</label>
-            <input type="text" value={c.rue} onChange={(e) => updateCompany({ rue: e.target.value })} className={inputCls} />
+            <label className="form-label">Adresse (rue)</label>
+            <input type="text" value={c.rue} onChange={(e) => updateCompany({ rue: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Ville</label>
-            <input type="text" value={c.ville} onChange={(e) => updateCompany({ ville: e.target.value })} className={inputCls} />
+            <label className="form-label">Ville</label>
+            <input type="text" value={c.ville} onChange={(e) => updateCompany({ ville: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Code postal</label>
-            <input type="text" value={c.codePostal} onChange={(e) => updateCompany({ codePostal: e.target.value })} className={inputCls} />
+            <label className="form-label">Code postal</label>
+            <input type="text" value={c.codePostal} onChange={(e) => updateCompany({ codePostal: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Pays</label>
-            <input type="text" value={c.pays} onChange={(e) => updateCompany({ pays: e.target.value })} className={inputCls} />
+            <label className="form-label">Pays</label>
+            <input type="text" value={c.pays} onChange={(e) => updateCompany({ pays: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Téléphone</label>
-            <input type="tel" value={c.telephone} onChange={(e) => updateCompany({ telephone: e.target.value })} className={inputCls} />
+            <label className="form-label">Téléphone</label>
+            <input type="tel" value={c.telephone} onChange={(e) => updateCompany({ telephone: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Email</label>
-            <input type="email" value={c.email} onChange={(e) => updateCompany({ email: e.target.value })} className={inputCls} />
+            <label className="form-label">Email</label>
+            <input type="email" value={c.email} onChange={(e) => updateCompany({ email: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Site web</label>
-            <input type="text" value={c.siteWeb} onChange={(e) => updateCompany({ siteWeb: e.target.value })} className={inputCls} />
+            <label className="form-label">Site web</label>
+            <input type="text" value={c.siteWeb} onChange={(e) => updateCompany({ siteWeb: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>SIRET</label>
-            <input type="text" value={c.siret} onChange={(e) => updateCompany({ siret: e.target.value })} className={inputCls} />
+            <label className="form-label">SIRET</label>
+            <input type="text" value={c.siret} onChange={(e) => updateCompany({ siret: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>N° TVA intracommunautaire</label>
-            <input type="text" value={c.tvaIntra} onChange={(e) => updateCompany({ tvaIntra: e.target.value })} className={inputCls} />
+            <label className="form-label">N° TVA intracommunautaire</label>
+            <input type="text" value={c.tvaIntra} onChange={(e) => updateCompany({ tvaIntra: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Forme juridique</label>
-            <input type="text" value={c.formeJuridique} onChange={(e) => updateCompany({ formeJuridique: e.target.value })} className={inputCls} />
+            <label className="form-label">Forme juridique</label>
+            <input type="text" value={c.formeJuridique} onChange={(e) => updateCompany({ formeJuridique: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Capital social</label>
-            <input type="text" value={c.capitalSocial} onChange={(e) => updateCompany({ capitalSocial: e.target.value })} className={inputCls} />
+            <label className="form-label">Capital social</label>
+            <input type="text" value={c.capitalSocial} onChange={(e) => updateCompany({ capitalSocial: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>RCS (ville)</label>
-            <input type="text" value={c.rcsVille} onChange={(e) => updateCompany({ rcsVille: e.target.value })} className={inputCls} />
+            <label className="form-label">RCS (ville)</label>
+            <input type="text" value={c.rcsVille} onChange={(e) => updateCompany({ rcsVille: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Mention garantie</label>
-            <input type="text" value={c.mentionGarantie} onChange={(e) => updateCompany({ mentionGarantie: e.target.value })} className={inputCls} />
+            <label className="form-label">Mention garantie</label>
+            <input type="text" value={c.mentionGarantie} onChange={(e) => updateCompany({ mentionGarantie: e.target.value })} className="form-input" />
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Mot de passe superviseur</label>
-            <input type="password" value={c.motDePasse} onChange={(e) => updateCompany({ motDePasse: e.target.value })} className={inputCls} />
+            <label className="form-label">Mot de passe superviseur</label>
+            <input type="password" value={c.motDePasse} onChange={(e) => updateCompany({ motDePasse: e.target.value })} className="form-input" />
           </div>
         </div>
       </section>
 
       {/* Section B: Logo */}
-      <section className="bg-card border border-border p-6">
-        <h2 className="font-display text-lg font-semibold mb-4">Logo</h2>
+      <section className="luxury-card">
+        <h2 className="section-title">Logo</h2>
         <input
           ref={fileInputRef}
           type="file"
@@ -185,7 +182,7 @@ function EntrepriseTab({
         />
         {settings.logo ? (
           <div className="flex items-start gap-4">
-            <img src={settings.logo} alt="Logo" className="w-24 h-24 object-contain border border-border p-2" />
+            <img src={settings.logo} alt="Logo" className="w-24 h-24 object-contain border border-border p-2 rounded-lg bg-background" />
             <button
               onClick={() => update({ logo: "" })}
               className="text-sm text-destructive hover:underline flex items-center gap-1"
@@ -196,27 +193,27 @@ function EntrepriseTab({
         ) : (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-border px-8 py-6 text-sm text-muted-foreground hover:border-accent hover:text-accent transition-colors flex flex-col items-center gap-2"
+            className="border-2 border-dashed border-border px-8 py-8 text-sm text-muted-foreground hover:border-accent hover:text-accent transition-all duration-200 flex flex-col items-center gap-2 rounded-lg"
           >
-            <Upload size={24} />
-            Cliquez pour uploader un logo
-            <span className="text-xs">PNG, JPG, SVG — 300×300px recommandé</span>
+            <Upload size={28} className="text-accent/50" />
+            <span className="font-medium">Cliquez pour uploader un logo</span>
+            <span className="text-xs text-muted-foreground/70">PNG, JPG, SVG — 300×300px recommandé</span>
           </button>
         )}
       </section>
 
       {/* Section C: Document customization */}
-      <section className="bg-card border border-border p-6">
-        <h2 className="font-display text-lg font-semibold mb-4">Personnaliser les documents</h2>
-        <div className="flex gap-2 mb-4">
+      <section className="luxury-card">
+        <h2 className="section-title">Personnaliser les documents</h2>
+        <div className="flex gap-2 mb-5">
           {(["devis", "facture"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setDocSubTab(t)}
-              className={`px-4 py-1.5 text-sm border transition-colors ${
+              className={`px-4 py-2 text-[13px] rounded border transition-all duration-200 ${
                 docSubTab === t
-                  ? "bg-accent text-accent-foreground border-accent"
-                  : "border-border text-muted-foreground hover:bg-muted"
+                  ? "bg-accent text-accent-foreground border-accent shadow-sm"
+                  : "border-border text-muted-foreground hover:border-accent/50"
               }`}
             >
               {t === "devis" ? "Devis" : "Facture"}
@@ -225,66 +222,66 @@ function EntrepriseTab({
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className={labelCls}>En-tête personnalisé</label>
-            <textarea value={docSettings.enTete} onChange={(e) => updateDoc({ enTete: e.target.value })} className={`${inputCls} resize-none`} rows={2} />
+            <label className="form-label">En-tête personnalisé</label>
+            <textarea value={docSettings.enTete} onChange={(e) => updateDoc({ enTete: e.target.value })} className="form-input resize-none" rows={2} />
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Pied de page personnalisé</label>
-            <textarea value={docSettings.piedDePage} onChange={(e) => updateDoc({ piedDePage: e.target.value })} className={`${inputCls} resize-none`} rows={2} />
+            <label className="form-label">Pied de page personnalisé</label>
+            <textarea value={docSettings.piedDePage} onChange={(e) => updateDoc({ piedDePage: e.target.value })} className="form-input resize-none" rows={2} />
           </div>
           <div>
-            <label className={labelCls}>Couleur principale</label>
-            <div className="flex items-center gap-2">
-              <input type="color" value={docSettings.couleurPrincipale} onChange={(e) => updateDoc({ couleurPrincipale: e.target.value })} className="w-10 h-10 border border-border cursor-pointer" />
-              <span className="text-sm text-muted-foreground">{docSettings.couleurPrincipale}</span>
+            <label className="form-label">Couleur principale</label>
+            <div className="flex items-center gap-3">
+              <input type="color" value={docSettings.couleurPrincipale} onChange={(e) => updateDoc({ couleurPrincipale: e.target.value })} className="w-10 h-10 border border-border cursor-pointer rounded" />
+              <span className="text-sm text-muted-foreground font-mono">{docSettings.couleurPrincipale}</span>
             </div>
           </div>
           <div>
-            <label className={labelCls}>Couleur secondaire</label>
-            <div className="flex items-center gap-2">
-              <input type="color" value={docSettings.couleurSecondaire} onChange={(e) => updateDoc({ couleurSecondaire: e.target.value })} className="w-10 h-10 border border-border cursor-pointer" />
-              <span className="text-sm text-muted-foreground">{docSettings.couleurSecondaire}</span>
+            <label className="form-label">Couleur secondaire</label>
+            <div className="flex items-center gap-3">
+              <input type="color" value={docSettings.couleurSecondaire} onChange={(e) => updateDoc({ couleurSecondaire: e.target.value })} className="w-10 h-10 border border-border cursor-pointer rounded" />
+              <span className="text-sm text-muted-foreground font-mono">{docSettings.couleurSecondaire}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-sm">Afficher le logo</label>
+            <label className="text-sm font-medium">Afficher le logo</label>
             <button
               onClick={() => updateDoc({ afficherLogo: !docSettings.afficherLogo })}
-              className={`w-10 h-5 rounded-full transition-colors ${docSettings.afficherLogo ? "bg-accent" : "bg-border"}`}
+              className={`w-11 h-6 rounded-full transition-colors ${docSettings.afficherLogo ? "bg-accent" : "bg-border"}`}
             >
-              <div className={`w-4 h-4 rounded-full bg-card transition-transform ${docSettings.afficherLogo ? "translate-x-5" : "translate-x-0.5"}`} />
+              <div className={`w-5 h-5 rounded-full bg-card transition-transform shadow-sm ${docSettings.afficherLogo ? "translate-x-5" : "translate-x-0.5"}`} />
             </button>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-sm">Afficher la photo du produit</label>
+            <label className="text-sm font-medium">Afficher la photo du produit</label>
             <button
               onClick={() => updateDoc({ afficherPhoto: !docSettings.afficherPhoto })}
-              className={`w-10 h-5 rounded-full transition-colors ${docSettings.afficherPhoto ? "bg-accent" : "bg-border"}`}
+              className={`w-11 h-6 rounded-full transition-colors ${docSettings.afficherPhoto ? "bg-accent" : "bg-border"}`}
             >
-              <div className={`w-4 h-4 rounded-full bg-card transition-transform ${docSettings.afficherPhoto ? "translate-x-5" : "translate-x-0.5"}`} />
+              <div className={`w-5 h-5 rounded-full bg-card transition-transform shadow-sm ${docSettings.afficherPhoto ? "translate-x-5" : "translate-x-0.5"}`} />
             </button>
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Mention légale personnalisée</label>
-            <textarea value={docSettings.mentionLegale} onChange={(e) => updateDoc({ mentionLegale: e.target.value })} className={`${inputCls} resize-none`} rows={2} placeholder="Laisser vide pour utiliser la mention par défaut" />
+            <label className="form-label">Mention légale personnalisée</label>
+            <textarea value={docSettings.mentionLegale} onChange={(e) => updateDoc({ mentionLegale: e.target.value })} className="form-input resize-none" rows={2} placeholder="Laisser vide pour utiliser la mention par défaut" />
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-sm">Zone de signature</label>
+            <label className="text-sm font-medium">Zone de signature</label>
             <button
               onClick={() => updateDoc({ zoneSignature: !docSettings.zoneSignature })}
-              className={`w-10 h-5 rounded-full transition-colors ${docSettings.zoneSignature ? "bg-accent" : "bg-border"}`}
+              className={`w-11 h-6 rounded-full transition-colors ${docSettings.zoneSignature ? "bg-accent" : "bg-border"}`}
             >
-              <div className={`w-4 h-4 rounded-full bg-card transition-transform ${docSettings.zoneSignature ? "translate-x-5" : "translate-x-0.5"}`} />
+              <div className={`w-5 h-5 rounded-full bg-card transition-transform shadow-sm ${docSettings.zoneSignature ? "translate-x-5" : "translate-x-0.5"}`} />
             </button>
           </div>
           <div />
           <div>
-            <label className={labelCls}>Texte signature client</label>
-            <input type="text" value={docSettings.texteSignatureClient} onChange={(e) => updateDoc({ texteSignatureClient: e.target.value })} className={inputCls} />
+            <label className="form-label">Texte signature client</label>
+            <input type="text" value={docSettings.texteSignatureClient} onChange={(e) => updateDoc({ texteSignatureClient: e.target.value })} className="form-input" />
           </div>
           <div>
-            <label className={labelCls}>Texte signature entreprise</label>
-            <input type="text" value={docSettings.texteSignatureEntreprise} onChange={(e) => updateDoc({ texteSignatureEntreprise: e.target.value })} className={inputCls} />
+            <label className="form-label">Texte signature entreprise</label>
+            <input type="text" value={docSettings.texteSignatureEntreprise} onChange={(e) => updateDoc({ texteSignatureEntreprise: e.target.value })} className="form-input" />
           </div>
         </div>
       </section>
@@ -312,49 +309,49 @@ function TarifsTab({
   return (
     <div className="space-y-6">
       {/* Section A: Coefficients */}
-      <section className="bg-card border border-border p-6">
-        <h2 className="font-display text-lg font-semibold mb-2">Coefficients de vente</h2>
-        <p className="text-sm text-muted-foreground mb-4">
+      <section className="luxury-card">
+        <h2 className="section-title">Coefficients de vente</h2>
+        <p className="text-sm text-muted-foreground mb-5">
           Le coefficient multiplie le prix d'achat pour calculer le prix de vente HT
         </p>
         <div className="overflow-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Catégorie</th>
-                <th className="text-center py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium w-28">Coefficient</th>
-                <th className="text-right py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium w-40">Prix exemple PA 1 000 € → PV HT</th>
-                <th className="w-10" />
+              <tr className="table-header-dark rounded-t-lg">
+                <th className="text-left rounded-tl-md">Catégorie</th>
+                <th className="text-center w-28">Coefficient</th>
+                <th className="text-right w-48">PA 1 000 € → PV HT</th>
+                <th className="w-12 rounded-tr-md" />
               </tr>
             </thead>
             <tbody>
-              {settings.coefficients.map((row) => (
-                <tr key={row.id} className="border-b border-border last:border-0">
-                  <td className="py-2 pr-3">
+              {settings.coefficients.map((row, i) => (
+                <tr key={row.id} className={`border-b border-border last:border-0 ${i % 2 === 1 ? "bg-background" : ""}`}>
+                  <td className="py-3 pr-3">
                     <input
                       type="text"
                       value={row.categorie}
                       onChange={(e) => updateCoeff(row.id, { categorie: e.target.value })}
-                      className={inputCls}
+                      className="form-input"
                     />
                   </td>
-                  <td className="py-2 px-2">
+                  <td className="py-3 px-2">
                     <input
                       type="number"
                       step={0.01}
                       min={0}
                       value={row.coefficient}
                       onChange={(e) => updateCoeff(row.id, { coefficient: Number(e.target.value) || 0 })}
-                      className={`${inputCls} text-center`}
+                      className="form-input text-center font-mono"
                     />
                   </td>
-                  <td className="py-2 pl-3 text-right text-muted-foreground">
+                  <td className="py-3 pl-3 text-right text-muted-foreground font-mono">
                     → {formatEURCoeff(1000, row.coefficient)}
                   </td>
-                  <td className="py-2 pl-1">
+                  <td className="py-3 pl-1">
                     <button
                       onClick={() => update({ coefficients: settings.coefficients.filter((c) => c.id !== row.id) })}
-                      className="p-1 text-destructive hover:bg-destructive/10 transition-colors"
+                      className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -366,72 +363,74 @@ function TarifsTab({
         </div>
         <button
           onClick={() => update({ coefficients: [...settings.coefficients, { id: uid(), categorie: "", coefficient: 1 }] })}
-          className="mt-3 text-xs text-accent hover:underline flex items-center gap-1"
+          className="mt-4 text-xs text-accent hover:text-accent-hover font-medium flex items-center gap-1 transition-colors"
         >
           <Plus size={12} /> Ajouter une catégorie
         </button>
       </section>
 
       {/* Section B: TVA Rates */}
-      <section className="bg-card border border-border p-6">
-        <h2 className="font-display text-lg font-semibold mb-4">Taux de TVA disponibles</h2>
+      <section className="luxury-card">
+        <h2 className="section-title">Taux de TVA disponibles</h2>
         <div className="space-y-3">
           {settings.tvaRates.map((tva, i) => (
-            <div key={tva.rate} className="flex items-center gap-4">
+            <div key={tva.rate} className="flex items-center gap-4 py-1">
               <button
                 onClick={() => {
                   const newRates = [...settings.tvaRates];
                   newRates[i] = { ...newRates[i], enabled: !newRates[i].enabled };
                   update({ tvaRates: newRates });
                 }}
-                className={`w-10 h-5 rounded-full transition-colors ${tva.enabled ? "bg-accent" : "bg-border"}`}
+                className={`w-11 h-6 rounded-full transition-colors ${tva.enabled ? "bg-accent" : "bg-border"}`}
               >
-                <div className={`w-4 h-4 rounded-full bg-card transition-transform ${tva.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                <div className={`w-5 h-5 rounded-full bg-card transition-transform shadow-sm ${tva.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
-              <span className="text-sm">{tva.label}</span>
+              <span className="text-sm font-medium">{tva.label}</span>
             </div>
           ))}
         </div>
       </section>
 
       {/* Section C: Supplier Discounts */}
-      <section className="bg-card border border-border p-6">
-        <h2 className="font-display text-lg font-semibold mb-4">Remises fournisseurs globales</h2>
+      <section className="luxury-card">
+        <h2 className="section-title">Remises fournisseurs globales</h2>
         {settings.fournisseurRemises.length > 0 && (
-          <table className="w-full text-sm mb-3">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Fournisseur</th>
-                <th className="text-center py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium w-24">Remise %</th>
-                <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Notes</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody>
-              {settings.fournisseurRemises.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0">
-                  <td className="py-2 pr-2">
-                    <input type="text" value={r.fournisseur} onChange={(e) => updateRemise(r.id, { fournisseur: e.target.value })} className={inputCls} />
-                  </td>
-                  <td className="py-2 px-2">
-                    <input type="number" min={0} max={100} value={r.remise} onChange={(e) => updateRemise(r.id, { remise: Number(e.target.value) || 0 })} className={`${inputCls} text-center`} />
-                  </td>
-                  <td className="py-2 px-2">
-                    <input type="text" value={r.notes} onChange={(e) => updateRemise(r.id, { notes: e.target.value })} className={inputCls} />
-                  </td>
-                  <td className="py-2 pl-1">
-                    <button onClick={() => update({ fournisseurRemises: settings.fournisseurRemises.filter((x) => x.id !== r.id) })} className="p-1 text-destructive hover:bg-destructive/10 transition-colors">
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
+          <div className="overflow-auto mb-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="table-header-dark">
+                  <th className="text-left rounded-tl-md">Fournisseur</th>
+                  <th className="text-center w-24">Remise %</th>
+                  <th className="text-left">Notes</th>
+                  <th className="w-12 rounded-tr-md" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {settings.fournisseurRemises.map((r, i) => (
+                  <tr key={r.id} className={`border-b border-border last:border-0 ${i % 2 === 1 ? "bg-background" : ""}`}>
+                    <td className="py-3 pr-2">
+                      <input type="text" value={r.fournisseur} onChange={(e) => updateRemise(r.id, { fournisseur: e.target.value })} className="form-input" />
+                    </td>
+                    <td className="py-3 px-2">
+                      <input type="number" min={0} max={100} value={r.remise} onChange={(e) => updateRemise(r.id, { remise: Number(e.target.value) || 0 })} className="form-input text-center font-mono" />
+                    </td>
+                    <td className="py-3 px-2">
+                      <input type="text" value={r.notes} onChange={(e) => updateRemise(r.id, { notes: e.target.value })} className="form-input" />
+                    </td>
+                    <td className="py-3 pl-1">
+                      <button onClick={() => update({ fournisseurRemises: settings.fournisseurRemises.filter((x) => x.id !== r.id) })} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <button
           onClick={() => update({ fournisseurRemises: [...settings.fournisseurRemises, { id: uid(), fournisseur: "", remise: 0, notes: "" }] })}
-          className="text-xs text-accent hover:underline flex items-center gap-1"
+          className="text-xs text-accent hover:text-accent-hover font-medium flex items-center gap-1 transition-colors"
         >
           <Plus size={12} /> Ajouter un fournisseur
         </button>
@@ -460,7 +459,6 @@ function BibliothequeTab({
     if (!file) return;
     const text = await file.text();
     try {
-      // Simple CSV parsing
       const lines = text.split("\n").filter((l) => l.trim());
       if (lines.length < 2) { toast.error("Fichier vide ou invalide"); return; }
 
@@ -534,10 +532,10 @@ function BibliothequeTab({
           <button
             key={t}
             onClick={() => { setSubTab(t); setSearch(""); }}
-            className={`px-4 py-1.5 text-sm border transition-colors ${
+            className={`px-4 py-2 text-[13px] rounded border transition-all duration-200 ${
               subTab === t
-                ? "bg-accent text-accent-foreground border-accent"
-                : "border-border text-muted-foreground hover:bg-muted"
+                ? "bg-accent text-accent-foreground border-accent shadow-sm"
+                : "border-border text-muted-foreground hover:border-accent/50"
             }`}
           >
             {t === "produits" ? "Tarifs Produits" : "Tarifs Pose"}
@@ -546,27 +544,27 @@ function BibliothequeTab({
       </div>
 
       {/* Import section */}
-      <section className="bg-card border border-border p-6">
-        <h2 className="font-display text-lg font-semibold mb-4">Importer</h2>
+      <section className="luxury-card">
+        <h2 className="section-title">Importer</h2>
         <input ref={fileRef} type="file" accept=".csv,.xls,.xlsx" className="hidden" onChange={handleFileImport} />
         <div
           onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed border-border p-8 text-center cursor-pointer hover:border-accent transition-colors mb-4"
+          className="border-2 border-dashed border-border p-10 text-center cursor-pointer hover:border-accent transition-all duration-200 mb-4 rounded-lg"
         >
-          <Upload size={24} className="mx-auto mb-2 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Glissez votre fichier ici ou cliquez pour parcourir</p>
-          <p className="text-xs text-muted-foreground mt-1">CSV, XLS, XLSX</p>
+          <Upload size={28} className="mx-auto mb-3 text-accent/50" />
+          <p className="text-sm font-medium text-muted-foreground">Glissez votre fichier ici ou cliquez pour parcourir</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">CSV, XLS, XLSX</p>
         </div>
         <button
           onClick={downloadTemplate}
-          className="text-xs text-accent hover:underline flex items-center gap-1"
+          className="text-xs text-accent hover:text-accent-hover font-medium flex items-center gap-1 transition-colors"
         >
           <Download size={12} /> Télécharger le modèle Excel
         </button>
       </section>
 
       {/* Product table */}
-      <section className="bg-card border border-border p-6">
+      <section className="luxury-card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-lg font-semibold">
             {subTab === "produits"
@@ -581,7 +579,7 @@ function BibliothequeTab({
                   else update({ catalogPose: [] });
                 }
               }}
-              className="text-xs text-destructive hover:underline"
+              className="btn-danger text-xs px-3 py-1.5"
             >
               Tout supprimer
             </button>
@@ -594,7 +592,7 @@ function BibliothequeTab({
             placeholder="Rechercher..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={`${inputCls} mb-4`}
+            className="form-input mb-4"
           />
         )}
 
@@ -603,27 +601,27 @@ function BibliothequeTab({
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Référence</th>
-                    <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Désignation</th>
-                    <th className="text-right py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Prix achat HT</th>
-                    <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Catégorie</th>
-                    <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Fournisseur</th>
-                    <th className="text-right py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Prix vente HT</th>
-                    <th className="w-10" />
+                  <tr className="table-header-dark">
+                    <th className="text-left rounded-tl-md">Référence</th>
+                    <th className="text-left">Désignation</th>
+                    <th className="text-right">Prix achat HT</th>
+                    <th className="text-left">Catégorie</th>
+                    <th className="text-left">Fournisseur</th>
+                    <th className="text-right">Prix vente HT</th>
+                    <th className="w-12 rounded-tr-md" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProduits.map((p) => (
-                    <tr key={p.id} className="border-b border-border last:border-0">
-                      <td className="py-2 pr-2">{p.reference}</td>
-                      <td className="py-2 pr-2">{p.designation}</td>
-                      <td className="py-2 pr-2 text-right">{formatEURCoeff(p.prixAchatHT, 1)}</td>
-                      <td className="py-2 pr-2">{p.categorie}</td>
-                      <td className="py-2 pr-2">{p.fournisseur}</td>
-                      <td className="py-2 pr-2 text-right font-medium">{formatEURCoeff(p.prixAchatHT, getCoeffForCategory(p.categorie))}</td>
-                      <td className="py-2">
-                        <button onClick={() => update({ catalogProduits: settings.catalogProduits.filter((x) => x.id !== p.id) })} className="p-1 text-destructive hover:bg-destructive/10 transition-colors">
+                  {filteredProduits.map((p, i) => (
+                    <tr key={p.id} className={`border-b border-border last:border-0 ${i % 2 === 1 ? "bg-background" : ""}`}>
+                      <td className="py-3 pr-2 font-mono text-xs">{p.reference}</td>
+                      <td className="py-3 pr-2 font-medium">{p.designation}</td>
+                      <td className="py-3 pr-2 text-right font-mono">{formatEURCoeff(p.prixAchatHT, 1)}</td>
+                      <td className="py-3 pr-2 text-muted-foreground">{p.categorie}</td>
+                      <td className="py-3 pr-2 text-muted-foreground">{p.fournisseur}</td>
+                      <td className="py-3 pr-2 text-right font-medium font-mono text-accent">{formatEURCoeff(p.prixAchatHT, getCoeffForCategory(p.categorie))}</td>
+                      <td className="py-3">
+                        <button onClick={() => update({ catalogProduits: settings.catalogProduits.filter((x) => x.id !== p.id) })} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded">
                           <Trash2 size={14} />
                         </button>
                       </td>
@@ -633,32 +631,32 @@ function BibliothequeTab({
               </table>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Aucun produit importé</p>
+            <p className="text-sm text-muted-foreground text-center py-10">Aucun produit importé</p>
           )
         ) : (
           filteredPose.length > 0 ? (
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Type de pose</th>
-                    <th className="text-left py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Description</th>
-                    <th className="text-center py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Unité</th>
-                    <th className="text-right py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Prix unitaire HT</th>
-                    <th className="text-center py-2 text-xs uppercase tracking-wider text-muted-foreground font-medium">Durée (h)</th>
-                    <th className="w-10" />
+                  <tr className="table-header-dark">
+                    <th className="text-left rounded-tl-md">Type de pose</th>
+                    <th className="text-left">Description</th>
+                    <th className="text-center">Unité</th>
+                    <th className="text-right">Prix unitaire HT</th>
+                    <th className="text-center">Durée (h)</th>
+                    <th className="w-12 rounded-tr-md" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPose.map((p) => (
-                    <tr key={p.id} className="border-b border-border last:border-0">
-                      <td className="py-2 pr-2">{p.typePose}</td>
-                      <td className="py-2 pr-2">{p.description}</td>
-                      <td className="py-2 text-center">{p.unite}</td>
-                      <td className="py-2 text-right">{formatEURCoeff(p.prixUnitaireHT, 1)}</td>
-                      <td className="py-2 text-center">{p.dureeEstimee}</td>
-                      <td className="py-2">
-                        <button onClick={() => update({ catalogPose: settings.catalogPose.filter((x) => x.id !== p.id) })} className="p-1 text-destructive hover:bg-destructive/10 transition-colors">
+                  {filteredPose.map((p, i) => (
+                    <tr key={p.id} className={`border-b border-border last:border-0 ${i % 2 === 1 ? "bg-background" : ""}`}>
+                      <td className="py-3 pr-2 font-medium">{p.typePose}</td>
+                      <td className="py-3 pr-2 text-muted-foreground">{p.description}</td>
+                      <td className="py-3 text-center">{p.unite}</td>
+                      <td className="py-3 text-right font-mono">{formatEURCoeff(p.prixUnitaireHT, 1)}</td>
+                      <td className="py-3 text-center font-mono">{p.dureeEstimee}</td>
+                      <td className="py-3">
+                        <button onClick={() => update({ catalogPose: settings.catalogPose.filter((x) => x.id !== p.id) })} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded">
                           <Trash2 size={14} />
                         </button>
                       </td>
@@ -668,7 +666,7 @@ function BibliothequeTab({
               </table>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">Aucun tarif pose importé</p>
+            <p className="text-sm text-muted-foreground text-center py-10">Aucun tarif pose importé</p>
           )
         )}
       </section>

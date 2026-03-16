@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, FilePlus, Settings } from "lucide-react";
+import { LayoutDashboard, FilePlus, Settings, Users, FileText, Receipt, Package } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { checkPassword } from "@/lib/settings-data";
 
@@ -25,84 +25,107 @@ export function AppSidebar() {
     }
   };
 
+  const navLinkBase =
+    "flex items-center gap-3 px-5 py-3 text-[13px] text-sidebar-foreground hover:bg-[rgba(201,168,76,0.08)] transition-all duration-200 border-l-2 border-transparent";
+  const navLinkActive = "border-l-2 !border-accent text-accent bg-[rgba(201,168,76,0.06)]";
+
   return (
     <>
-      <aside className="w-56 min-h-screen bg-sidebar flex flex-col shrink-0">
+      <aside className="w-60 min-h-screen bg-sidebar flex flex-col shrink-0 border-r border-sidebar-border">
         {/* Brand */}
-        <div className="px-6 py-8 border-b border-sidebar-border">
-          <h1 className="font-display text-2xl font-bold tracking-wider text-accent">
+        <div className="px-6 py-8">
+          <h1 className="font-display text-2xl font-bold text-accent" style={{ letterSpacing: "0.15em" }}>
             ORALIS
           </h1>
-          <p className="text-xs text-sidebar-foreground mt-1 leading-tight tracking-wide">
-            Pergola Bioclimatique<br />&amp; Jardin d'Hiver Sur-Mesure
+          <p className="text-[11px] text-muted-foreground mt-1.5 tracking-wide font-body">
+            Quote Studio
           </p>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-6 space-y-1">
-          <NavLink
-            to="/"
-            end
-            className="flex items-center gap-3 px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-150"
-            activeClassName="bg-sidebar-accent text-accent"
-          >
-            <LayoutDashboard size={18} />
+        <nav className="flex-1 py-2 space-y-0.5">
+          <NavLink to="/" end className={navLinkBase} activeClassName={navLinkActive}>
+            <LayoutDashboard size={16} />
             <span>Tableau de bord</span>
           </NavLink>
-          <NavLink
-            to="/devis/nouveau"
-            className="flex items-center gap-3 px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-150"
-            activeClassName="bg-sidebar-accent text-accent"
-          >
-            <FilePlus size={18} />
+          <NavLink to="/clients" className={navLinkBase} activeClassName={navLinkActive}>
+            <Users size={16} />
+            <span>Clients & Prospects</span>
+          </NavLink>
+          <NavLink to="/devis/nouveau" className={navLinkBase} activeClassName={navLinkActive}>
+            <FilePlus size={16} />
             <span>Nouveau devis</span>
+          </NavLink>
+          <NavLink to="/devis" className={navLinkBase} activeClassName={navLinkActive}>
+            <FileText size={16} />
+            <span>Devis (liste)</span>
+          </NavLink>
+          <NavLink to="/factures" className={navLinkBase} activeClassName={navLinkActive}>
+            <Receipt size={16} />
+            <span>Factures</span>
+          </NavLink>
+          <NavLink to="/commandes" className={navLinkBase} activeClassName={navLinkActive}>
+            <Package size={16} />
+            <span>Commandes</span>
           </NavLink>
         </nav>
 
         {/* Settings */}
-        <div className="px-3 pb-2">
+        <div className="px-2 py-1">
           <button
             onClick={handleSettingsClick}
-            className="flex items-center gap-3 px-3 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors duration-150 w-full text-left"
+            className={`${navLinkBase} w-full text-left rounded`}
           >
-            <Settings size={18} />
+            <Settings size={16} />
             <span>Paramètres</span>
           </button>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-sidebar-border">
-          <p className="text-[10px] text-sidebar-foreground/50 leading-tight">
-            © 2026 ORALIS SAS<br />Tous droits réservés
-          </p>
+        {/* User + Version */}
+        <div className="px-5 py-4 border-t border-sidebar-border">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-semibold">
+              DB
+            </div>
+            <div>
+              <p className="text-[12px] text-sidebar-accent-foreground font-medium leading-tight">David Boilon</p>
+              <p className="text-[10px] text-sidebar-foreground/50">Administrateur</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] px-2 py-0.5 rounded-full bg-sidebar-accent text-sidebar-foreground/60 tracking-wider uppercase font-medium">
+              v1.0 ORALIS
+            </span>
+          </div>
         </div>
       </aside>
 
       {/* Password modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50">
-          <div className="bg-card border border-border p-8 w-full max-w-sm shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm">
+          <div className="bg-card border border-border p-8 w-full max-w-sm shadow-elevated rounded-lg">
             <h2 className="font-display text-xl font-semibold mb-2">Accès Superviseur</h2>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-sm text-muted-foreground mb-5">
               Entrez le mot de passe pour accéder aux paramètres.
             </p>
+            <label className="form-label">Mot de passe</label>
             <input
               type="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError(""); }}
               onKeyDown={(e) => e.key === "Enter" && handleConfirm()}
-              placeholder="Mot de passe"
-              className="w-full px-3 py-2 bg-card border border-border text-sm font-body focus:outline-none focus:ring-1 focus:ring-accent mb-2"
+              placeholder="••••••••"
+              className="form-input mb-2"
               autoFocus
             />
             {error && <p className="text-xs text-destructive mb-2">{error}</p>}
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2 mt-5">
               <button onClick={handleConfirm} className="btn-gold flex-1">
                 Confirmer
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 text-sm border border-border hover:bg-muted transition-colors"
+                className="btn-ghost flex-1 border border-border"
               >
                 Annuler
               </button>
