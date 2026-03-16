@@ -39,7 +39,7 @@ export default function QuotePreview() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
-      <div className="no-print flex items-center gap-3 p-4 border-b border-border bg-card">
+      <div className="no-print flex items-center gap-3 p-4 border-b border-border bg-card shadow-header">
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -49,20 +49,20 @@ export default function QuotePreview() {
         <div className="flex-1" />
         <button
           onClick={() => navigate(`/devis/${quote.id}`)}
-          className="px-4 py-2 text-sm border border-border hover:bg-muted transition-colors"
+          className="btn-outline-gold text-xs"
         >
           Modifier
         </button>
         <button
           onClick={() => window.print()}
-          className="btn-gold flex items-center gap-2"
+          className="btn-gold flex items-center gap-2 text-xs"
         >
           <Printer size={14} /> Imprimer
         </button>
       </div>
 
       {/* Print container */}
-      <div className="print-container max-w-[210mm] mx-auto my-8 bg-card p-12 border border-border no-print:shadow-none">
+      <div className="print-container max-w-[210mm] mx-auto my-8 bg-card p-12 border border-border rounded-lg shadow-card">
         {/* Custom header text */}
         {docS.enTete && (
           <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">{docS.enTete}</p>
@@ -75,14 +75,14 @@ export default function QuotePreview() {
               <img src={settings.logo} alt="Logo" className="w-16 h-16 object-contain" />
             )}
             <div>
-              <h1 className="font-display text-4xl font-bold text-accent tracking-wider">ORALIS</h1>
+              <h1 className="font-display text-[32px] font-bold text-accent tracking-wider">ORALIS</h1>
               <p className="text-xs text-muted-foreground mt-1">
                 Pergola Bioclimatique &amp; Jardin d'Hiver Sur-Mesure
               </p>
             </div>
           </div>
           <div className="text-right text-xs text-muted-foreground leading-relaxed">
-            <p>{c.nom}</p>
+            <p className="font-medium text-foreground">{c.nom}</p>
             <p>{c.rue}</p>
             <p>{c.codePostal} {c.ville}, {c.pays}</p>
             <p>{c.telephone}</p>
@@ -92,40 +92,40 @@ export default function QuotePreview() {
         </div>
 
         {/* Gold divider */}
-        <div className="h-px bg-accent mb-8" />
+        <div className="h-0.5 bg-accent mb-8" />
 
         {/* Title block */}
         <div className="flex justify-between items-start mb-8 page-break-avoid">
           <div>
             <h2 className="font-display text-3xl font-semibold tracking-wide">DEVIS</h2>
-            <p className="text-sm text-muted-foreground mt-1">{quote.numero}</p>
+            <p className="text-sm text-muted-foreground mt-1 font-mono">{quote.numero}</p>
           </div>
-          <div className="text-right text-sm">
+          <div className="text-right text-sm space-y-0.5">
             <p>
               <span className="text-muted-foreground">Date : </span>
-              {formatDate(quote.date)}
+              <span className="font-medium">{formatDate(quote.date)}</span>
             </p>
             <p>
               <span className="text-muted-foreground">Validité : </span>
-              {quote.validite} jours
+              <span className="font-medium">{quote.validite} jours</span>
             </p>
             <p>
               <span className="text-muted-foreground">Expire le : </span>
-              {formatDate(expiryDate(quote.date, quote.validite))}
+              <span className="font-medium">{formatDate(expiryDate(quote.date, quote.validite))}</span>
             </p>
           </div>
         </div>
 
         {/* Client block */}
-        <div className="mb-8 page-break-avoid">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+        <div className="mb-8 page-break-avoid bg-background rounded-lg p-5">
+          <p className="form-label mb-2">
             Établi pour :
           </p>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium">
+            <p className="font-semibold text-[15px]">
               {quote.client.prenom} {quote.client.nom}
             </p>
-            {quote.client.societe && <p>{quote.client.societe}</p>}
+            {quote.client.societe && <p className="font-medium">{quote.client.societe}</p>}
             {quote.client.rue && <p>{quote.client.rue}</p>}
             <p>
               {quote.client.codePostal} {quote.client.ville}
@@ -140,20 +140,20 @@ export default function QuotePreview() {
         {/* Products table */}
         <table className="w-full text-sm mb-8 page-break-avoid">
           <thead>
-            <tr className="border-b-2 border-foreground/20">
-              <th className="text-left py-2 font-medium text-xs uppercase tracking-wider">
+            <tr className="border-b-2 border-accent">
+              <th className="text-left py-3 font-semibold text-[11px] uppercase tracking-wider font-body">
                 Désignation
               </th>
-              <th className="text-center py-2 font-medium text-xs uppercase tracking-wider w-16">
+              <th className="text-center py-3 font-semibold text-[11px] uppercase tracking-wider w-16 font-body">
                 Qté
               </th>
-              <th className="text-right py-2 font-medium text-xs uppercase tracking-wider w-28">
+              <th className="text-right py-3 font-semibold text-[11px] uppercase tracking-wider w-28 font-body">
                 Prix U. HT
               </th>
-              <th className="text-center py-2 font-medium text-xs uppercase tracking-wider w-16">
+              <th className="text-center py-3 font-semibold text-[11px] uppercase tracking-wider w-16 font-body">
                 TVA
               </th>
-              <th className="text-right py-2 font-medium text-xs uppercase tracking-wider w-28">
+              <th className="text-right py-3 font-semibold text-[11px] uppercase tracking-wider w-28 font-body">
                 Montant HT
               </th>
             </tr>
@@ -161,8 +161,8 @@ export default function QuotePreview() {
           <tbody>
             {quote.lignes.map((line, i) => (
               <React.Fragment key={line.id}>
-                <tr className={i % 2 === 1 ? "bg-muted/30" : ""}>
-                  <td className="py-2.5 pr-4">
+                <tr className={i % 2 === 1 ? "bg-background" : ""}>
+                  <td className="py-3 pr-4">
                     <span className="font-medium">{line.designation}</span>
                     {line.description && (
                       <p className="text-xs text-muted-foreground italic mt-0.5">
@@ -170,26 +170,26 @@ export default function QuotePreview() {
                       </p>
                     )}
                   </td>
-                  <td className="py-2.5 text-center">{line.quantite}</td>
-                  <td className="py-2.5 text-right">{formatEUR(line.prixUnitaireHT)}</td>
-                  <td className="py-2.5 text-center">{line.tva}%</td>
-                  <td className="py-2.5 text-right font-medium">
+                  <td className="py-3 text-center font-mono">{line.quantite}</td>
+                  <td className="py-3 text-right font-mono">{formatEUR(line.prixUnitaireHT)}</td>
+                  <td className="py-3 text-center">{line.tva}%</td>
+                  <td className="py-3 text-right font-medium font-mono">
                     {formatEUR(lineMontantHT(line))}
                   </td>
                 </tr>
                 {line.options.map((opt) => (
-                  <tr key={opt.id} className={i % 2 === 1 ? "bg-muted/30" : ""}>
-                    <td className="py-1.5 pr-4 pl-4">
-                      <span className="inline-flex items-center gap-1.5 text-xs">
-                        <span className="w-0.5 h-4 bg-accent inline-block shrink-0" />
+                  <tr key={opt.id} className={i % 2 === 1 ? "bg-background" : ""}>
+                    <td className="py-2 pr-4 pl-5">
+                      <span className="inline-flex items-center gap-2 text-xs">
+                        <span className="w-0.5 h-4 bg-accent inline-block shrink-0 rounded-full" />
                         <span className="text-muted-foreground">↳</span>
-                        {opt.designation}
+                        <span>{opt.designation}</span>
                       </span>
                     </td>
-                    <td className="py-1.5 text-center text-xs">1</td>
-                    <td className="py-1.5 text-right text-xs">{formatEUR(opt.prixHT)}</td>
-                    <td className="py-1.5 text-center text-xs">{opt.tva}%</td>
-                    <td className="py-1.5 text-right text-xs">{formatEUR(opt.prixHT)}</td>
+                    <td className="py-2 text-center text-xs font-mono">1</td>
+                    <td className="py-2 text-right text-xs font-mono">{formatEUR(opt.prixHT)}</td>
+                    <td className="py-2 text-center text-xs">{opt.tva}%</td>
+                    <td className="py-2 text-right text-xs font-mono">{formatEUR(opt.prixHT)}</td>
                   </tr>
                 ))}
               </React.Fragment>
@@ -199,65 +199,65 @@ export default function QuotePreview() {
 
         {/* Totals */}
         <div className="flex justify-end mb-8 page-break-avoid">
-          <div className="w-72">
-            <div className="flex justify-between py-1 text-sm">
+          <div className="w-80">
+            <div className="flex justify-between py-1.5 text-sm">
               <span className="text-muted-foreground">Sous-total HT</span>
-              <span>{formatEUR(totals.sousTotal)}</span>
+              <span className="font-mono">{formatEUR(totals.sousTotal)}</span>
             </div>
             {Object.entries(totals.tvaMap)
               .filter(([, v]) => v > 0)
               .sort(([a], [b]) => Number(a) - Number(b))
               .map(([rate, amount]) => (
-                <div key={rate} className="flex justify-between py-1 text-sm">
+                <div key={rate} className="flex justify-between py-1.5 text-sm">
                   <span className="text-muted-foreground">TVA {rate}%</span>
-                  <span>{formatEUR(amount)}</span>
+                  <span className="font-mono">{formatEUR(amount)}</span>
                 </div>
               ))}
-            <div className="flex justify-between py-1 text-sm">
+            <div className="flex justify-between py-1.5 text-sm">
               <span className="text-muted-foreground">Total TVA</span>
-              <span>{formatEUR(totals.totalTVA)}</span>
+              <span className="font-mono">{formatEUR(totals.totalTVA)}</span>
             </div>
-            <div className="border-t-2 border-accent mt-2 pt-2 flex justify-between">
+            <div className="border-t-2 border-accent mt-3 pt-3 flex justify-between">
               <span className="font-display text-xl font-bold">TOTAL TTC</span>
               <span className="font-display text-xl font-bold text-accent">
                 {formatEUR(totals.totalTTC)}
               </span>
             </div>
             {acomptePct && (
-              <div className="flex justify-between py-1 text-sm mt-1">
+              <div className="flex justify-between py-1.5 text-sm mt-2">
                 <span className="text-muted-foreground">
                   Acompte ({acomptePct}%)
                 </span>
-                <span>{formatEUR(totals.totalTTC * acomptePct / 100)}</span>
+                <span className="font-mono">{formatEUR(totals.totalTTC * acomptePct / 100)}</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border pt-6 text-sm space-y-3 page-break-avoid">
+        <div className="border-t border-border pt-6 text-sm space-y-4 page-break-avoid">
           {quote.conditionsPaiement && (
             <div>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+              <span className="form-label">
                 Conditions de paiement
               </span>
-              <p className="mt-0.5">{quote.conditionsPaiement}</p>
+              <p className="mt-1">{quote.conditionsPaiement}</p>
             </div>
           )}
           {quote.delaiRealisation && (
             <div>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+              <span className="form-label">
                 Délai de réalisation
               </span>
-              <p className="mt-0.5">{quote.delaiRealisation}</p>
+              <p className="mt-1">{quote.delaiRealisation}</p>
             </div>
           )}
           {quote.notes && (
             <div>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+              <span className="form-label">
                 Notes
               </span>
-              <p className="mt-0.5">{quote.notes}</p>
+              <p className="mt-1">{quote.notes}</p>
             </div>
           )}
 
@@ -266,20 +266,20 @@ export default function QuotePreview() {
           </p>
 
           {docS.zoneSignature && (
-            <div className="mt-8 pt-4 border-t border-border">
+            <div className="mt-8 pt-6 border-t border-border">
               <div className="flex justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-8">
+                  <p className="text-xs text-muted-foreground mb-8 font-medium">
                     {docS.texteSignatureClient} — Date et signature :
                   </p>
-                  <div className="border-b border-dotted border-foreground/30 w-64 h-12" />
+                  <div className="border-b-2 border-dotted border-accent/40 w-64 h-12" />
                 </div>
                 {docS.texteSignatureEntreprise && (
                   <div className="text-right">
-                    <p className="text-xs text-muted-foreground mb-8">
+                    <p className="text-xs text-muted-foreground mb-8 font-medium">
                       {docS.texteSignatureEntreprise}
                     </p>
-                    <div className="border-b border-dotted border-foreground/30 w-48 h-12 ml-auto" />
+                    <div className="border-b-2 border-dotted border-accent/40 w-48 h-12 ml-auto" />
                   </div>
                 )}
               </div>

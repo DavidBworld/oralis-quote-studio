@@ -63,14 +63,14 @@ function AutocompleteInput({
           setOpen(true);
         }}
         placeholder={placeholder}
-        className="w-full px-3 py-2 bg-card border border-border text-sm font-body focus:outline-none focus:ring-1 focus:ring-accent"
+        className="form-input"
       />
       {open && filtered.length > 0 && (
-        <ul className="absolute z-20 left-0 right-0 bg-card border border-border shadow-sm max-h-48 overflow-auto mt-0.5">
+        <ul className="absolute z-20 left-0 right-0 bg-card border border-border shadow-elevated max-h-48 overflow-auto mt-0.5 rounded-md">
           {filtered.map((s) => (
             <li
               key={s}
-              className="px-3 py-2 text-sm hover:bg-muted cursor-pointer"
+              className="px-3 py-2.5 text-sm hover:bg-accent/5 cursor-pointer transition-colors"
               onMouseDown={() => {
                 onChange(s);
                 setOpen(false);
@@ -154,43 +154,40 @@ export default function QuoteForm() {
 
   const totals = calcTotals(quote.lignes);
 
-  const inputCls = "w-full px-3 py-2 bg-card border border-border text-sm font-body focus:outline-none focus:ring-1 focus:ring-accent";
-  const labelCls = "block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1";
-
   return (
-    <div className="p-8 max-w-5xl mx-auto pb-32">
-      <h1 className="font-display text-3xl font-semibold mb-1">
+    <div className="p-8 lg:p-10 max-w-5xl mx-auto pb-32">
+      <h1 className="font-display text-[28px] font-semibold mb-1 tracking-tight">
         {id === "nouveau" ? "Nouveau Devis" : `Devis ${quote.numero}`}
       </h1>
-      <p className="text-sm text-muted-foreground mb-8">
+      <p className="text-[13px] text-muted-foreground mb-8 font-body">
         {id === "nouveau"
           ? "Créez un nouveau devis premium"
           : "Modifiez les informations du devis"}
       </p>
 
       {/* Section A — Header */}
-      <section className="bg-card border border-border p-6 mb-4">
-        <h2 className="font-display text-lg font-semibold mb-4">Informations du devis</h2>
+      <section className="luxury-card mb-5">
+        <h2 className="section-title">Informations du devis</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className={labelCls}>N° Devis</label>
-            <input type="text" value={quote.numero} readOnly className={`${inputCls} bg-muted`} />
+            <label className="form-label">N° Devis</label>
+            <input type="text" value={quote.numero} readOnly className="form-input bg-muted" />
           </div>
           <div>
-            <label className={labelCls}>Date</label>
+            <label className="form-label">Date</label>
             <input
               type="date"
               value={quote.date}
               onChange={(e) => update({ date: e.target.value })}
-              className={inputCls}
+              className="form-input"
             />
           </div>
           <div>
-            <label className={labelCls}>Validité (jours)</label>
+            <label className="form-label">Validité (jours)</label>
             <select
               value={quote.validite}
               onChange={(e) => update({ validite: Number(e.target.value) })}
-              className={inputCls}
+              className="form-input"
             >
               {VALIDITE_OPTIONS.map((v) => (
                 <option key={v} value={v}>{v} jours</option>
@@ -198,21 +195,21 @@ export default function QuoteForm() {
             </select>
           </div>
           <div>
-            <label className={labelCls}>Expiration</label>
+            <label className="form-label">Expiration</label>
             <input
               type="text"
               readOnly
               value={formatDate(expiryDate(quote.date, quote.validite))}
-              className={`${inputCls} bg-muted`}
+              className="form-input bg-muted"
             />
           </div>
         </div>
         <div className="mt-4 max-w-xs">
-          <label className={labelCls}>Statut</label>
+          <label className="form-label">Statut</label>
           <select
             value={quote.statut}
             onChange={(e) => update({ statut: e.target.value as Quote["statut"] })}
-            className={inputCls}
+            className="form-input"
           >
             {(Object.keys(STATUT_LABELS) as Quote["statut"][]).map((s) => (
               <option key={s} value={s}>{STATUT_LABELS[s]}</option>
@@ -222,17 +219,17 @@ export default function QuoteForm() {
       </section>
 
       {/* Section B — Client */}
-      <section className="bg-card border border-border p-6 mb-4">
-        <h2 className="font-display text-lg font-semibold mb-4">Client</h2>
-        <div className="flex gap-4 mb-4">
+      <section className="luxury-card mb-5">
+        <h2 className="section-title">Client</h2>
+        <div className="flex gap-3 mb-5">
           {(["particulier", "professionnel"] as const).map((t) => (
             <button
               key={t}
               onClick={() => updateClient({ type: t })}
-              className={`px-4 py-1.5 text-sm border transition-colors duration-150 ${
+              className={`px-4 py-2 text-[13px] rounded border transition-all duration-200 ${
                 quote.client.type === t
-                  ? "bg-accent text-accent-foreground border-accent"
-                  : "border-border text-muted-foreground hover:bg-muted"
+                  ? "bg-accent text-accent-foreground border-accent shadow-sm"
+                  : "border-border text-muted-foreground hover:border-accent/50 hover:text-foreground"
               }`}
             >
               {t === "particulier" ? "Particulier" : "Professionnel"}
@@ -241,89 +238,89 @@ export default function QuoteForm() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>Prénom *</label>
+            <label className="form-label">Prénom *</label>
             <input
               type="text"
               value={quote.client.prenom}
               onChange={(e) => updateClient({ prenom: e.target.value })}
-              className={inputCls}
+              className="form-input"
               required
             />
           </div>
           <div>
-            <label className={labelCls}>Nom *</label>
+            <label className="form-label">Nom *</label>
             <input
               type="text"
               value={quote.client.nom}
               onChange={(e) => updateClient({ nom: e.target.value })}
-              className={inputCls}
+              className="form-input"
               required
             />
           </div>
           {quote.client.type === "professionnel" && (
             <div className="md:col-span-2">
-              <label className={labelCls}>Société</label>
+              <label className="form-label">Société</label>
               <input
                 type="text"
                 value={quote.client.societe}
                 onChange={(e) => updateClient({ societe: e.target.value })}
-                className={inputCls}
+                className="form-input"
               />
             </div>
           )}
           <div>
-            <label className={labelCls}>Email *</label>
+            <label className="form-label">Email *</label>
             <input
               type="email"
               value={quote.client.email}
               onChange={(e) => updateClient({ email: e.target.value })}
-              className={inputCls}
+              className="form-input"
               required
             />
           </div>
           <div>
-            <label className={labelCls}>Téléphone</label>
+            <label className="form-label">Téléphone</label>
             <input
               type="tel"
               value={quote.client.telephone}
               onChange={(e) => updateClient({ telephone: e.target.value })}
-              className={inputCls}
+              className="form-input"
             />
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Adresse</label>
+            <label className="form-label">Adresse</label>
             <input
               type="text"
               value={quote.client.rue}
               onChange={(e) => updateClient({ rue: e.target.value })}
-              className={inputCls}
+              className="form-input"
               placeholder="Rue"
             />
           </div>
           <div>
-            <label className={labelCls}>Ville</label>
+            <label className="form-label">Ville</label>
             <input
               type="text"
               value={quote.client.ville}
               onChange={(e) => updateClient({ ville: e.target.value })}
-              className={inputCls}
+              className="form-input"
             />
           </div>
           <div>
-            <label className={labelCls}>Code postal</label>
+            <label className="form-label">Code postal</label>
             <input
               type="text"
               value={quote.client.codePostal}
               onChange={(e) => updateClient({ codePostal: e.target.value })}
-              className={inputCls}
+              className="form-input"
             />
           </div>
           <div>
-            <label className={labelCls}>Pays</label>
+            <label className="form-label">Pays</label>
             <select
               value={quote.client.pays}
               onChange={(e) => updateClient({ pays: e.target.value })}
-              className={inputCls}
+              className="form-input"
             >
               {PAYS_OPTIONS.map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -334,27 +331,27 @@ export default function QuoteForm() {
       </section>
 
       {/* Section C — Lines */}
-      <section className="bg-card border border-border p-6 mb-4">
-        <h2 className="font-display text-lg font-semibold mb-4">Lignes du devis</h2>
+      <section className="luxury-card mb-5">
+        <h2 className="section-title">Lignes du devis</h2>
 
         {quote.lignes.map((line, li) => (
           <div key={line.id} className="mb-6 last:mb-0 page-break-avoid">
             <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <span className="form-label !mb-0">
                 Ligne {li + 1}
               </span>
               {quote.lignes.length > 1 && (
                 <button
                   onClick={() => removeLine(line.id)}
-                  className="p-1 text-destructive hover:bg-destructive/10 transition-colors"
+                  className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
                 >
                   <Trash2 size={14} />
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-2">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
               <div className="md:col-span-5">
-                <label className={labelCls}>Désignation</label>
+                <label className="form-label">Désignation</label>
                 <AutocompleteInput
                   value={line.designation}
                   onChange={(v) => updateLine(line.id, { designation: v })}
@@ -363,32 +360,32 @@ export default function QuoteForm() {
                 />
               </div>
               <div className="md:col-span-1">
-                <label className={labelCls}>Qté</label>
+                <label className="form-label">Qté</label>
                 <input
                   type="number"
                   min={1}
                   value={line.quantite}
                   onChange={(e) => updateLine(line.id, { quantite: Number(e.target.value) || 1 })}
-                  className={inputCls}
+                  className="form-input text-center font-mono"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className={labelCls}>Prix U. HT (€)</label>
+                <label className="form-label">Prix U. HT (€)</label>
                 <input
                   type="number"
                   min={0}
                   step={0.01}
                   value={line.prixUnitaireHT || ""}
                   onChange={(e) => updateLine(line.id, { prixUnitaireHT: Number(e.target.value) || 0 })}
-                  className={inputCls}
+                  className="form-input font-mono"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className={labelCls}>TVA</label>
+                <label className="form-label">TVA</label>
                 <select
                   value={line.tva}
                   onChange={(e) => updateLine(line.id, { tva: Number(e.target.value) })}
-                  className={inputCls}
+                  className="form-input"
                 >
                   {TVA_RATES.map((r) => (
                     <option key={r} value={r}>{r}%</option>
@@ -396,18 +393,18 @@ export default function QuoteForm() {
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className={labelCls}>Montant HT</label>
-                <div className="px-3 py-2 bg-muted border border-border text-sm font-medium">
+                <label className="form-label">Montant HT</label>
+                <div className="h-10 px-3 py-2 bg-muted border border-border text-sm font-medium font-mono rounded flex items-center justify-end">
                   {formatEUR(lineMontantHT(line))}
                 </div>
               </div>
             </div>
             <div className="mb-3">
-              <label className={labelCls}>Description</label>
+              <label className="form-label">Description</label>
               <textarea
                 value={line.description}
                 onChange={(e) => updateLine(line.id, { description: e.target.value })}
-                className={`${inputCls} resize-none`}
+                className="form-input resize-none"
                 rows={2}
                 placeholder="Détails optionnels..."
               />
@@ -415,11 +412,11 @@ export default function QuoteForm() {
 
             {/* Options */}
             {line.options.length > 0 && (
-              <div className="ml-4 border-l-2 border-accent pl-4 space-y-3 mb-3">
+              <div className="ml-6 border-l-2 border-dashed border-accent pl-5 space-y-3 mb-3">
                 {line.options.map((opt) => (
                   <div key={opt.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
                     <div className="md:col-span-5">
-                      <label className={labelCls}>Option</label>
+                      <label className="form-label">Option</label>
                       <AutocompleteInput
                         value={opt.designation}
                         onChange={(v) => updateOption(line.id, opt.id, { designation: v })}
@@ -428,7 +425,7 @@ export default function QuoteForm() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className={labelCls}>Prix HT (€)</label>
+                      <label className="form-label">Prix HT (€)</label>
                       <input
                         type="number"
                         min={0}
@@ -437,17 +434,17 @@ export default function QuoteForm() {
                         onChange={(e) =>
                           updateOption(line.id, opt.id, { prixHT: Number(e.target.value) || 0 })
                         }
-                        className={inputCls}
+                        className="form-input font-mono"
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className={labelCls}>TVA</label>
+                      <label className="form-label">TVA</label>
                       <select
                         value={opt.tva}
                         onChange={(e) =>
                           updateOption(line.id, opt.id, { tva: Number(e.target.value) })
                         }
-                        className={inputCls}
+                        className="form-input"
                       >
                         {TVA_RATES.map((r) => (
                           <option key={r} value={r}>{r}%</option>
@@ -455,15 +452,15 @@ export default function QuoteForm() {
                       </select>
                     </div>
                     <div className="md:col-span-2">
-                      <label className={labelCls}>TTC</label>
-                      <div className="px-3 py-2 bg-muted border border-border text-sm">
+                      <label className="form-label">TTC</label>
+                      <div className="h-10 px-3 py-2 bg-muted border border-border text-sm font-mono rounded flex items-center justify-end">
                         {formatEUR(opt.prixHT * (1 + opt.tva / 100))}
                       </div>
                     </div>
                     <div className="md:col-span-1 flex justify-end">
                       <button
                         onClick={() => removeOption(line.id, opt.id)}
-                        className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors"
+                        className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -475,7 +472,7 @@ export default function QuoteForm() {
 
             <button
               onClick={() => addOption(line.id)}
-              className="text-xs text-accent hover:underline flex items-center gap-1"
+              className="text-xs text-accent hover:text-accent-hover font-medium flex items-center gap-1 transition-colors"
             >
               <Plus size={12} /> Ajouter une option
             </button>
@@ -486,35 +483,35 @@ export default function QuoteForm() {
 
         <button
           onClick={addLine}
-          className="mt-4 btn-gold flex items-center gap-2 text-xs"
+          className="mt-5 btn-outline-gold flex items-center gap-2 text-xs"
         >
           <Plus size={14} /> Ajouter une ligne
         </button>
       </section>
 
       {/* Section D — Totals (sticky) */}
-      <section className="bg-card border border-border p-6 mb-4 sticky bottom-0 z-10">
+      <section className="bg-primary text-primary-foreground border border-sidebar-border p-6 mb-5 sticky bottom-0 z-10 rounded-lg shadow-elevated">
         <div className="flex flex-col items-end gap-1 text-sm">
-          <div className="flex justify-between w-64">
-            <span className="text-muted-foreground">Sous-total HT</span>
-            <span className="font-medium">{formatEUR(totals.sousTotal)}</span>
+          <div className="flex justify-between w-72">
+            <span className="text-primary-foreground/60">Sous-total HT</span>
+            <span className="font-mono">{formatEUR(totals.sousTotal)}</span>
           </div>
           {Object.entries(totals.tvaMap)
             .filter(([, v]) => v > 0)
             .sort(([a], [b]) => Number(a) - Number(b))
             .map(([rate, amount]) => (
-              <div key={rate} className="flex justify-between w-64">
-                <span className="text-muted-foreground">TVA {rate}%</span>
-                <span>{formatEUR(amount)}</span>
+              <div key={rate} className="flex justify-between w-72">
+                <span className="text-primary-foreground/60">TVA {rate}%</span>
+                <span className="font-mono">{formatEUR(amount)}</span>
               </div>
             ))}
-          <div className="flex justify-between w-64">
-            <span className="text-muted-foreground">Total TVA</span>
-            <span>{formatEUR(totals.totalTVA)}</span>
+          <div className="flex justify-between w-72">
+            <span className="text-primary-foreground/60">Total TVA</span>
+            <span className="font-mono">{formatEUR(totals.totalTVA)}</span>
           </div>
-          <div className="border-t-2 border-accent mt-1 pt-2 flex justify-between w-64">
-            <span className="font-display text-lg font-semibold">TOTAL TTC</span>
-            <span className="font-display text-lg font-bold text-accent">
+          <div className="border-t-2 border-accent mt-2 pt-3 flex justify-between w-72">
+            <span className="font-display text-xl font-bold">TOTAL TTC</span>
+            <span className="font-display text-xl font-bold text-accent">
               {formatEUR(totals.totalTTC)}
             </span>
           </div>
@@ -522,34 +519,34 @@ export default function QuoteForm() {
       </section>
 
       {/* Section E — Terms */}
-      <section className="bg-card border border-border p-6 mb-4">
-        <h2 className="font-display text-lg font-semibold mb-4">Conditions commerciales</h2>
+      <section className="luxury-card mb-5">
+        <h2 className="section-title">Conditions commerciales</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className={labelCls}>Conditions de paiement</label>
+            <label className="form-label">Conditions de paiement</label>
             <input
               type="text"
               value={quote.conditionsPaiement}
               onChange={(e) => update({ conditionsPaiement: e.target.value })}
-              className={inputCls}
+              className="form-input"
             />
           </div>
           <div>
-            <label className={labelCls}>Délai de réalisation</label>
+            <label className="form-label">Délai de réalisation</label>
             <input
               type="text"
               value={quote.delaiRealisation}
               onChange={(e) => update({ delaiRealisation: e.target.value })}
-              className={inputCls}
+              className="form-input"
             />
           </div>
         </div>
         <div className="mb-4">
-          <label className={labelCls}>Notes / Remarques</label>
+          <label className="form-label">Notes / Remarques</label>
           <textarea
             value={quote.notes}
             onChange={(e) => update({ notes: e.target.value })}
-            className={`${inputCls} resize-none`}
+            className="form-input resize-none"
             rows={3}
           />
         </div>
@@ -570,13 +567,13 @@ export default function QuoteForm() {
             const saved = all.find((q) => q.id === quote.id);
             if (saved) navigate(`/devis/${saved.id}/apercu`);
           }}
-          className="px-5 py-2.5 border border-border text-sm font-medium uppercase tracking-wide hover:bg-muted transition-colors duration-150"
+          className="btn-outline-gold"
         >
           Aperçu PDF
         </button>
         <button
           onClick={() => navigate("/")}
-          className="px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-150"
+          className="btn-ghost"
         >
           Retour au tableau de bord
         </button>

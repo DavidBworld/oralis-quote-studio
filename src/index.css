@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap');
+
 @layer base {
   :root {
     --background: 40 7% 95%;
@@ -18,12 +20,17 @@
     --muted-foreground: 0 0% 42%;
     --accent: 43 50% 54%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 65% 50%;
+    --accent-hover: 43 55% 42%;
+    --destructive: 4 65% 47%;
     --destructive-foreground: 0 0% 100%;
+    --success: 150 45% 33%;
+    --success-foreground: 0 0% 100%;
+    --warning: 43 85% 38%;
+    --warning-foreground: 0 0% 100%;
     --border: 34 10% 87%;
     --input: 34 10% 87%;
     --ring: 43 50% 54%;
-    --radius: 2px;
+    --radius: 8px;
 
     --sidebar-background: 0 0% 5%;
     --sidebar-foreground: 0 0% 70%;
@@ -36,11 +43,17 @@
 
     --gold: 43 50% 54%;
     --gold-foreground: 0 0% 100%;
+    --gold-light: 45 65% 66%;
     --stone: 40 7% 95%;
     --slate-text: 0 0% 42%;
 
     --font-display: 'Cormorant Garamond', serif;
     --font-body: 'Jost', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-elevated: 0 4px 16px rgba(0,0,0,0.08);
+    --shadow-header: 0 1px 3px rgba(0,0,0,0.05);
   }
 }
 
@@ -51,6 +64,8 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
@@ -58,26 +73,110 @@
 }
 
 @layer components {
+  /* ── Primary gold button ── */
   .btn-gold {
-    @apply bg-accent text-accent-foreground px-5 py-2.5 font-medium tracking-wide uppercase text-sm transition-opacity duration-200;
+    @apply bg-accent text-accent-foreground px-5 py-2.5 font-medium tracking-widest uppercase text-[13px] transition-all duration-200 rounded;
+    font-family: var(--font-body);
+    letter-spacing: 0.05em;
   }
   .btn-gold:hover {
-    opacity: 0.88;
+    background: hsl(var(--accent-hover));
+    box-shadow: 0 4px 12px hsl(var(--accent) / 0.25);
   }
+  .btn-gold:active {
+    transform: scale(0.98);
+  }
+
+  /* ── Secondary outline button ── */
+  .btn-outline-gold {
+    @apply bg-card text-accent border border-accent px-5 py-2.5 font-medium tracking-widest uppercase text-[13px] transition-all duration-200 rounded;
+    font-family: var(--font-body);
+    letter-spacing: 0.05em;
+  }
+  .btn-outline-gold:hover {
+    @apply bg-accent/5;
+  }
+
+  /* ── Ghost button ── */
+  .btn-ghost {
+    @apply px-5 py-2.5 text-[13px] text-muted-foreground transition-colors duration-200 rounded;
+    font-family: var(--font-body);
+  }
+  .btn-ghost:hover {
+    @apply text-foreground bg-muted/50;
+  }
+
+  /* ── Danger outline button ── */
+  .btn-danger {
+    @apply bg-card text-destructive border border-destructive px-5 py-2.5 font-medium tracking-wide uppercase text-[13px] transition-all duration-200 rounded;
+    font-family: var(--font-body);
+  }
+  .btn-danger:hover {
+    @apply bg-destructive/5;
+  }
+
+  /* ── Status badges ── */
   .status-brouillon {
-    @apply bg-muted text-muted-foreground;
+    @apply bg-muted text-muted-foreground rounded-full;
   }
   .status-envoye {
-    @apply text-accent-foreground;
-    background: hsl(220 60% 50%);
+    background: hsl(220 75% 96%);
+    color: hsl(220 75% 45%);
+    @apply rounded-full;
   }
   .status-accepte {
-    @apply text-accent-foreground;
-    background: hsl(150 45% 40%);
+    background: hsl(150 40% 96%);
+    color: hsl(150 45% 33%);
+    @apply rounded-full;
   }
   .status-refuse {
-    @apply text-accent-foreground;
-    background: hsl(0 55% 50%);
+    background: hsl(4 65% 96%);
+    color: hsl(4 65% 47%);
+    @apply rounded-full;
+  }
+
+  /* ── Luxury card ── */
+  .luxury-card {
+    @apply bg-card border border-border p-6 rounded-lg;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* ── Section header with gold underline ── */
+  .section-title {
+    @apply font-display text-lg font-semibold pb-3 mb-5;
+    border-bottom: 2px solid hsl(var(--accent));
+  }
+
+  /* ── Form label ── */
+  .form-label {
+    @apply block text-[11px] font-semibold text-muted-foreground uppercase mb-1.5;
+    letter-spacing: 0.08em;
+    font-family: var(--font-body);
+  }
+
+  /* ── Form input ── */
+  .form-input {
+    @apply w-full h-10 px-3 py-2 bg-card border border-border text-sm rounded focus:outline-none transition-all duration-200;
+    font-family: var(--font-body);
+  }
+  .form-input:focus {
+    border-color: hsl(var(--accent));
+    box-shadow: 0 0 0 3px hsl(var(--accent) / 0.1);
+  }
+
+  /* ── Monospace numbers ── */
+  .font-mono-num {
+    font-family: var(--font-mono);
+  }
+
+  /* ── Table header (dark) ── */
+  .table-header-dark {
+    @apply bg-primary text-primary-foreground;
+  }
+  .table-header-dark th {
+    @apply py-3 px-4 text-[11px] font-semibold uppercase tracking-wider;
+    font-family: var(--font-body);
+    letter-spacing: 0.08em;
   }
 }
 
