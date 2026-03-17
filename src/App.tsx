@@ -9,6 +9,10 @@ import QuoteForm from "./pages/QuoteForm";
 import QuotePreview from "./pages/QuotePreview";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Clients from "./pages/Clients";
+import QuotesList from "./pages/QuotesList";
+import Factures from "./pages/Factures";
+import Commandes from "./pages/Commandes";
 
 const queryClient = new QueryClient();
 
