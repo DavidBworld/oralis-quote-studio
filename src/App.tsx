@@ -56,6 +56,11 @@ const App = () => (
               </AppLayout>
             }
           />
+          <Route path="/clients" element={<AppLayout><Clients /></AppLayout>} />
+          <Route path="/clients/:id" element={<AppLayout><Clients /></AppLayout>} />
+          <Route path="/devis" element={<AppLayout><QuotesList /></AppLayout>} />
+          <Route path="/factures" element={<AppLayout><Factures /></AppLayout>} />
+          <Route path="/commandes" element={<AppLayout><Commandes /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
