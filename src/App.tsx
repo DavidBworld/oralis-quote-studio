@@ -9,6 +9,10 @@ import QuoteForm from "./pages/QuoteForm";
 import QuotePreview from "./pages/QuotePreview";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Clients from "./pages/Clients";
+import QuotesList from "./pages/QuotesList";
+import Factures from "./pages/Factures";
+import Commandes from "./pages/Commandes";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +56,11 @@ const App = () => (
               </AppLayout>
             }
           />
+          <Route path="/clients" element={<AppLayout><Clients /></AppLayout>} />
+          <Route path="/clients/:id" element={<AppLayout><Clients /></AppLayout>} />
+          <Route path="/devis" element={<AppLayout><QuotesList /></AppLayout>} />
+          <Route path="/factures" element={<AppLayout><Factures /></AppLayout>} />
+          <Route path="/commandes" element={<AppLayout><Commandes /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
