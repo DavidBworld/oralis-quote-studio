@@ -1,6 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Eye, Pencil, Copy, FileText } from "lucide-react";
+import {
+  Search, Plus, Eye, Pencil, Copy, FileText, Printer, Star, Trash2,
+  ChevronRight, AlertTriangle, TrendingUp, Send, BarChart3, Clock,
+  ChevronDown, X, Mail
+} from "lucide-react";
+import { toast } from "sonner";
 import {
   loadQuotes,
   saveQuotes,
@@ -9,7 +14,6 @@ import {
   formatDate,
   calcTotals,
   STATUT_LABELS,
-  createEmptyQuote,
   uid,
   type Quote,
 } from "@/lib/quote-data";
@@ -21,15 +25,406 @@ const statusClass: Record<Quote["statut"], string> = {
   refuse: "status-refuse",
 };
 
+const statusBorderClass: Record<Quote["statut"], string> = {
+  brouillon: "",
+  envoye: "",
+  accepte: "border-l-[3px] border-l-[hsl(150_45%_33%)]",
+  refuse: "border-l-[3px] border-l-destructive",
+};
+
+// ── Helpers for commandes/factures localStorage ──
+function loadCommandes(): any[] {
+  try { return JSON.parse(localStorage.getItem("oralis_commandes") || "[]"); } catch { return []; }
+}
+function saveCommandes(c: any[]) { localStorage.setItem("oralis_commandes", JSON.stringify(c)); }
+function nextCommandeNumber(): string {
+  const all = loadCommandes();
+  const y = new Date().getFullYear();
+  const nums = all.map((c: any) => { const m = c.numero?.match(/CMD-\d+-(\d+)/); return m ? parseInt(m[1]) : 0; }).filter(Boolean);
+  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+  return `ORALIS-CMD-${y}-${String(next).padStart(3, "0")}`;
+}
+
+function loadFactures(): any[] {
+  try { return JSON.parse(localStorage.getItem("oralis_factures") || "[]"); } catch { return []; }
+}
+function saveFactures(f: any[]) { localStorage.setItem("oralis_factures", JSON.stringify(f)); }
+function nextFactureNumber(): string {
+  const all = loadFactures();
+  const y = new Date().getFullYear();
+  const nums = all.map((f: any) => { const m = f.numero?.match(/FA-\d+-(\d+)/); return m ? parseInt(m[1]) : 0; }).filter(Boolean);
+  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+  return `ORALIS-FA-${y}-${String(next).padStart(3, "0")}`;
+}
+
+function loadFavoris(): string[] {
+  try { return JSON.parse(localStorage.getItem("oralis_devis_favoris") || "[]"); } catch { return []; }
+}
+function saveFavoris(f: string[]) { localStorage.setItem("oralis_devis_favoris", JSON.stringify(f)); }
+
+function daysSince(dateStr: string): number {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+}
+
+// ── Context Menu ──
+interface CtxMenu { x: number; y: number; quote: Quote; subOpen?: string }
+
+function ContextMenu({ ctx, onClose, onAction }: {
+  ctx: CtxMenu;
+  onClose: () => void;
+  onAction: (action: string, q: Quote, sub?: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [subOpen, setSubOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("keydown", esc); };
+  }, [onClose]);
+
+  const q = ctx.quote;
+  const isAccepte = q.statut === "accepte";
+
+  const Item = ({ icon, label, onClick, danger, disabled }: { icon: React.ReactNode; label: string; onClick?: () => void; danger?: boolean; disabled?: boolean }) => (
+    <button
+      className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] font-body text-left transition-colors ${danger ? "text-destructive" : ""} ${disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-accent/[0.08] cursor-pointer"}`}
+      onClick={disabled ? undefined : () => { onClick?.(); onClose(); }}
+      disabled={disabled}
+    >
+      {icon}{label}
+    </button>
+  );
+
+  const Divider = () => <div className="border-t border-border my-1" />;
+
+  // Clamp position
+  const style: React.CSSProperties = {
+    position: "fixed",
+    top: Math.min(ctx.y, window.innerHeight - 420),
+    left: Math.min(ctx.x, window.innerWidth - 240),
+    zIndex: 50,
+  };
+
+  return (
+    <div ref={ref} style={style} className="w-[240px] bg-card border border-border rounded-lg py-1 shadow-[var(--shadow-elevated)]">
+      <Item icon={<Pencil size={14} />} label="Modifier" onClick={() => onAction("edit", q)} />
+      <Item icon={<Eye size={14} />} label="Aperçu PDF" onClick={() => onAction("preview", q)} />
+      <Item icon={<Copy size={14} />} label="Dupliquer" onClick={() => onAction("duplicate", q)} />
+      <Divider />
+      <Item icon={<span className="text-sm">🔁</span>} label="Convertir en commande" onClick={() => onAction("convert_cmd", q)} disabled={!isAccepte} />
+      <Item icon={<span className="text-sm">💰</span>} label="Créer facture d'acompte" onClick={() => onAction("create_fa", q)} disabled={!isAccepte} />
+      <Item icon={<FileText size={14} />} label="Créer variante" onClick={() => onAction("variant", q)} />
+      <Divider />
+      {/* Status submenu */}
+      <div
+        className="relative"
+        onMouseEnter={() => setSubOpen("status")}
+        onMouseLeave={() => setSubOpen(null)}
+      >
+        <div className="w-full flex items-center justify-between gap-3 px-4 py-2 text-[13px] font-body hover:bg-accent/[0.08] cursor-pointer">
+          <span className="flex items-center gap-3"><Send size={14} />Changer le statut</span>
+          <ChevronRight size={12} />
+        </div>
+        {subOpen === "status" && (
+          <div className="absolute left-full top-0 w-[160px] bg-card border border-border rounded-lg py-1 shadow-[var(--shadow-elevated)]">
+            {(["brouillon", "envoye", "accepte", "refuse"] as const).map((s) => (
+              <button
+                key={s}
+                className={`w-full text-left px-4 py-2 text-[13px] font-body hover:bg-accent/[0.08] ${q.statut === s ? "font-semibold text-accent" : ""}`}
+                onClick={() => { onAction("set_status", q, s); onClose(); }}
+              >
+                {STATUT_LABELS[s]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <Divider />
+      <Item icon={<Printer size={14} />} label="Imprimer/Exporter" onClick={() => onAction("print", q)} />
+      <Item icon={<Star size={14} />} label="Ajouter aux favoris" onClick={() => onAction("toggle_fav", q)} />
+      <Divider />
+      <Item icon={<Trash2 size={14} />} label="Supprimer" onClick={() => onAction("delete", q)} danger />
+    </div>
+  );
+}
+
+// ── Status Dropdown ──
+function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const changeStatus = (s: Quote["statut"]) => {
+    const all = loadQuotes();
+    const idx = all.findIndex((q) => q.id === quote.id);
+    if (idx >= 0) { all[idx].statut = s; saveQuotes(all); }
+    setOpen(false);
+    onUpdate();
+    toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
+  };
+
+  return (
+    <div className="relative inline-block" ref={ref}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        className={`inline-flex items-center gap-1 px-3 py-1 text-[11px] font-semibold tracking-wide ${statusClass[quote.statut]} cursor-pointer`}
+      >
+        {STATUT_LABELS[quote.statut]}
+        <ChevronDown size={10} />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 w-[130px] bg-card border border-border rounded-lg py-1 shadow-[var(--shadow-elevated)]">
+          {(["brouillon", "envoye", "accepte", "refuse"] as const).map((s) => (
+            <button
+              key={s}
+              className={`w-full text-left px-3 py-1.5 text-[12px] font-body hover:bg-accent/[0.08] ${quote.statut === s ? "font-semibold text-accent" : ""}`}
+              onClick={(e) => { e.stopPropagation(); changeStatus(s); }}
+            >
+              {STATUT_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Convert to Commande Modal ──
+function ConvertCommandeModal({ quote, onClose, onDone }: { quote: Quote; onClose: () => void; onDone: () => void }) {
+  const [refAffaire, setRefAffaire] = useState("");
+  const [dateLivraison, setDateLivraison] = useState("");
+  const [archiver, setArchiver] = useState(false);
+  const [copie, setCopie] = useState(true);
+
+  const handleConvert = () => {
+    const totals = calcTotals(quote.lignes);
+    const cmd = {
+      id: uid(),
+      numero: nextCommandeNumber(),
+      devisId: quote.id,
+      devisNumero: quote.numero,
+      client: quote.client,
+      lignes: quote.lignes,
+      referenceAffaire: refAffaire,
+      dateLivraison,
+      statut: "en_cours",
+      dateCreation: new Date().toISOString().split("T")[0],
+      totalHT: totals.sousTotal,
+      totalTTC: totals.totalTTC,
+    };
+    const cmds = loadCommandes();
+    cmds.push(cmd);
+    saveCommandes(cmds);
+
+    const all = loadQuotes();
+    const idx = all.findIndex((q) => q.id === quote.id);
+    if (idx >= 0) {
+      all[idx].statut = "accepte";
+      if (archiver) (all[idx] as any).archived = true;
+      saveQuotes(all);
+    }
+    toast.success("Devis converti en commande ✓");
+    onDone();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-card border border-border rounded-lg w-full max-w-md p-6 shadow-[var(--shadow-elevated)]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-xl font-semibold">Convertir le devis en commande</h2>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X size={16} /></button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Devis N° <span className="font-mono font-medium text-foreground">{quote.numero}</span> — Client : <span className="font-medium text-foreground">{quote.client.prenom} {quote.client.nom}</span>
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="form-label">Référence affaire</label>
+            <input className="form-input" placeholder="Ex: Villa Müller - Pergola" value={refAffaire} onChange={(e) => setRefAffaire(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">Date livraison/pose prévue</label>
+            <input type="date" className="form-input" value={dateLivraison} onChange={(e) => setDateLivraison(e.target.value)} />
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={archiver} onChange={(e) => setArchiver(e.target.checked)} className="accent-[hsl(var(--accent))]" />
+            Archiver le devis après conversion
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={copie} onChange={(e) => setCopie(e.target.checked)} className="accent-[hsl(var(--accent))]" />
+            Conserver une copie en archive
+          </label>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="btn-ghost">Annuler</button>
+          <button onClick={handleConvert} className="btn-gold">Convertir</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Facture Acompte Modal ──
+function FactureAcompteModal({ quote, onClose, onDone }: { quote: Quote; onClose: () => void; onDone: () => void }) {
+  const totals = calcTotals(quote.lignes);
+  const [pct, setPct] = useState(30);
+  const [usePercent, setUsePercent] = useState(true);
+  const [montantDirect, setMontantDirect] = useState(totals.totalTTC * 0.3);
+  const [libelle, setLibelle] = useState(`Acompte sur devis ${quote.numero}`);
+  const [dateFacture, setDateFacture] = useState(new Date().toISOString().split("T")[0]);
+  const [dateEcheance, setDateEcheance] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0];
+  });
+  const [modePaiement, setModePaiement] = useState("Virement");
+  const [addReglement, setAddReglement] = useState(false);
+  const [montantRecu, setMontantRecu] = useState(0);
+  const [dateReception, setDateReception] = useState(new Date().toISOString().split("T")[0]);
+
+  const montantAcompte = usePercent ? totals.totalTTC * (pct / 100) : montantDirect;
+
+  const handleCreate = () => {
+    const tvaBreakdown = Object.entries(totals.tvaMap).map(([taux, montantTVA]) => {
+      const t = parseFloat(taux);
+      // Calculate base HT for this rate
+      let baseHT = 0;
+      for (const l of quote.lignes) {
+        if (l.tva === t) baseHT += l.quantite * l.prixUnitaireHT;
+        for (const o of l.options) { if (o.tva === t) baseHT += o.prixHT; }
+      }
+      return { taux: t, baseHT, montantTVA, montantTTC: baseHT + montantTVA };
+    });
+
+    const facture = {
+      id: uid(),
+      numero: nextFactureNumber(),
+      type: "acompte",
+      devisId: quote.id,
+      devisNumero: quote.numero,
+      client: quote.client,
+      lignes: quote.lignes,
+      totalHT: totals.sousTotal,
+      totalTTC: totals.totalTTC,
+      montantAcompte,
+      montantAcomptePct: usePercent ? pct : Math.round((montantAcompte / totals.totalTTC) * 100),
+      libelle,
+      dateFacture,
+      dateEcheance,
+      modePaiement,
+      statut: "non_payee",
+      reglements: addReglement ? [{ montant: montantRecu, date: dateReception }] : [],
+      dateCreation: new Date().toISOString().split("T")[0],
+      tvaBreakdown,
+    };
+    const all = loadFactures();
+    all.push(facture);
+    saveFactures(all);
+    toast.success("Facture d'acompte créée ✓");
+    onDone();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-card border border-border rounded-lg w-full max-w-lg p-6 shadow-[var(--shadow-elevated)] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-xl font-semibold">Créer une facture d'acompte</h2>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X size={16} /></button>
+        </div>
+
+        {/* Summary */}
+        <div className="bg-muted/50 rounded-lg p-4 mb-5 space-y-1">
+          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total HT</span><span className="font-mono font-medium">{formatEUR(totals.sousTotal)}</span></div>
+          {Object.entries(totals.tvaMap).map(([taux, montant]) => (
+            <div key={taux} className="flex justify-between text-sm"><span className="text-muted-foreground">TVA {taux}%</span><span className="font-mono">{formatEUR(montant)}</span></div>
+          ))}
+          <div className="flex justify-between text-sm font-semibold pt-1 border-t border-border"><span>Total TTC</span><span className="font-mono">{formatEUR(totals.totalTTC)}</span></div>
+          <div className="flex justify-between text-sm font-semibold"><span>Net à payer</span><span className="font-mono">{formatEUR(totals.totalTTC)}</span></div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Acompte */}
+          <div>
+            <label className="form-label">Acompte demandé</label>
+            <div className="flex gap-2 items-center">
+              {usePercent ? (
+                <input type="number" className="form-input w-24" value={pct} onChange={(e) => setPct(Number(e.target.value))} min={1} max={100} />
+              ) : (
+                <input type="number" className="form-input w-32" value={montantDirect} onChange={(e) => setMontantDirect(Number(e.target.value))} step={0.01} />
+              )}
+              <button className="text-[12px] text-accent font-medium px-2 py-1 hover:bg-accent/10 rounded" onClick={() => setUsePercent(!usePercent)}>
+                {usePercent ? "% → €" : "€ → %"}
+              </button>
+              <span className="text-sm text-muted-foreground ml-auto font-mono">{formatEUR(montantAcompte)} TTC</span>
+            </div>
+          </div>
+          <div>
+            <label className="form-label">Libellé de la facture</label>
+            <input className="form-input" value={libelle} onChange={(e) => setLibelle(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="form-label">Date de facturation</label><input type="date" className="form-input" value={dateFacture} onChange={(e) => setDateFacture(e.target.value)} /></div>
+            <div><label className="form-label">Date d'échéance</label><input type="date" className="form-input" value={dateEcheance} onChange={(e) => setDateEcheance(e.target.value)} /></div>
+          </div>
+          <div>
+            <label className="form-label">Mode de paiement</label>
+            <select className="form-input" value={modePaiement} onChange={(e) => setModePaiement(e.target.value)}>
+              {["Virement", "Chèque", "CB", "Espèces"].map((m) => <option key={m}>{m}</option>)}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={addReglement} onChange={(e) => setAddReglement(e.target.checked)} className="accent-[hsl(var(--accent))]" />
+            Ajouter un règlement reçu
+          </label>
+          {addReglement && (
+            <div className="grid grid-cols-2 gap-3 pl-6">
+              <div><label className="form-label">Montant reçu</label><input type="number" className="form-input" value={montantRecu} onChange={(e) => setMontantRecu(Number(e.target.value))} step={0.01} /></div>
+              <div><label className="form-label">Date réception</label><input type="date" className="form-input" value={dateReception} onChange={(e) => setDateReception(e.target.value)} /></div>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="btn-ghost">Annuler</button>
+          <button onClick={handleCreate} className="btn-gold">Créer la facture</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════
+// MAIN DASHBOARD
+// ════════════════════════════════════════
 export default function Dashboard() {
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [search, setSearch] = useState("");
+  const [favoris, setFavoris] = useState<string[]>([]);
+  const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
+  const [convertModal, setConvertModal] = useState<Quote | null>(null);
+  const [factureModal, setFactureModal] = useState<Quote | null>(null);
+  const [relancesOpen, setRelancesOpen] = useState(false);
+
+  const reload = useCallback(() => {
+    setQuotes(loadQuotes());
+    setFavoris(loadFavoris());
+  }, []);
 
   useEffect(() => {
     initializeStorage();
-    setQuotes(loadQuotes());
-  }, []);
+    reload();
+  }, [reload]);
 
   const filtered = quotes.filter(
     (q) =>
@@ -37,6 +432,9 @@ export default function Dashboard() {
       q.client.prenom.toLowerCase().includes(search.toLowerCase()) ||
       q.numero.toLowerCase().includes(search.toLowerCase())
   );
+
+  const commandes = loadCommandes();
+  const factures = loadFactures();
 
   const duplicateQuote = (q: Quote) => {
     const all = loadQuotes();
@@ -49,13 +447,101 @@ export default function Dashboard() {
     };
     all.push(dup);
     saveQuotes(all);
-    setQuotes(all);
+    reload();
+    toast.success("Devis dupliqué ✓");
+  };
+
+  const createVariant = (q: Quote) => {
+    const all = loadQuotes();
+    const base = q.numero.replace(/-[a-z]$/, "");
+    const existingVars = all.filter((x) => x.numero.startsWith(base) && x.numero !== base);
+    const nextLetter = String.fromCharCode(98 + existingVars.length); // b, c, d...
+    const dup: Quote = {
+      ...JSON.parse(JSON.stringify(q)),
+      id: uid(),
+      numero: `${base}-${nextLetter}`,
+      statut: "brouillon" as const,
+      date: new Date().toISOString().split("T")[0],
+    };
+    all.push(dup);
+    saveQuotes(all);
+    reload();
+    toast.success(`Variante ${dup.numero} créée ✓`);
+  };
+
+  const deleteQuote = (q: Quote) => {
+    const all = loadQuotes().filter((x) => x.id !== q.id);
+    saveQuotes(all);
+    reload();
+    toast.success("Devis supprimé");
+  };
+
+  const toggleFav = (q: Quote) => {
+    const f = loadFavoris();
+    const idx = f.indexOf(q.id);
+    if (idx >= 0) f.splice(idx, 1); else f.push(q.id);
+    saveFavoris(f);
+    setFavoris([...f]);
+  };
+
+  const setStatus = (q: Quote, s: Quote["statut"]) => {
+    const all = loadQuotes();
+    const idx = all.findIndex((x) => x.id === q.id);
+    if (idx >= 0) { all[idx].statut = s; saveQuotes(all); }
+    reload();
+    toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
+  };
+
+  const handleCtxAction = (action: string, q: Quote, sub?: string) => {
+    switch (action) {
+      case "edit": navigate(`/devis/${q.id}`); break;
+      case "preview": navigate(`/devis/${q.id}/apercu`); break;
+      case "duplicate": duplicateQuote(q); break;
+      case "convert_cmd": setConvertModal(q); break;
+      case "create_fa": setFactureModal(q); break;
+      case "variant": createVariant(q); break;
+      case "set_status": if (sub) setStatus(q, sub as Quote["statut"]); break;
+      case "print": navigate(`/devis/${q.id}/apercu`); break;
+      case "toggle_fav": toggleFav(q); break;
+      case "delete": deleteQuote(q); break;
+    }
+    setCtxMenu(null);
+  };
+
+  const handleRowContextMenu = (e: React.MouseEvent, q: Quote) => {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, quote: q });
+  };
+
+  // ── KPI calculations ──
+  const now = new Date();
+  const thisMonth = (d: string) => { const dt = new Date(d); return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear(); };
+  const lastMonth = (d: string) => { const dt = new Date(d); const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); return dt.getMonth() === lm.getMonth() && dt.getFullYear() === lm.getFullYear(); };
+
+  const acceptedThisMonth = quotes.filter((q) => q.statut === "accepte" && thisMonth(q.date));
+  const caThisMonth = acceptedThisMonth.reduce((s, q) => s + calcTotals(q.lignes).totalTTC, 0);
+  const acceptedLastMonth = quotes.filter((q) => q.statut === "accepte" && lastMonth(q.date));
+  const caLastMonth = acceptedLastMonth.reduce((s, q) => s + calcTotals(q.lignes).totalTTC, 0);
+  const caVariation = caLastMonth > 0 ? ((caThisMonth - caLastMonth) / caLastMonth) * 100 : 0;
+
+  const devisEnvoyes = quotes.filter((q) => q.statut === "envoye" && thisMonth(q.date)).length;
+  const totalAccepte = quotes.filter((q) => q.statut === "accepte").length;
+  const totalRefuse = quotes.filter((q) => q.statut === "refuse").length;
+  const tauxConversion = totalAccepte + totalRefuse > 0 ? Math.round((totalAccepte / (totalAccepte + totalRefuse)) * 100) : 0;
+
+  const relances = quotes.filter((q) => q.statut === "envoye" && daysSince(q.date) > 7);
+
+  const hasCmdForQuote = (qId: string) => commandes.some((c: any) => c.devisId === qId);
+  const hasFaForQuote = (qId: string) => factures.some((f: any) => f.devisId === qId);
+  const getVariantCount = (q: Quote) => {
+    const base = q.numero.replace(/-[a-z]$/, "");
+    return quotes.filter((x) => x.numero.startsWith(base) && x.id !== q.id).length;
   };
 
   return (
     <div className="p-8 lg:p-10 max-w-6xl mx-auto">
       {/* Header bar */}
-      <div className="flex items-center justify-between mb-10">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
             Tableau de bord
@@ -73,6 +559,46 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* ── KPI Row ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-accent">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">CA Accepté ce mois</span>
+          <div className="flex items-end justify-between">
+            <span className="font-display text-2xl text-foreground">{formatEUR(caThisMonth)}</span>
+            {caLastMonth > 0 && (
+              <span className={`text-[11px] font-body ${caVariation >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
+                {caVariation >= 0 ? "↑" : "↓"} {caVariation >= 0 ? "+" : ""}{caVariation.toFixed(0)}%
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-accent">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Devis envoyés</span>
+          <div className="flex items-end justify-between">
+            <span className="font-display text-2xl text-foreground">{devisEnvoyes}</span>
+            <span className="text-[11px] text-muted-foreground font-body">ce mois</span>
+          </div>
+        </div>
+        <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-accent">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Taux de conversion</span>
+          <div className="flex items-end gap-3">
+            <span className="font-display text-2xl text-foreground">{tauxConversion}%</span>
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden mb-1">
+              <div className="h-full bg-accent rounded-full transition-all" style={{ width: `${tauxConversion}%` }} />
+            </div>
+          </div>
+        </div>
+        <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-accent cursor-pointer" onClick={() => { if (relances.length > 0) setRelancesOpen(!relancesOpen); }}>
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Relances à faire</span>
+          <div className="flex items-end justify-between">
+            <span className="font-display text-2xl text-foreground">{relances.length}</span>
+            {relances.length > 0 && (
+              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold bg-destructive text-destructive-foreground rounded-full">{relances.length}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Search */}
       <div className="relative mb-6">
         <Search
@@ -84,7 +610,7 @@ export default function Dashboard() {
           placeholder="Rechercher par client ou n° de devis..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="form-input pl-11 pr-4 h-11 rounded-lg shadow-card"
+          className="form-input pl-11 pr-4 h-11 rounded-lg shadow-[var(--shadow-card)]"
         />
       </div>
 
@@ -111,7 +637,7 @@ export default function Dashboard() {
           )}
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-lg overflow-hidden shadow-card">
+        <div className="bg-card border border-border rounded-lg overflow-hidden shadow-[var(--shadow-card)]">
           <table className="w-full text-sm">
             <thead>
               <tr className="table-header-dark">
@@ -126,17 +652,32 @@ export default function Dashboard() {
             <tbody>
               {filtered.map((q, i) => {
                 const { totalTTC } = calcTotals(q.lignes);
+                const isFav = favoris.includes(q.id);
+                const varCount = getVariantCount(q);
                 return (
                   <tr
                     key={q.id}
-                    className={`border-b border-border last:border-0 transition-colors duration-150 hover:bg-accent/5 ${
-                      i % 2 === 1 ? "bg-background" : "bg-card"
+                    onContextMenu={(e) => handleRowContextMenu(e, q)}
+                    className={`border-b border-border last:border-0 transition-colors duration-150 hover:bg-accent/5 ${statusBorderClass[q.statut]} ${
+                      isFav ? "bg-[#FFF8E7]" : i % 2 === 1 ? "bg-background" : "bg-card"
                     }`}
                   >
-                    <td className="px-4 py-3.5 font-medium font-mono text-[13px]">
-                      {q.numero}
+                    <td className="px-4 py-2 font-medium font-mono text-[13px]">
+                      <div className="flex items-center gap-1.5">
+                        {isFav && <Star size={12} className="text-accent fill-accent" />}
+                        {q.numero}
+                        {hasCmdForQuote(q.id) && (
+                          <span className="inline-block px-1.5 py-0.5 text-[9px] font-semibold bg-accent text-accent-foreground rounded">CMD</span>
+                        )}
+                        {hasFaForQuote(q.id) && (
+                          <span className="inline-block px-1.5 py-0.5 text-[9px] font-semibold bg-[hsl(220_75%_96%)] text-[hsl(220_75%_45%)] rounded">FA</span>
+                        )}
+                        {varCount > 0 && (
+                          <span className="inline-block px-1.5 py-0.5 text-[9px] font-medium bg-muted text-muted-foreground rounded">{varCount} var.</span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-2">
                       <span className="font-medium">{q.client.prenom} {q.client.nom}</span>
                       {q.client.societe && (
                         <span className="text-muted-foreground ml-1.5 text-xs">
@@ -144,20 +685,16 @@ export default function Dashboard() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3.5 text-muted-foreground">
+                    <td className="px-4 py-2 text-muted-foreground">
                       {formatDate(q.date)}
                     </td>
-                    <td className="px-4 py-3.5 text-right font-medium font-mono text-[13px]">
+                    <td className="px-4 py-2 text-right font-medium font-mono text-[13px]">
                       {formatEUR(totalTTC)}
                     </td>
-                    <td className="px-4 py-3.5 text-center">
-                      <span
-                        className={`inline-block px-3 py-1 text-[11px] font-semibold tracking-wide ${statusClass[q.statut]}`}
-                      >
-                        {STATUT_LABELS[q.statut]}
-                      </span>
+                    <td className="px-4 py-2 text-center">
+                      <StatusDropdown quote={q} onUpdate={reload} />
                     </td>
-                    <td className="px-4 py-3.5 text-right">
+                    <td className="px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => navigate(`/devis/${q.id}`)}
@@ -189,6 +726,64 @@ export default function Dashboard() {
           </table>
         </div>
       )}
+
+      {/* ── Relances Widget ── */}
+      {relances.length > 0 && (
+        <div className="mt-6">
+          <button
+            onClick={() => setRelancesOpen(!relancesOpen)}
+            className="flex items-center gap-2 text-accent font-display text-lg font-semibold mb-3 hover:opacity-80 transition-opacity"
+          >
+            <AlertTriangle size={18} />
+            Relances à faire ({relances.length})
+            <ChevronDown size={16} className={`transition-transform ${relancesOpen ? "rotate-180" : ""}`} />
+          </button>
+          {relancesOpen && (
+            <div className="bg-card border border-border rounded-lg overflow-hidden shadow-[var(--shadow-card)]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="table-header-dark">
+                    <th className="text-left">Client</th>
+                    <th className="text-left">N° Devis</th>
+                    <th className="text-left">Envoyé le</th>
+                    <th className="text-center">Jours sans réponse</th>
+                    <th className="text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relances.map((q, i) => (
+                    <tr key={q.id} className={`border-b border-border last:border-0 ${i % 2 === 1 ? "bg-background" : "bg-card"}`}>
+                      <td className="px-4 py-2 font-medium">{q.client.prenom} {q.client.nom}</td>
+                      <td className="px-4 py-2 font-mono text-[13px]">{q.numero}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{formatDate(q.date)}</td>
+                      <td className="px-4 py-2 text-center">
+                        <span className="inline-block px-2 py-0.5 text-[11px] font-semibold bg-destructive/10 text-destructive rounded-full">
+                          {daysSince(q.date)} jours
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <a
+                          href={`mailto:${q.client.email}?subject=Relance devis ${q.numero}&body=Bonjour ${q.client.prenom}, suite à notre devis ${q.numero}, nous souhaitions savoir si vous aviez des questions. Cordialement, ORALIS`}
+                          className="btn-outline-gold !px-3 !py-1.5 !text-[11px] inline-flex items-center gap-1.5"
+                        >
+                          <Mail size={12} /> Relancer
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {ctxMenu && <ContextMenu ctx={ctxMenu} onClose={() => setCtxMenu(null)} onAction={handleCtxAction} />}
+
+      {/* Modals */}
+      {convertModal && <ConvertCommandeModal quote={convertModal} onClose={() => setConvertModal(null)} onDone={reload} />}
+      {factureModal && <FactureAcompteModal quote={factureModal} onClose={() => setFactureModal(null)} onDone={reload} />}
     </div>
   );
 }
