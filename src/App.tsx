@@ -12,6 +12,7 @@ import NotFound from "./pages/NotFound";
 import Clients from "./pages/Clients";
 import QuotesList from "./pages/QuotesList";
 import Factures from "./pages/Factures";
+import FacturePreview from "./pages/FacturePreview";
 import Commandes from "./pages/Commandes";
 
 const queryClient = new QueryClient();
