@@ -689,15 +689,9 @@ export default function Factures() {
     setFactures(loadFactures());
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
-
-  // If detail view
-  if (id) {
-    return <FactureDetail factureId={id} onBack={() => navigate("/factures")} />;
-  }
-
   // Check overdue
   useEffect(() => {
+    initializeSampleFactures();
     const all = loadFactures();
     let changed = false;
     all.forEach((f) => {
@@ -706,8 +700,16 @@ export default function Factures() {
         changed = true;
       }
     });
-    if (changed) { saveFactures(all); setFactures([...all]); }
+    if (changed) saveFactures(all);
+    setFactures(all);
   }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  // If detail view
+  if (id) {
+    return <FactureDetail factureId={id} onBack={() => navigate("/factures")} />;
+  }
 
   const filtered = factures.filter((f) => {
     const matchSearch = f.numero.toLowerCase().includes(search.toLowerCase()) ||
