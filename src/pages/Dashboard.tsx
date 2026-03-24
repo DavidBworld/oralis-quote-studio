@@ -17,6 +17,7 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
+import ModuleNav from "@/components/ModuleNav";
 
 const statusClass: Record<Quote["statut"], string> = {
   brouillon: "status-brouillon",
@@ -558,6 +559,8 @@ export default function Dashboard() {
           Nouveau Devis
         </button>
       </div>
+
+      <ModuleNav />
 
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
