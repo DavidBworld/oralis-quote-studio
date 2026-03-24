@@ -560,6 +560,8 @@ export default function Dashboard() {
         </button>
       </div>
 
+      <ModuleNav />
+
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-accent">
