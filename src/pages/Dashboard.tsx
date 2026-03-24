@@ -17,6 +17,7 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
+import ModuleNav from "@/components/ModuleNav";
 
 const statusClass: Record<Quote["statut"], string> = {
   brouillon: "status-brouillon",
