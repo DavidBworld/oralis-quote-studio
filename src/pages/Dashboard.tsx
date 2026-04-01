@@ -17,6 +17,14 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
+import {
+  loadCommandes, saveCommandes, nextCommandeNumber,
+  createCommandeFromDevis, getCommandeResteAFacturer,
+  getCommandeTotalFacture, getProchainEcheancier,
+  ECHEANCIER_DEFAUT, createFactureFromCommande,
+  nextFactureNumberOR,
+  type Commande,
+} from "@/lib/commande-data";
 import ModuleNav from "@/components/ModuleNav";
 
 const statusClass: Record<Quote["statut"], string> = {
@@ -33,30 +41,11 @@ const statusBorderClass: Record<Quote["statut"], string> = {
   refuse: "border-l-[3px] border-l-destructive",
 };
 
-// ── Helpers for commandes/factures localStorage ──
-function loadCommandes(): any[] {
-  try { return JSON.parse(localStorage.getItem("oralis_commandes") || "[]"); } catch { return []; }
-}
-function saveCommandes(c: any[]) { localStorage.setItem("oralis_commandes", JSON.stringify(c)); }
-function nextCommandeNumber(): string {
-  const all = loadCommandes();
-  const y = new Date().getFullYear();
-  const nums = all.map((c: any) => { const m = c.numero?.match(/CMD-\d+-(\d+)/); return m ? parseInt(m[1]) : 0; }).filter(Boolean);
-  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-  return `ORALIS-CMD-${y}-${String(next).padStart(3, "0")}`;
-}
-
+// ── Helpers for factures localStorage ──
 function loadFactures(): any[] {
   try { return JSON.parse(localStorage.getItem("oralis_factures") || "[]"); } catch { return []; }
 }
 function saveFactures(f: any[]) { localStorage.setItem("oralis_factures", JSON.stringify(f)); }
-function nextFactureNumber(): string {
-  const all = loadFactures();
-  const y = new Date().getFullYear();
-  const nums = all.map((f: any) => { const m = f.numero?.match(/FA-\d+-(\d+)/); return m ? parseInt(m[1]) : 0; }).filter(Boolean);
-  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
-  return `ORALIS-FA-${y}-${String(next).padStart(3, "0")}`;
-}
 
 function loadFavoris(): string[] {
   try { return JSON.parse(localStorage.getItem("oralis_devis_favoris") || "[]"); } catch { return []; }
@@ -155,9 +144,25 @@ function ContextMenu({ ctx, onClose, onAction }: {
 }
 
 // ── Status Dropdown ──
+const STATUS_ICONS: Record<Quote["statut"], string> = {
+  brouillon: "✎",
+  envoye: "✉",
+  accepte: "✓",
+  refuse: "✗",
+};
+
+const STATUS_TRANSITIONS: Record<Quote["statut"], Quote["statut"][]> = {
+  brouillon: ["envoye"],
+  envoye: ["accepte", "refuse"],
+  accepte: [],
+  refuse: ["brouillon"],
+};
+
 function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -165,6 +170,15 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
+
+  const openDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setDropPos({ top: rect.bottom + 6, left: rect.left });
+    }
+    setOpen(!open);
+  };
 
   const changeStatus = (s: Quote["statut"]) => {
     const all = loadQuotes();
@@ -175,24 +189,70 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
     toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
   };
 
+  const quickTransitions = STATUS_TRANSITIONS[quote.statut];
+
   return (
-    <div className="relative inline-block" ref={ref}>
+    <div className="relative inline-flex items-center gap-1.5" ref={ref}>
+      {/* Current status badge — click to open full menu */}
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className={`inline-flex items-center gap-1 px-3 py-1 text-[11px] font-semibold tracking-wide ${statusClass[quote.statut]} cursor-pointer`}
+        ref={btnRef}
+        onClick={openDropdown}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold tracking-wide ${statusClass[quote.statut]} cursor-pointer hover:ring-2 hover:ring-accent/30 transition-all`}
+        title="Cliquer pour changer le statut"
       >
+        <span>{STATUS_ICONS[quote.statut]}</span>
         {STATUT_LABELS[quote.statut]}
-        <ChevronDown size={10} />
+        <ChevronDown size={11} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
+
+      {/* Quick transition buttons */}
+      {quickTransitions.length > 0 && (
+        <div className="flex items-center gap-0.5">
+          {quickTransitions.map((s) => (
+            <button
+              key={s}
+              onClick={(e) => { e.stopPropagation(); changeStatus(s); }}
+              className={`px-2 py-1 text-[10px] font-semibold tracking-wide rounded border transition-all hover:scale-105 ${
+                s === "accepte"
+                  ? "border-[hsl(var(--success))] text-[hsl(var(--success))] hover:bg-[hsl(150_40%_96%)]"
+                  : s === "envoye"
+                  ? "border-[hsl(220_75%_45%)] text-[hsl(220_75%_45%)] hover:bg-[hsl(220_75%_96%)]"
+                  : s === "refuse"
+                  ? "border-destructive text-destructive hover:bg-[hsl(4_65%_96%)]"
+                  : "border-border text-muted-foreground hover:bg-muted"
+              }`}
+              title={`Passer en ${STATUT_LABELS[s]}`}
+            >
+              → {STATUT_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Full dropdown — fixed position to escape overflow:hidden */}
       {open && (
-        <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 w-[130px] bg-card border border-border rounded-lg py-1 shadow-[var(--shadow-elevated)]">
+        <div
+          className="fixed z-[100] w-[170px] bg-card border border-border rounded-lg py-1.5 shadow-[var(--shadow-elevated)]"
+          style={{ top: dropPos.top, left: dropPos.left }}
+        >
+          <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            Changer le statut
+          </div>
           {(["brouillon", "envoye", "accepte", "refuse"] as const).map((s) => (
             <button
               key={s}
-              className={`w-full text-left px-3 py-1.5 text-[12px] font-body hover:bg-accent/[0.08] ${quote.statut === s ? "font-semibold text-accent" : ""}`}
+              className={`w-full text-left px-3 py-2 text-[12px] font-body transition-colors flex items-center gap-2 ${
+                quote.statut === s
+                  ? "font-semibold text-accent bg-accent/5"
+                  : "hover:bg-accent/[0.08]"
+              }`}
               onClick={(e) => { e.stopPropagation(); changeStatus(s); }}
             >
+              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${statusClass[s]}`}>
+                {STATUS_ICONS[s]}
+              </span>
               {STATUT_LABELS[s]}
+              {quote.statut === s && <span className="ml-auto text-accent text-[10px]">actuel</span>}
             </button>
           ))}
         </div>
@@ -201,29 +261,13 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
   );
 }
 
-// ── Convert to Commande Modal ──
+// ── Convert to Commande Client Modal ──
 function ConvertCommandeModal({ quote, onClose, onDone }: { quote: Quote; onClose: () => void; onDone: () => void }) {
   const [refAffaire, setRefAffaire] = useState("");
   const [dateLivraison, setDateLivraison] = useState("");
-  const [archiver, setArchiver] = useState(false);
-  const [copie, setCopie] = useState(true);
 
   const handleConvert = () => {
-    const totals = calcTotals(quote.lignes);
-    const cmd = {
-      id: uid(),
-      numero: nextCommandeNumber(),
-      devisId: quote.id,
-      devisNumero: quote.numero,
-      client: quote.client,
-      lignes: quote.lignes,
-      referenceAffaire: refAffaire,
-      dateLivraison,
-      statut: "en_cours",
-      dateCreation: new Date().toISOString().split("T")[0],
-      totalHT: totals.sousTotal,
-      totalTTC: totals.totalTTC,
-    };
+    const cmd = createCommandeFromDevis(quote, refAffaire, dateLivraison);
     const cmds = loadCommandes();
     cmds.push(cmd);
     saveCommandes(cmds);
@@ -232,10 +276,9 @@ function ConvertCommandeModal({ quote, onClose, onDone }: { quote: Quote; onClos
     const idx = all.findIndex((q) => q.id === quote.id);
     if (idx >= 0) {
       all[idx].statut = "accepte";
-      if (archiver) (all[idx] as any).archived = true;
       saveQuotes(all);
     }
-    toast.success("Devis converti en commande ✓");
+    toast.success(`Commande ${cmd.numero} créée ✓`);
     onDone();
     onClose();
   };
@@ -259,18 +302,14 @@ function ConvertCommandeModal({ quote, onClose, onDone }: { quote: Quote; onClos
             <label className="form-label">Date livraison/pose prévue</label>
             <input type="date" className="form-input" value={dateLivraison} onChange={(e) => setDateLivraison(e.target.value)} />
           </div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={archiver} onChange={(e) => setArchiver(e.target.checked)} className="accent-[hsl(var(--accent))]" />
-            Archiver le devis après conversion
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="checkbox" checked={copie} onChange={(e) => setCopie(e.target.checked)} className="accent-[hsl(var(--accent))]" />
-            Conserver une copie en archive
-          </label>
+          <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+            <p className="text-muted-foreground">Conditions de paiement :</p>
+            <p className="font-medium">50% à la commande · 45% à la livraison · 5% fin de travaux</p>
+          </div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onClose} className="btn-ghost">Annuler</button>
-          <button onClick={handleConvert} className="btn-gold">Convertir</button>
+          <button onClick={handleConvert} className="btn-gold">Convertir en commande</button>
         </div>
       </div>
     </div>
@@ -309,7 +348,7 @@ function FactureAcompteModal({ quote, onClose, onDone }: { quote: Quote; onClose
 
     const facture = {
       id: uid(),
-      numero: nextFactureNumber(),
+      numero: nextFactureNumberOR(),
       type: "acompte",
       devisId: quote.id,
       devisNumero: quote.numero,
@@ -648,7 +687,7 @@ export default function Dashboard() {
                 <th className="text-left">Client</th>
                 <th className="text-left">Date</th>
                 <th className="text-right">Montant TTC</th>
-                <th className="text-center">Statut</th>
+                <th className="text-center" style={{ minWidth: "220px" }}>Statut</th>
                 <th className="text-right">Actions</th>
               </tr>
             </thead>

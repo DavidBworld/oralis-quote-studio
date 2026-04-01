@@ -11,6 +11,7 @@ import {
   type Quote, type QuoteLine,
 } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
+import { nextFactureNumberOR } from "@/lib/commande-data";
 import ModuleNav from "@/components/ModuleNav";
 
 // ── Facture types ──
@@ -91,7 +92,7 @@ function initializeSampleFactures() {
   const samples: Facture[] = [
     {
       id: "fa-sample-1",
-      numero: "ORALIS-FA-2026-001",
+      numero: "OR2026250",
       type: "acompte",
       devisId: "sample1",
       devisNumero: "ORALIS-2026-001",
@@ -112,7 +113,7 @@ function initializeSampleFactures() {
     },
     {
       id: "fa-sample-2",
-      numero: "ORALIS-FA-2026-002",
+      numero: "OR2026251",
       type: "acompte",
       devisId: "sample2",
       devisNumero: "ORALIS-2026-002",
@@ -743,7 +744,7 @@ export default function Factures() {
       case "reglement": setReglementModal(f); break;
       case "duplicate": {
         const all = loadFactures();
-        const dup: Facture = { ...JSON.parse(JSON.stringify(f)), id: uid(), numero: nextFactureNumber(f.type), statut: "non_payee", reglements: [], dateCreation: new Date().toISOString().split("T")[0] };
+        const dup: Facture = { ...JSON.parse(JSON.stringify(f)), id: uid(), numero: nextFactureNumberOR(), statut: "non_payee", reglements: [], dateCreation: new Date().toISOString().split("T")[0] };
         all.push(dup);
         saveFactures(all);
         reload();
@@ -755,7 +756,7 @@ export default function Factures() {
         const sit: Facture = {
           ...JSON.parse(JSON.stringify(f)),
           id: uid(),
-          numero: nextFactureNumber("situation"),
+          numero: nextFactureNumberOR(),
           type: "situation",
           statut: "non_payee",
           reglements: [],
@@ -774,7 +775,7 @@ export default function Factures() {
         const avoir: Facture = {
           ...JSON.parse(JSON.stringify(f)),
           id: uid(),
-          numero: nextFactureNumber("avoir"),
+          numero: nextFactureNumberOR(),
           type: "avoir",
           statut: "payee",
           reglements: [],
