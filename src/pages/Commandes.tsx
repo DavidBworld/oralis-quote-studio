@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Search, Eye, Package, ChevronDown, X, Receipt, FileText,
   Plus, Trash2, Printer
@@ -465,9 +465,9 @@ function CommandeDetail({ commande, onBack, onReload }: {
 // ════════════════════════════════════════
 export default function Commandes() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [commandes, setCommandes] = useState<Commande[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [factureModalCmd, setFactureModalCmd] = useState<Commande | null>(null);
 
   const reload = useCallback(() => {
@@ -484,13 +484,13 @@ export default function Commandes() {
       (c.referenceAffaire || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const selectedCommande = commandes.find((c) => c.id === selectedId);
+  const selectedCommande = id ? commandes.find((c) => c.id === id) : null;
 
   if (selectedCommande) {
     return (
       <CommandeDetail
         commande={selectedCommande}
-        onBack={() => { setSelectedId(null); reload(); }}
+        onBack={() => { reload(); navigate("/commandes"); }}
         onReload={reload}
       />
     );
@@ -570,7 +570,7 @@ export default function Commandes() {
                     className={`border-b border-border last:border-0 transition-colors duration-150 hover:bg-accent/5 cursor-pointer ${
                       i % 2 === 1 ? "bg-background" : "bg-card"
                     }`}
-                    onClick={() => setSelectedId(c.id)}
+                    onClick={() => navigate(`/commandes/${c.id}`)}
                   >
                     <td className="px-4 py-3 font-mono text-[13px] font-medium">{c.numero}</td>
                     <td className="px-4 py-3">
@@ -608,7 +608,7 @@ export default function Commandes() {
                           </button>
                         )}
                         <button
-                          onClick={() => setSelectedId(c.id)}
+                          onClick={() => navigate(`/commandes/${c.id}`)}
                           className="p-2 rounded hover:bg-muted transition-colors"
                           title="Voir le détail"
                         >

@@ -752,6 +752,15 @@ export default function Dashboard() {
                         >
                           <Eye size={14} className="text-muted-foreground" />
                         </button>
+                        {q.statut === "accepte" && !hasCmdForQuote(q.id) && (
+                          <button
+                            onClick={() => setConvertModal(q)}
+                            className="px-2 py-1 rounded text-[11px] font-semibold bg-accent text-accent-foreground hover:opacity-90 transition-opacity flex items-center gap-1"
+                            title="Convertir en commande"
+                          >
+                            <span>🔁</span> Commande
+                          </button>
+                        )}
                         <button
                           onClick={() => duplicateQuote(q)}
                           className="p-2 rounded hover:bg-muted transition-colors"

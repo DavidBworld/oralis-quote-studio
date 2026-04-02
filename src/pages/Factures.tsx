@@ -684,6 +684,7 @@ export default function Factures() {
   const [filterTab, setFilterTab] = useState("toutes");
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; facture: Facture } | null>(null);
   const [reglementModal, setReglementModal] = useState<Facture | null>(null);
+  const [kpiPeriod, setKpiPeriod] = useState<"mois" | "mois_prec" | "annee" | "tout">("mois");
 
   const reload = useCallback(() => {
     initializeSampleFactures();
@@ -728,12 +729,33 @@ export default function Factures() {
 
   // KPIs
   const now = new Date();
-  const thisMonth = (d: string) => { const dt = new Date(d); return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear(); };
-  const facturesThisMonth = factures.filter((f) => thisMonth(f.dateFacture));
-  const totalFacture = facturesThisMonth.reduce((s, f) => s + f.montantAcompte, 0);
+  const periodFilter = (d: string): boolean => {
+    if (!d) return false;
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return false;
+    if (kpiPeriod === "mois") return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
+    if (kpiPeriod === "mois_prec") {
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return dt.getMonth() === prev.getMonth() && dt.getFullYear() === prev.getFullYear();
+    }
+    if (kpiPeriod === "annee") return dt.getFullYear() === now.getFullYear();
+    return true; // "tout"
+  };
+  const KPI_PERIOD_LABELS: Record<string, string> = { mois: "ce mois", mois_prec: "mois préc.", annee: "cette année", tout: "total" };
+  const kpiPeriodLabel = KPI_PERIOD_LABELS[kpiPeriod];
+  const facturesPeriod = factures.filter((f) => periodFilter(f.dateFacture));
+  const totalFacture = facturesPeriod.reduce((s, f) => s + f.montantAcompte, 0);
   const enAttente = factures.filter((f) => f.statut === "non_payee" || f.statut === "partiel").reduce((s, f) => s + (f.montantAcompte - f.reglements.reduce((a, r) => a + r.montant, 0)), 0);
   const enRetard = factures.filter((f) => f.statut === "retard").length;
-  const encaisse = facturesThisMonth.reduce((s, f) => s + f.reglements.filter((r) => thisMonth(r.dateReception)).reduce((a, r) => a + r.montant, 0), 0);
+  const encaisse = facturesPeriod.reduce((s, f) => {
+    // Factures marked payée directly without reglements: count full montantAcompte
+    if (f.statut === "payee" && f.reglements.length === 0) return s + f.montantAcompte;
+    // Factures with reglements: sum only those within the period
+    const reglementTotal = f.reglements
+      .filter((r) => kpiPeriod === "tout" || periodFilter(r.dateReception))
+      .reduce((a, r) => a + r.montant, 0);
+    return s + reglementTotal;
+  }, 0);
   const totalAllTTC = filtered.reduce((s, f) => s + f.montantAcompte, 0);
   const totalAllEncaisse = filtered.reduce((s, f) => s + f.reglements.reduce((a, r) => a + r.montant, 0), 0);
 
@@ -833,10 +855,24 @@ export default function Factures() {
 
       <ModuleNav />
 
+      {/* KPI Period selector */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <span className="text-[11px] text-muted-foreground uppercase tracking-wide font-body mr-1">Période :</span>
+        {(["mois", "mois_prec", "annee", "tout"] as const).map((p) => {
+          const labels: Record<string, string> = { mois: "Ce mois", mois_prec: "Mois préc.", annee: "Cette année", tout: "Tout" };
+          return (
+            <button key={p} onClick={() => setKpiPeriod(p)}
+              className={`px-3 py-1 text-[12px] rounded font-body transition-colors border ${kpiPeriod === p ? "bg-accent text-accent-foreground border-accent" : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-accent/50"}`}>
+              {labels[p]}
+            </button>
+          );
+        })}
+      </div>
+
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-accent">
-          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Total facturé ce mois</span>
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Total facturé {kpiPeriodLabel}</span>
           <span className="font-display text-2xl text-accent">{formatEUR(totalFacture)}</span>
         </div>
         <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-[hsl(30_80%_50%)]">
@@ -851,7 +887,7 @@ export default function Factures() {
           </div>
         </div>
         <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-[hsl(var(--success))]">
-          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Encaissé ce mois</span>
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Encaissé {kpiPeriodLabel}</span>
           <span className="font-display text-2xl text-[hsl(var(--success))]">{formatEUR(encaisse)}</span>
         </div>
       </div>
@@ -880,8 +916,8 @@ export default function Factures() {
           <p className="text-sm text-muted-foreground">Créez votre première facture depuis un devis accepté.</p>
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-lg overflow-hidden shadow-[var(--shadow-card)]">
-          <table className="w-full text-sm">
+        <div className="bg-card border border-border rounded-lg shadow-[var(--shadow-card)] overflow-x-auto">
+          <table className="w-full min-w-[900px] text-sm">
             <thead>
               <tr className="table-header-dark">
                 <th className="text-left">N° Facture</th>

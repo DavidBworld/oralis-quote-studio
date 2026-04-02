@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Eye, Pencil, Copy, FileText } from "lucide-react";
+import { Search, Plus, Eye, Pencil, Copy, FileText, ArrowRightCircle } from "lucide-react";
 import {
   loadQuotes,
   saveQuotes,
@@ -12,6 +12,12 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
+import {
+  loadCommandes,
+  saveCommandes,
+  createCommandeFromDevis,
+} from "@/lib/commande-data";
+import { toast } from "sonner";
 import ModuleNav from "@/components/ModuleNav";
 
 const statusClass: Record<Quote["statut"], string> = {
@@ -34,6 +40,24 @@ export default function QuotesList() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<Quote["statut"] | "tous">("tous");
+  const [convertModal, setConvertModal] = useState<Quote | null>(null);
+  const [convertRef, setConvertRef] = useState("");
+
+  const hasCmdForQuote = (qId: string) => loadCommandes().some((c: any) => c.devisId === qId);
+
+  const handleConvert = () => {
+    if (!convertModal) return;
+    const all = loadQuotes();
+    const idx = all.findIndex((q) => q.id === convertModal.id);
+    if (idx >= 0) { all[idx].statut = "accepte"; saveQuotes(all); }
+    const commandes = loadCommandes();
+    const cmd = createCommandeFromDevis(convertModal, convertRef, "");
+    saveCommandes([...commandes, cmd]);
+    toast.success(`Commande ${cmd.numero} créée`);
+    setConvertModal(null);
+    setConvertRef("");
+    navigate(`/commandes/${cmd.id}`);
+  };
 
   useEffect(() => {
     initializeStorage();
@@ -203,6 +227,15 @@ export default function QuotesList() {
                         >
                           <Eye size={14} className="text-muted-foreground" />
                         </button>
+                        {q.statut === "accepte" && !hasCmdForQuote(q.id) && (
+                          <button
+                            onClick={() => { setConvertRef(""); setConvertModal(q); }}
+                            className="px-2 py-1 rounded text-[11px] font-semibold bg-accent text-accent-foreground hover:opacity-90 transition-opacity flex items-center gap-1"
+                            title="Convertir en commande"
+                          >
+                            <span>🔁</span> Commande
+                          </button>
+                        )}
                         <button
                           onClick={() => duplicateQuote(q)}
                           className="p-2 rounded hover:bg-muted transition-colors"
@@ -217,6 +250,36 @@ export default function QuotesList() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Modal de conversion en commande */}
+      {convertModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
+            <h2 className="font-display text-xl font-semibold mb-1">Convertir le devis en commande</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              {convertModal.numero} — {convertModal.client.prenom} {convertModal.client.nom}
+            </p>
+            <div className="bg-accent/10 border border-accent/20 rounded-lg px-4 py-3 mb-4 text-sm text-foreground">
+              <p className="font-medium">Conditions de paiement appliquées :</p>
+              <p className="text-muted-foreground mt-1">50% à la commande · 45% à la livraison · 5% fin de travaux</p>
+            </div>
+            <div className="mb-5">
+              <label className="form-label">Référence affaire (optionnel)</label>
+              <input
+                type="text"
+                className="form-input mt-1"
+                placeholder="Ex: Pergola BOILON - Saint Max"
+                value={convertRef}
+                onChange={(e) => setConvertRef(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setConvertModal(null)} className="btn-outline-gold">Annuler</button>
+              <button onClick={handleConvert} className="btn-gold">Convertir en commande</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
