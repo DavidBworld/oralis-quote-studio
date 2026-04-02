@@ -16,7 +16,6 @@ import {
   createFactureFromCommande,
   type Commande, type CommandeFacture,
 } from "@/lib/commande-data";
-import ModuleNav from "@/components/ModuleNav";
 
 // ── localStorage factures helpers ──
 function loadFactures(): any[] {
@@ -235,12 +234,12 @@ function CommandeDetail({ commande, onBack, onReload }: {
   const pctFacture = commande.totalTTC > 0 ? Math.round((totalFacture / commande.totalTTC) * 100) : 0;
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 w-full">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-muted rounded transition-colors"><X size={18} /></button>
           <div>
-            <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
+            <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">
               {commande.numero}
             </h1>
             <p className="text-[13px] text-muted-foreground mt-0.5 font-body">
@@ -508,10 +507,10 @@ export default function Commandes() {
   };
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 w-full">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
+          <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">
             Commandes Clients
           </h1>
           <p className="text-[13px] text-muted-foreground mt-1 font-body">
@@ -519,8 +518,6 @@ export default function Commandes() {
           </p>
         </div>
       </div>
-
-      <ModuleNav />
 
       {/* Search */}
       <div className="relative mb-6">

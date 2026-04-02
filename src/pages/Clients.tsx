@@ -12,7 +12,6 @@ import {
   PROFIL_LABELS, STATUT_CLIENT_LABELS,
 } from "@/lib/client-data";
 import { loadQuotes, formatEUR, formatDate, calcTotals, STATUT_LABELS, uid } from "@/lib/quote-data";
-import ModuleNav from "@/components/ModuleNav";
 
 const statusClassMap: Record<Client["statut"], string> = {
   prospect: "status-envoye",
@@ -145,10 +144,10 @@ export default function Clients() {
   }
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 w-full">
       <div className="flex items-center justify-between mb-10">
         <div>
-          <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
+          <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">
             Clients & Prospects
           </h1>
           <p className="text-[13px] text-muted-foreground mt-1 font-body">
@@ -160,8 +159,6 @@ export default function Clients() {
           Nouveau client
         </button>
       </div>
-
-      <ModuleNav />
 
       {/* Filter tabs */}
       <div className="flex gap-0 mb-4 border-b border-border">
@@ -412,13 +409,13 @@ function ClientDetail({
   ];
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 w-full">
       <div className="flex items-center justify-between mb-6">
         <div>
           <button onClick={onBack} className="text-accent text-sm hover:underline mb-2 block" style={{ fontFamily: "var(--font-body)" }}>
             ← Retour à la liste
           </button>
-          <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
+          <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">
             {form.prenom} {form.nom}
           </h1>
           <p className="text-[13px] text-muted-foreground mt-1 font-body">

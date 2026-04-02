@@ -155,7 +155,7 @@ export default function QuoteForm() {
   const totals = calcTotals(quote.lignes);
 
   return (
-    <div className="p-8 lg:p-10 max-w-5xl mx-auto pb-32">
+    <div className="p-6 lg:p-8 w-full pb-32">
       <h1 className="font-display text-[28px] font-semibold mb-1 tracking-tight">
         {id === "nouveau" ? "Nouveau Devis" : `Devis ${quote.numero}`}
       </h1>

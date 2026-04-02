@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
 import { formatEUR, formatDate, calcTotals, lineMontantHT } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
@@ -9,9 +9,10 @@ function loadFactures(): any[] {
 }
 
 export default function FacturePreview() {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const [facture, setFacture] = useState<any>(null);
+  const navigate  = useNavigate();
+  const location  = useLocation();
+  const { id }    = useParams();
+  const [facture, setFacture]   = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
@@ -21,6 +22,14 @@ export default function FacturePreview() {
     else navigate("/factures");
     setSettings(loadSettings());
   }, [id]);
+
+  // Auto-print when opened via the "Imprimer" button from FactureDetail
+  useEffect(() => {
+    if (facture && settings && (location.state as any)?.autoPrint) {
+      const t = setTimeout(() => window.print(), 600);
+      return () => clearTimeout(t);
+    }
+  }, [facture, settings, location.state]);
 
   if (!facture || !settings) return null;
 
@@ -35,7 +44,7 @@ export default function FacturePreview() {
     : "FACTURE";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background print-wrapper">
       {/* Top bar */}
       <div className="no-print flex items-center gap-3 p-4 border-b border-border bg-card shadow-header">
         <button onClick={() => navigate("/factures")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -173,8 +182,8 @@ export default function FacturePreview() {
               </div>
             )}
             <div className="border-t border-border mt-2 pt-2 flex justify-between">
-              <span className="font-display text-lg font-bold">NET À PAYER</span>
-              <span className="font-display text-lg font-bold text-accent">{formatEUR(netAPayer > 0 ? netAPayer : facture.montantAcompte)}</span>
+              <span className="font-display text-lg font-bold">RESTE À RÉGLER</span>
+              <span className="font-display text-lg font-bold text-accent">{formatEUR(Math.max(netAPayer, 0))}</span>
             </div>
           </div>
         </div>

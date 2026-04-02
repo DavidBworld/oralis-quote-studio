@@ -34,7 +34,7 @@ export default function Settings() {
   ];
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-3xl mx-auto">
       <h1 className="font-display text-[28px] font-semibold mb-1 tracking-tight">Paramètres</h1>
       <p className="text-[13px] text-muted-foreground mb-8 font-body">Configuration de l'application ORALIS</p>
 

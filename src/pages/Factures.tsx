@@ -12,7 +12,6 @@ import {
 } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
 import { nextFactureNumberOR } from "@/lib/commande-data";
-import ModuleNav from "@/components/ModuleNav";
 
 // ── Facture types ──
 interface Reglement {
@@ -287,12 +286,14 @@ function ReglementModal({ facture, onClose, onDone }: { facture: Facture; onClos
   const restant = facture.montantAcompte - totalRecu;
 
   const handleAdd = () => {
+    if (!montant || montant <= 0) { toast.error("Montant invalide"); return; }
     const all = loadFactures();
     const idx = all.findIndex((f) => f.id === facture.id);
     if (idx >= 0) {
       all[idx].reglements.push({ id: uid(), mode, libelle, dateReception, dateEnregistrement: dateEnreg, montant });
-      const newTotal = all[idx].reglements.reduce((s, r) => s + r.montant, 0);
-      if (solder || newTotal >= all[idx].montantAcompte) {
+      const newTotal = Math.round(all[idx].reglements.reduce((s, r) => s + r.montant, 0) * 100) / 100;
+      const due     = Math.round(all[idx].montantAcompte * 100) / 100;
+      if (solder || newTotal >= due - 0.01) {
         all[idx].statut = "payee";
       } else if (newTotal > 0) {
         all[idx].statut = "partiel";
@@ -385,12 +386,12 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
   ] as const;
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 w-full">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-muted rounded transition-colors"><X size={18} /></button>
           <div>
-            <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
+            <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">
               {facture.numero}
             </h1>
             <p className="text-[13px] text-muted-foreground mt-0.5 font-body">
@@ -400,7 +401,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(`/factures/${facture.id}/apercu`)} className="btn-outline-gold flex items-center gap-2 text-xs"><Eye size={14} />Aperçu PDF</button>
-          <button onClick={() => window.print()} className="btn-gold flex items-center gap-2 text-xs"><Printer size={14} />Imprimer</button>
+          <button onClick={() => navigate(`/factures/${facture.id}/apercu`, { state: { autoPrint: true } })} className="btn-gold flex items-center gap-2 text-xs"><Printer size={14} />Imprimer</button>
         </div>
       </div>
 
@@ -756,6 +757,15 @@ export default function Factures() {
       .reduce((a, r) => a + r.montant, 0);
     return s + reglementTotal;
   }, 0);
+  // TVA encaissée = portion TVA de l'encaissé, calculée au prorata TTC/HT de chaque facture
+  const tvaEncaisse = facturesPeriod.reduce((s, f) => {
+    const tvaRatio = f.totalTTC > 0 ? (f.totalTTC - f.totalHT) / f.totalTTC : 0;
+    if (f.statut === "payee" && f.reglements.length === 0) return s + f.montantAcompte * tvaRatio;
+    const reglementTotal = f.reglements
+      .filter((r) => kpiPeriod === "tout" || periodFilter(r.dateReception))
+      .reduce((a, r) => a + r.montant, 0);
+    return s + reglementTotal * tvaRatio;
+  }, 0);
   const totalAllTTC = filtered.reduce((s, f) => s + f.montantAcompte, 0);
   const totalAllEncaisse = filtered.reduce((s, f) => s + f.reglements.reduce((a, r) => a + r.montant, 0), 0);
 
@@ -842,18 +852,16 @@ export default function Factures() {
   ];
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 w-full">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">Factures</h1>
+          <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">Factures</h1>
           <p className="text-[13px] text-muted-foreground mt-1 font-body">Gestion des factures ORALIS</p>
         </div>
         <button onClick={() => { toast.info("Créez une facture depuis un devis accepté dans le Tableau de bord"); }} className="btn-gold flex items-center gap-2">
           <Plus size={16} />Nouvelle facture
         </button>
       </div>
-
-      <ModuleNav />
 
       {/* KPI Period selector */}
       <div className="flex items-center gap-1.5 mb-3">
@@ -870,7 +878,7 @@ export default function Factures() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-accent">
           <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Total facturé {kpiPeriodLabel}</span>
           <span className="font-display text-2xl text-accent">{formatEUR(totalFacture)}</span>
@@ -889,6 +897,10 @@ export default function Factures() {
         <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-[hsl(var(--success))]">
           <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">Encaissé {kpiPeriodLabel}</span>
           <span className="font-display text-2xl text-[hsl(var(--success))]">{formatEUR(encaisse)}</span>
+        </div>
+        <div className="luxury-card !p-4 flex flex-col justify-between h-20 border-l-[3px] border-l-[hsl(220_60%_55%)]">
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-body">TVA encaissée {kpiPeriodLabel}</span>
+          <span className="font-display text-2xl text-[hsl(220_60%_55%)]">{formatEUR(tvaEncaisse)}</span>
         </div>
       </div>
 

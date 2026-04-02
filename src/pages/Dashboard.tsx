@@ -25,7 +25,6 @@ import {
   nextFactureNumberOR,
   type Commande,
 } from "@/lib/commande-data";
-import ModuleNav from "@/components/ModuleNav";
 
 const statusClass: Record<Quote["statut"], string> = {
   brouillon: "status-brouillon",
@@ -579,11 +578,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="p-8 lg:p-10 max-w-6xl mx-auto">
+    <div className="p-6 lg:p-8 w-full">
       {/* Header bar */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="font-display text-[28px] font-semibold text-foreground tracking-tight">
+          <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">
             Tableau de bord
           </h1>
           <p className="text-[13px] text-muted-foreground mt-1 font-body">
@@ -598,8 +597,6 @@ export default function Dashboard() {
           Nouveau Devis
         </button>
       </div>
-
-      <ModuleNav />
 
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

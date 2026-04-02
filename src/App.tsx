@@ -14,6 +14,7 @@ import QuotesList from "./pages/QuotesList";
 import Factures from "./pages/Factures";
 import FacturePreview from "./pages/FacturePreview";
 import Commandes from "./pages/Commandes";
+import Fournisseurs from "./pages/Fournisseurs";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/factures/:id/apercu" element={<FacturePreview />} />
           <Route path="/commandes" element={<AppLayout><Commandes /></AppLayout>} />
           <Route path="/commandes/:id" element={<AppLayout><Commandes /></AppLayout>} />
+          <Route path="/fournisseurs" element={<AppLayout><Fournisseurs /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -220,4 +220,24 @@
     page-break-after: auto !important;
     break-after: auto !important;
   }
+
+  /* ── FacturePreview — single A4 page ── */
+  .print-container {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 12mm 15mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+  }
+  /* Compact spacing inside invoice */
+  .print-container .mb-8 { margin-bottom: 5mm !important; }
+  .print-container .mb-6 { margin-bottom: 4mm !important; }
+  .print-container .pt-6 { padding-top:   3mm !important; }
+  .print-container .py-3 { padding-top: 2mm !important; padding-bottom: 2mm !important; }
+  .print-container .py-2 { padding-top: 1mm !important; padding-bottom: 1mm !important; }
+  .print-container .py-1\.5 { padding-top: 0.8mm !important; padding-bottom: 0.8mm !important; }
+  .print-container .p-5   { padding: 3mm !important; }
 }
