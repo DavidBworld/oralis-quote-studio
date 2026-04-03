@@ -225,19 +225,40 @@
   .print-container {
     width: 210mm !important;
     max-width: 210mm !important;
+    min-height: auto !important;
     margin: 0 auto !important;
-    padding: 12mm 15mm !important;
+    padding: 10mm 14mm !important;
     box-shadow: none !important;
     border: none !important;
     border-radius: 0 !important;
     background: white !important;
+    font-size: 10pt !important;
   }
   /* Compact spacing inside invoice */
-  .print-container .mb-8 { margin-bottom: 5mm !important; }
-  .print-container .mb-6 { margin-bottom: 4mm !important; }
-  .print-container .pt-6 { padding-top:   3mm !important; }
-  .print-container .py-3 { padding-top: 2mm !important; padding-bottom: 2mm !important; }
-  .print-container .py-2 { padding-top: 1mm !important; padding-bottom: 1mm !important; }
-  .print-container .py-1\.5 { padding-top: 0.8mm !important; padding-bottom: 0.8mm !important; }
-  .print-container .p-5   { padding: 3mm !important; }
+  .print-container .mb-8   { margin-bottom: 4mm !important; }
+  .print-container .mb-6   { margin-bottom: 3mm !important; }
+  .print-container .mb-4   { margin-bottom: 2mm !important; }
+  .print-container .mt-4   { margin-top:    2mm !important; }
+  .print-container .mt-3   { margin-top:    1.5mm !important; }
+  .print-container .mt-2   { margin-top:    1mm !important; }
+  .print-container .pt-6   { padding-top:   3mm !important; }
+  .print-container .pt-3   { padding-top:   1.5mm !important; }
+  .print-container .py-3   { padding-top: 1.5mm !important; padding-bottom: 1.5mm !important; }
+  .print-container .py-2   { padding-top: 1mm !important;   padding-bottom: 1mm !important; }
+  .print-container .py-1\.5{ padding-top: 0.7mm !important; padding-bottom: 0.7mm !important; }
+  .print-container .py-1   { padding-top: 0.4mm !important; padding-bottom: 0.4mm !important; }
+  .print-container .p-5    { padding: 3mm !important; }
+  .print-container .p-12   { padding: 10mm 14mm !important; }
+  /* Reduce large heading for print */
+  .print-container h1      { font-size: 22pt !important; }
+  .print-container h2      { font-size: 18pt !important; }
+  .print-container .text-3xl { font-size: 18pt !important; }
+  .print-container .text-xl  { font-size: 13pt !important; }
+  .print-container .text-lg  { font-size: 12pt !important; }
+  .print-container .text-sm  { font-size: 9pt  !important; }
+  .print-container .text-xs  { font-size: 8pt  !important; }
+  .print-container .text-\[11px\] { font-size: 7.5pt !important; }
+  .print-container .w-80   { width: 68mm !important; }
+  /* Divider line */
+  .print-container .h-0\.5 { height: 0.3mm !important; margin-bottom: 3mm !important; }
 }

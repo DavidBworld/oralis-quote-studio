@@ -580,7 +580,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
                 <span className="font-mono font-medium">{formatEUR(facture.montantAcompte)}</span>
               </div>
               <div className="flex justify-between text-sm font-semibold">
-                <span>Net à payer</span>
+                <span>Reste à régler</span>
                 <span className="font-mono">{formatEUR(netAPayer > 0 ? netAPayer : facture.montantAcompte)}</span>
               </div>
             </div>
@@ -656,7 +656,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
               <span className="font-mono font-medium text-[hsl(var(--success))]">{formatEUR(totalRecu)}</span>
             </div>
             <div className="flex justify-between text-sm font-semibold">
-              <span>Net à payer</span>
+              <span>Reste à régler</span>
               <span className="font-mono">{formatEUR(netAPayer > 0 ? netAPayer : 0)}</span>
             </div>
             {facture.retenueGarantie && (
