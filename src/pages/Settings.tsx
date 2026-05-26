@@ -164,6 +164,14 @@ function EntrepriseTab({
             <input type="text" value={c.mentionGarantie} onChange={(e) => updateCompany({ mentionGarantie: e.target.value })} className="form-input" />
           </div>
           <div className="md:col-span-2">
+            <label className="form-label">Conditions de paiement par défaut</label>
+            <input type="text" value={c.conditionsPaiement} onChange={(e) => updateCompany({ conditionsPaiement: e.target.value })} className="form-input" placeholder="Ex: 50% à la commande, 45% à la livraison, 5% à la réception" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="form-label">Délai de réalisation par défaut</label>
+            <input type="text" value={c.delaiRealisation} onChange={(e) => updateCompany({ delaiRealisation: e.target.value })} className="form-input" placeholder="Ex: 6 à 8 semaines" />
+          </div>
+          <div className="md:col-span-2">
             <label className="form-label">Mot de passe superviseur</label>
             <input type="password" value={c.motDePasse} onChange={(e) => updateCompany({ motDePasse: e.target.value })} className="form-input" />
           </div>

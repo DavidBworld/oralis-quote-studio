@@ -467,7 +467,8 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
             <h3 className="section-title">Infos Acomptes</h3>
             <div>
               <label className="form-label">Mode de règlement</label>
-              <select className="form-input" value={facture.modeReglement || "30% à la commande, solde à la livraison"} onChange={(e) => updateField("modeReglement", e.target.value)}>
+              <select className="form-input" value={facture.modeReglement || "50% à la commande, 45% à la livraison, 5% à la réception des travaux"} onChange={(e) => updateField("modeReglement", e.target.value)}>
+                <option>50% à la commande, 45% à la livraison, 5% à la réception des travaux</option>
                 <option>30% à la commande, solde à la livraison</option>
                 <option>50% à la commande, 50% à la livraison</option>
                 <option>100% à la commande</option>

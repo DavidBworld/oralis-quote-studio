@@ -8,6 +8,7 @@ export interface QuoteOption {
 
 export interface QuoteLine {
   id: string;
+  image?: string;
   designation: string;
   description: string;
   quantite: number;
@@ -169,6 +170,7 @@ export function emptyClient(): QuoteClient {
 export function emptyLine(): QuoteLine {
   return {
     id: uid(),
+    image: "",
     designation: "",
     description: "",
     quantite: 1,
@@ -191,7 +193,7 @@ export function createEmptyQuote(quotes: Quote[]): Quote {
     statut: "brouillon",
     client: emptyClient(),
     lignes: [emptyLine()],
-    conditionsPaiement: "30% à la commande, solde à la livraison",
+    conditionsPaiement: "50% à la commande, 45% à la livraison, 5% à la réception des travaux",
     delaiRealisation: "6 à 8 semaines",
     notes: "",
   };
@@ -231,7 +233,7 @@ export function getSampleQuote(): Quote {
         ],
       },
     ],
-    conditionsPaiement: "30% à la commande, solde à la livraison",
+    conditionsPaiement: "50% à la commande, 45% à la livraison, 5% à la réception des travaux",
     delaiRealisation: "6 à 8 semaines",
     notes: "",
   };

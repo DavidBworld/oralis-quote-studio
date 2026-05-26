@@ -60,13 +60,14 @@ export default function FacturePreview() {
         {/* Header */}
         <div className="flex justify-between items-start mb-8 page-break-avoid">
           <div className="flex items-start gap-4">
-            {settings.documentFacture?.afficherLogo && settings.logo && (
-              <img src={settings.logo} alt="Logo" className="w-16 h-16 object-contain" />
+            {settings.logo ? (
+              <img src={settings.logo} alt="Logo" className="object-contain" style={{ maxHeight: 220, maxWidth: 320 }} />
+            ) : (
+              <div>
+                <h1 className="font-display text-[32px] font-bold text-accent tracking-wider">ORALIS</h1>
+                <p className="text-xs text-muted-foreground mt-1">Pergola Bioclimatique &amp; Jardin d'Hiver Sur-Mesure</p>
+              </div>
             )}
-            <div>
-              <h1 className="font-display text-[32px] font-bold text-accent tracking-wider">ORALIS</h1>
-              <p className="text-xs text-muted-foreground mt-1">Pergola Bioclimatique &amp; Jardin d'Hiver Sur-Mesure</p>
-            </div>
           </div>
           <div className="text-right text-xs text-muted-foreground leading-relaxed">
             <p className="font-medium text-foreground">{c.nom}</p>

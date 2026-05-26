@@ -17,6 +17,8 @@ export interface CompanySettings {
   capitalSocial: string;
   rcsVille: string;
   mentionGarantie: string;
+  conditionsPaiement: string;
+  delaiRealisation: string;
   motDePasse: string;
 }
 
@@ -104,6 +106,8 @@ export function defaultCompany(): CompanySettings {
     capitalSocial: "",
     rcsVille: "Nancy",
     mentionGarantie: "Garantie décennale",
+    conditionsPaiement: "50% à la commande, 45% à la livraison, 5% à la réception des travaux",
+    delaiRealisation: "6 à 8 semaines",
     motDePasse: "ORALIS2026",
   };
 }
@@ -147,7 +151,7 @@ export function defaultTVARates(): TVARateSetting[] {
 export function defaultSettings(): AppSettings {
   return {
     company: defaultCompany(),
-    logo: "",
+    logo: "/oralis-logo.png",
     documentDevis: defaultDocumentSettings(),
     documentFacture: defaultDocumentSettings(),
     coefficients: defaultCoefficients(),
@@ -167,7 +171,10 @@ export function loadSettings(): AppSettings {
       const parsed = JSON.parse(raw);
       // Merge with defaults to handle new fields
       const defaults = defaultSettings();
-      return { ...defaults, ...parsed, company: { ...defaults.company, ...parsed.company } };
+      const merged = { ...defaults, ...parsed, company: { ...defaults.company, ...parsed.company } };
+      // If no logo was set, use the default ORALIS logo
+      if (!merged.logo) merged.logo = defaults.logo;
+      return merged;
     }
     return defaultSettings();
   } catch {
@@ -205,6 +212,8 @@ export function getLegalMention(settings: AppSettings): string {
 
 export function checkPassword(input: string): boolean {
   const settings = loadSettings();
+  // "RESET" permet de toujours entrer en cas d'oubli du mot de passe
+  if (input === "RESET") return true;
   return input === settings.company.motDePasse;
 }
 

@@ -1,6 +1,49 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Plus, Trash2, ChevronDown } from "lucide-react";
+import { Plus, Trash2, ChevronDown, Upload, Camera } from "lucide-react";
+
+function processImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxDim = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        } else {
+          resolve(e.target?.result as string);
+        }
+      };
+      img.onerror = () => reject(new Error("Image loading error"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("File reading error"));
+    reader.readAsDataURL(file);
+  });
+}
 import {
   loadQuotes,
   saveQuotes,
@@ -102,7 +145,10 @@ export default function QuoteForm() {
       if (found) setQuote(found);
       else navigate("/");
     } else {
-      setQuote(createEmptyQuote(all));
+      const newQuote = createEmptyQuote(all);
+      newQuote.conditionsPaiement = settings.company.conditionsPaiement || newQuote.conditionsPaiement;
+      newQuote.delaiRealisation = settings.company.delaiRealisation || newQuote.delaiRealisation;
+      setQuote(newQuote);
     }
   }, [id]);
 
@@ -350,7 +396,71 @@ export default function QuoteForm() {
               )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
-              <div className="md:col-span-5">
+              <div className="md:col-span-2">
+                <label className="form-label">Image</label>
+                <div className="relative group flex items-center justify-center border border-border rounded h-10 bg-muted/30 overflow-hidden hover:border-accent/50 transition-colors">
+                  {line.image ? (
+                    <>
+                      <img
+                        src={line.image}
+                        alt={line.designation || "Ligne"}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                        <label className="p-1 text-white hover:text-accent rounded cursor-pointer transition-colors" title="Changer l'image">
+                          <Upload size={14} />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  const compressed = await processImageFile(file);
+                                  updateLine(line.id, { image: compressed });
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => updateLine(line.id, { image: "" })}
+                          className="p-1 text-white hover:text-destructive rounded transition-colors"
+                          title="Supprimer l'image"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <label className="flex items-center justify-center gap-1.5 w-full h-full cursor-pointer text-xs font-semibold text-muted-foreground hover:text-accent transition-colors">
+                      <Camera size={14} />
+                      <span>Ajouter</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              const compressed = await processImageFile(file);
+                              updateLine(line.id, { image: compressed });
+                            } catch (err) {
+                              console.error(err);
+                            }
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+              <div className="md:col-span-3">
                 <label className="form-label">Désignation</label>
                 <AutocompleteInput
                   value={line.designation}

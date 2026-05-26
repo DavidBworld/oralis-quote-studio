@@ -264,12 +264,18 @@ export default function QuotePreview() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
           {/* Left: Logo + Company */}
           <div>
-            <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 42, fontWeight: 900, letterSpacing: 3, lineHeight: 1, color: "#111" }}>
-              ORALIS
-            </div>
-            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, color: "#555", textTransform: "uppercase", marginBottom: 12 }}>
-              Créateur d'espaces extérieurs
-            </div>
+            {settings.logo ? (
+              <img src={settings.logo} alt="ORALIS" style={{ maxHeight: 220, maxWidth: 320, objectFit: "contain", marginBottom: 10 }} />
+            ) : (
+              <>
+                <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 42, fontWeight: 900, letterSpacing: 3, lineHeight: 1, color: "#111" }}>
+                  ORALIS
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, color: "#555", textTransform: "uppercase", marginBottom: 12 }}>
+                  Créateur d'espaces extérieurs
+                </div>
+              </>
+            )}
             <div style={{ fontSize: 11, color: "#444", lineHeight: 1.7 }}>
               <div><strong>ORALIS</strong></div>
               <div>{c.rue}</div>
@@ -373,24 +379,38 @@ export default function QuotePreview() {
             <React.Fragment key={line.id}>
               <tr style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
                 <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
-                  {/* Visuel placeholder */}
-                  <div style={{
-                    width: 80, height: 60,
-                    background: "#f0f0f0",
-                    borderRadius: 4,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 9, color: "#bbb"
-                  }}>
-                    Photo
-                  </div>
+                  {line.image ? (
+                    <img
+                      src={line.image}
+                      alt={line.designation || "Visuel"}
+                      style={{
+                        width: 80,
+                        height: 60,
+                        objectFit: "cover",
+                        borderRadius: 4,
+                        border: "1px solid #eee"
+                      }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 80, height: 60,
+                      background: "#f9f9f9",
+                      borderRadius: 4,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 9, color: "#ccc",
+                      border: "1px dashed #eee"
+                    }}>
+                      —
+                    </div>
+                  )}
                 </td>
                 <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
+                  <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{line.designation || "—"}</div>
                   {line.description && (
                     <div style={{ fontSize: 10, color: "#666", marginBottom: 6, lineHeight: 1.5 }}>
                       {line.description}
                     </div>
                   )}
-                  <div style={{ fontWeight: 700, fontSize: 12 }}>{line.designation || "—"}</div>
                   {line.options && line.options.length > 0 && (
                     <ul style={{ margin: "4px 0 0 0", padding: "0 0 0 16px", fontSize: 10, color: "#444", lineHeight: 1.6 }}>
                       {line.options.map(opt => (
