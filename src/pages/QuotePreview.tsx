@@ -322,17 +322,18 @@ export default function QuotePreview() {
         {/* Image produit / ambiance */}
         <div style={{
           width: "100%", height: 260,
-          background: "linear-gradient(135deg, #2a2a2a 0%, #4a4a4a 50%, #2a2a2a 100%)",
           borderRadius: 4, marginBottom: 24,
-          display: "flex", alignItems: "center", justifyContent: "center"
+          overflow: "hidden"
         }}>
-          {settings.logo ? (
-            <img src={settings.logo} alt="ORALIS" style={{ maxHeight: 120, maxWidth: "60%", objectFit: "contain", opacity: 0.8 }} />
-          ) : (
-            <div style={{ color: "#fff", opacity: 0.4, fontSize: 32, fontFamily: "Cormorant Garamond, serif", letterSpacing: 4, fontWeight: 700 }}>
-              ORALIS
-            </div>
-          )}
+          <img
+            src="/devis-cover.jpg"
+            alt="Ambiance"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover"
+            }}
+          />
         </div>
 
         {/* Letter body */}
