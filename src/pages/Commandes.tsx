@@ -40,31 +40,32 @@ function CreerFactureModal({ commande, onClose, onDone }: {
 
   const [label, setLabel] = useState(defaultLabel);
   const [type] = useState(defaultType);
-  const [pct, setPct] = useState(defaultPct);
-  const [montant, setMontant] = useState(
-    Math.round(commande.totalTTC * defaultPct / 100 * 100) / 100
-  );
-  const [usePercent, setUsePercent] = useState(true);
+  const [pct, setPct] = useState(() => {
+    if (defaultType === "solde" && commande.totalTTC > 0) {
+      return Math.round((resteAFacturer / commande.totalTTC) * 100 * 100) / 100;
+    }
+    return defaultPct;
+  });
+  const [montant, setMontant] = useState(() => {
+    if (defaultType === "solde") {
+      return resteAFacturer;
+    }
+    return Math.round(commande.totalTTC * defaultPct / 100 * 100) / 100;
+  });
   const [dateFacture, setDateFacture] = useState(new Date().toISOString().split("T")[0]);
   const [dateEcheance, setDateEcheance] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0];
   });
   const [modePaiement, setModePaiement] = useState("Virement");
 
-  const montantFinal = usePercent ? Math.round(commande.totalTTC * pct / 100 * 100) / 100 : montant;
-
-  // Sync montant when pct changes
-  const handlePctChange = (v: number) => {
-    setPct(v);
-    setMontant(Math.round(commande.totalTTC * v / 100 * 100) / 100);
-  };
+  const montantFinal = montant;
 
   const handleCreate = () => {
     if (montantFinal <= 0) {
       toast.error("Le montant doit être supérieur à 0");
       return;
     }
-    if (montantFinal > resteAFacturer + 0.01) {
+    if (montantFinal > resteAFacturer + 0.005) {
       toast.error(`Le montant dépasse le reste à facturer (${formatEUR(resteAFacturer)})`);
       return;
     }
@@ -163,25 +164,43 @@ function CreerFactureModal({ commande, onClose, onDone }: {
 
           <div>
             <label className="form-label">Montant TTC</label>
-            <div className="flex gap-2 items-center">
-              {usePercent ? (
-                <div className="flex items-center gap-1">
-                  <input type="number" className="form-input w-20" value={pct} onChange={(e) => handlePctChange(Number(e.target.value))} min={0} max={100} />
-                  <span className="text-sm text-muted-foreground">%</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <input type="number" className="form-input w-32" value={montant} onChange={(e) => setMontant(Number(e.target.value))} step={0.01} />
-                  <span className="text-sm text-muted-foreground">€</span>
-                </div>
-              )}
-              <button
-                className="text-[12px] text-accent font-medium px-2 py-1 hover:bg-accent/10 rounded"
-                onClick={() => setUsePercent(!usePercent)}
-              >
-                {usePercent ? "% → €" : "€ → %"}
-              </button>
-              <span className="text-sm font-mono font-medium ml-auto">{formatEUR(montantFinal)} TTC</span>
+            <div className="flex gap-3 items-center">
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  className="form-input w-24"
+                  value={pct}
+                  onChange={(e) => {
+                    const p = Number(e.target.value);
+                    setPct(p);
+                    setMontant(Math.round(commande.totalTTC * p / 100 * 100) / 100);
+                  }}
+                  min={0}
+                  max={100}
+                  step={0.01}
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+              
+              <span className="text-muted-foreground text-xs font-medium">ou</span>
+
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  className="form-input w-32 font-mono"
+                  value={montant}
+                  onChange={(e) => {
+                    const m = Number(e.target.value);
+                    setMontant(m);
+                    if (commande.totalTTC > 0) {
+                      setPct(Math.round((m / commande.totalTTC) * 100 * 100) / 100);
+                    }
+                  }}
+                  step={0.01}
+                  min={0}
+                />
+                <span className="text-sm text-muted-foreground">€ TTC</span>
+              </div>
             </div>
           </div>
 
