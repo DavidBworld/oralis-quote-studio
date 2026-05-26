@@ -96,14 +96,18 @@ const IBAN = "SAS TOUT POUR MA TERRASSE — IBAN FR76 1695 8000 0129 8680 2762 9
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function PageHeader({ quote, c, devisNumero }: { quote: Quote; c: any; devisNumero: string }) {
+function PageHeader({ quote, c, devisNumero, logo }: { quote: Quote; c: any; devisNumero: string; logo?: string }) {
   return (
     <div className="flex justify-between items-start mb-0 gap-4">
-      {/* Left: ORALIS block */}
+      {/* Left: Logo or ORALIS block */}
       <div style={{ minWidth: 240 }}>
-        <div style={{ background: "#1a1a1a", color: "#fff", padding: "8px 14px", marginBottom: 6, borderRadius: 4 }}>
-          <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 22, fontWeight: 700, letterSpacing: 2 }}>ORALIS</span>
-        </div>
+        {logo ? (
+          <img src={logo} alt="ORALIS" style={{ maxHeight: 60, maxWidth: 200, objectFit: "contain", marginBottom: 6 }} />
+        ) : (
+          <div style={{ background: "#1a1a1a", color: "#fff", padding: "8px 14px", marginBottom: 6, borderRadius: 4 }}>
+            <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 22, fontWeight: 700, letterSpacing: 2 }}>ORALIS</span>
+          </div>
+        )}
         <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
           <div>Votre contact : <strong>David BOILON</strong></div>
           {quote.notes && <div>Référence : {quote.notes}</div>}
@@ -373,7 +377,7 @@ export default function QuotePreview() {
       ══════════════════════════════════════════════════════ */}
       <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm" }}>
 
-        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} />
+        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={settings.logo} />
 
         <ProductTable>
           {quote.lignes.map((line, i) => (
@@ -445,7 +449,7 @@ export default function QuotePreview() {
       ══════════════════════════════════════════════════════ */}
       <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm" }}>
 
-        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} />
+        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={settings.logo} />
 
         {/* ── TVA detail table ── */}
         <div style={{ marginTop: 24, display: "flex", gap: 24, alignItems: "flex-start" }}>
