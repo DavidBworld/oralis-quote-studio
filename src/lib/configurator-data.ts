@@ -1,0 +1,332 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// ORALIS — Configurateur Pergola & Grilles de Tarifs Multi-critères
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { uid } from "@/lib/quote-data";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+/** Grille matricielle Largeur × Profondeur (ou Hauteur) */
+export interface GrilleTarif {
+  largeurs: number[];    // en mm
+  profondeurs: number[]; // en mm (profondeur ou hauteur selon type_dim)
+  prixAchatHT: number[][];
+}
+
+/** Surcharge toiture ou couleur */
+export interface OptionConfigurable {
+  id: string;
+  nom: string;
+  surchargeHT: number;
+  surchargePct: number;
+}
+
+/** Règle de calcul automatique du nombre de poteaux selon largeur */
+export interface ReglePoteau {
+  largeurMinMm: number;
+  largeurMaxMm: number;
+  nombrePoteaux: number;
+}
+
+/** Modèle de pergola configurable */
+export interface ModelePergola {
+  id: string;
+  nom: string;                    // nom catalogue ORALIS — visible client
+  nomFournisseur: string;         // nom MB Aluminium — usage interne uniquement
+  fournisseurId: string;
+  fournisseurNom: string;
+  typeDim: "largeur_profondeur" | "largeur_hauteur";
+  margeDefaut: number;            // coefficient ex: 1.4
+  grille: GrilleTarif;
+  toitures: OptionConfigurable[];
+  couleurs: OptionConfigurable[];
+  reglesPoteau: ReglePoteau[];    // calcul automatique nb poteaux
+  templateDescription: string;   // template avec {{variables}} pour le devis
+}
+
+/** Résultat de calcul complet */
+export interface ResultatCalcul {
+  prixAchatBaseHT: number;
+  surchargeToitureHT: number;
+  surchargeCouleurHT: number;
+  prixAchatTotalHT: number;
+  coefficient: number;
+  prixVenteHT: number;
+  largeurGrille: number;
+  profondeurGrille: number;
+  nombrePoteaux: number;
+}
+
+// ── Storage ───────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "oralis_modeles_pergola";
+
+export function loadModeles(): ModelePergola[] {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+  catch { return []; }
+}
+
+export function saveModeles(modeles: ModelePergola[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(modeles));
+}
+
+// ── Blank helpers ─────────────────────────────────────────────────────────────
+
+export function blankGrille(): GrilleTarif {
+  return {
+    largeurs:    [3000, 4000, 5000, 6000],
+    profondeurs: [2000, 2500, 3000, 3500, 4000],
+    prixAchatHT: [
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ],
+  };
+}
+
+export function blankOption(): OptionConfigurable {
+  return { id: uid(), nom: "", surchargeHT: 0, surchargePct: 0 };
+}
+
+/** Template description par défaut — variables remplacées à l'injection */
+export const TEMPLATE_DEFAUT = `{{nom}} sur mesure
+Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux
+Couverture : {{toiture}}
+Couleur structure : {{couleur}}
+Structure aluminium thermolaquée — résistance aux UV et aux intempéries
+Fabrication entièrement sur mesure`;
+
+export const VARIABLES_DISPONIBLES = [
+  "{{nom}}",
+  "{{largeur}}",
+  "{{profondeur}}",
+  "{{hauteur}}",
+  "{{toiture}}",
+  "{{couleur}}",
+  "{{poteaux}}",
+  "{{moteur}}",
+];
+
+export function blankModele(): ModelePergola {
+  return {
+    id: uid(),
+    nom: "",
+    nomFournisseur: "",
+    fournisseurId: "",
+    fournisseurNom: "",
+    typeDim: "largeur_profondeur",
+    margeDefaut: 1.4,
+    grille: blankGrille(),
+    toitures: [
+      { id: uid(), nom: "Polycarbonate transparent", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Verre clair", surchargeHT: 0, surchargePct: 15 },
+      { id: uid(), nom: "Verre opale", surchargeHT: 0, surchargePct: 12 },
+    ],
+    couleurs: [
+      { id: uid(), nom: "RAL 9016 Blanc", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 7016 Anthracite", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 9005 Noir", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL Spécifique (sur demande)", surchargeHT: 250, surchargePct: 0 },
+    ],
+    reglesPoteau: [
+      { largeurMinMm: 0,     largeurMaxMm: 6060,  nombrePoteaux: 2 },
+      { largeurMinMm: 6061,  largeurMaxMm: 9060,  nombrePoteaux: 3 },
+      { largeurMinMm: 9061,  largeurMaxMm: 12060, nombrePoteaux: 4 },
+    ],
+    templateDescription: TEMPLATE_DEFAUT,
+  };
+}
+
+// ── Calcul poteaux ────────────────────────────────────────────────────────────
+
+/**
+ * Calcule le nombre de poteaux en fonction de la largeur et des règles définies.
+ * Retourne 2 par défaut si aucune règle ne correspond.
+ */
+export function calculerPoteaux(regles: ReglePoteau[], largeurMm: number): number {
+  const regle = regles.find(
+    (r) => largeurMm >= r.largeurMinMm && largeurMm <= r.largeurMaxMm
+  );
+  return regle?.nombrePoteaux ?? 2;
+}
+
+// ── Lookup matriciel avec arrondi supérieur ───────────────────────────────────
+
+export function determinerPrixBase(
+  grille: GrilleTarif,
+  largeur: number,
+  profondeur: number
+): { prix: number; largeurGrille: number; profondeurGrille: number } {
+  const colIdx = grille.largeurs.findIndex((w) => w >= largeur);
+  const rowIdx = grille.profondeurs.findIndex((d) => d >= profondeur);
+
+  if (colIdx === -1)
+    throw new Error(`Largeur ${formatMM(largeur)} hors grille (max: ${formatMM(Math.max(...grille.largeurs))})`);
+  if (rowIdx === -1)
+    throw new Error(`Profondeur ${formatMM(profondeur)} hors grille (max: ${formatMM(Math.max(...grille.profondeurs))})`);
+
+  return {
+    prix: grille.prixAchatHT[rowIdx][colIdx],
+    largeurGrille: grille.largeurs[colIdx],
+    profondeurGrille: grille.profondeurs[rowIdx],
+  };
+}
+
+// ── Calcul prix complet ───────────────────────────────────────────────────────
+
+export function calculerPrix(
+  modele: ModelePergola,
+  largeur: number,
+  profondeur: number,
+  toitureId: string,
+  couleurId: string,
+  coefficient: number
+): ResultatCalcul {
+  const { prix, largeurGrille, profondeurGrille } = determinerPrixBase(
+    modele.grille, largeur, profondeur
+  );
+
+  const toiture = modele.toitures.find((t) => t.id === toitureId);
+  const couleur = modele.couleurs.find((c) => c.id === couleurId);
+
+  const surchargeToitureHT =
+    (toiture?.surchargeHT ?? 0) + prix * ((toiture?.surchargePct ?? 0) / 100);
+  const surchargeCouleurHT =
+    (couleur?.surchargeHT ?? 0) + prix * ((couleur?.surchargePct ?? 0) / 100);
+
+  const prixAchatTotalHT = prix + surchargeToitureHT + surchargeCouleurHT;
+  const prixVenteHT = Math.round(prixAchatTotalHT * coefficient * 100) / 100;
+  const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur);
+
+  return {
+    prixAchatBaseHT: prix,
+    surchargeToitureHT,
+    surchargeCouleurHT,
+    prixAchatTotalHT,
+    coefficient,
+    prixVenteHT,
+    largeurGrille,
+    profondeurGrille,
+    nombrePoteaux,
+  };
+}
+
+// ── Génération description automatique ───────────────────────────────────────
+
+export interface ContexteDescription {
+  nom: string;
+  largeurMm: number;
+  profondeurMm: number;   // ou hauteur selon typeDim
+  toiture: string;
+  couleur: string;
+  poteaux: number;
+  moteur?: string;
+  typeDim: "largeur_profondeur" | "largeur_hauteur";
+}
+
+/**
+ * Injecte les variables dans le template pour générer la description finale.
+ * Toutes les occurrences de {{variable}} sont remplacées.
+ */
+export function genererDescription(
+  template: string,
+  ctx: ContexteDescription
+): string {
+  const largeurFormate = formatDimDevis(ctx.largeurMm);
+  const dim2Formate    = formatDimDevis(ctx.profondeurMm);
+  const dim2Label      = ctx.typeDim === "largeur_hauteur" ? "Hauteur" : "Profondeur";
+
+  return template
+    .replace(/\{\{nom\}\}/g,        ctx.nom)
+    .replace(/\{\{largeur\}\}/g,    largeurFormate)
+    .replace(/\{\{profondeur\}\}/g, dim2Formate)
+    .replace(/\{\{hauteur\}\}/g,    dim2Formate)
+    .replace(/\{\{dim2_label\}\}/g, dim2Label)
+    .replace(/\{\{toiture\}\}/g,    ctx.toiture)
+    .replace(/\{\{couleur\}\}/g,    ctx.couleur)
+    .replace(/\{\{poteaux\}\}/g,    String(ctx.poteaux))
+    .replace(/\{\{moteur\}\}/g,     ctx.moteur ?? "")
+    .trim();
+}
+
+// ── Parseur Excel TSV ─────────────────────────────────────────────────────────
+
+export function parseExcelGrid(tsv: string): GrilleTarif | null {
+  const lines = tsv
+    .trim()
+    .split(/\r?\n/)
+    .map((l) =>
+      l.split("\t").map((c) => c.trim().replace(/\s/g, "").replace(",", ".").replace(/[€$£]/g, ""))
+    );
+
+  if (lines.length < 2) return null;
+
+  const largeurs = lines[0]
+    .slice(1)
+    .map((c) => parseFloat(c.replace(/[^\d.]/g, "")))
+    .filter((n) => !isNaN(n) && n > 0);
+
+  if (largeurs.length === 0) return null;
+
+  const profondeurs: number[] = [];
+  const prixAchatHT: number[][] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const row = lines[i];
+    const profondeur = parseFloat(row[0].replace(/[^\d.]/g, ""));
+    if (isNaN(profondeur) || profondeur <= 0) continue;
+
+    const prix = row.slice(1, largeurs.length + 1).map((c) => {
+      const n = parseFloat(c.replace(/[^\d.]/g, ""));
+      return isNaN(n) ? 0 : n;
+    });
+    while (prix.length < largeurs.length) prix.push(0);
+
+    profondeurs.push(profondeur);
+    prixAchatHT.push(prix);
+  }
+
+  if (profondeurs.length === 0) return null;
+  return { largeurs, profondeurs, prixAchatHT };
+}
+
+// ── Validation ────────────────────────────────────────────────────────────────
+
+export function validateGrille(grille: GrilleTarif): string | null {
+  if (grille.largeurs.length === 0)  return "Aucune largeur définie";
+  if (grille.profondeurs.length === 0) return "Aucune profondeur définie";
+  if (grille.prixAchatHT.length !== grille.profondeurs.length)
+    return "Nombre de lignes de prix ≠ nombre de profondeurs";
+  for (const row of grille.prixAchatHT)
+    if (row.length !== grille.largeurs.length)
+      return "Nombre de colonnes de prix ≠ nombre de largeurs";
+  return null;
+}
+
+// ── Formatage ─────────────────────────────────────────────────────────────────
+
+/** Affiche en mètres pour l'interface (ex: "3,06 m") */
+export function formatMM(mm: number): string {
+  return `${(mm / 1000).toFixed(2).replace(".", ",")} m`;
+}
+
+/** Affiche en mètres pour le devis (ex: "3,06m") — sans espace */
+export function formatDimDevis(mm: number): string {
+  return `${(mm / 1000).toFixed(2).replace(".", ",")}m`;
+}
+
+export function formatCoef(coef: number): string {
+  return `×${coef.toFixed(2)} (+${((coef - 1) * 100).toFixed(0)}%)`;
+}
+
+/** Convertit cm → mm (tarif fournisseur en cm → app en mm) */
+export function cmToMm(cm: number): number {
+  return cm * 10;
+}
+
+/** Convertit mm → cm */
+export function mmToCm(mm: number): number {
+  return mm / 10;
+}
