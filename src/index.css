@@ -177,7 +177,19 @@
     @apply py-3 px-4 text-[11px] font-semibold uppercase tracking-wider;
     font-family: var(--font-body);
     letter-spacing: 0.08em;
-  }
+    }
+}
+
+/* On screen styles for the A4 pages preview */
+.print-page {
+  width: 210mm;
+  height: 297mm;
+  position: relative;
+  box-sizing: border-box;
+  background: white;
+  margin: 20px auto;
+  box-shadow: var(--shadow-elevated);
+  border-radius: 4px;
 }
 
 @media print {
@@ -202,11 +214,12 @@
   .page-break-avoid {
     break-inside: avoid;
   }
+
   /* Each A4 page */
   .print-page {
     width: 210mm !important;
     max-width: 210mm !important;
-    min-height: 297mm !important;
+    height: 297mm !important;
     margin: 0 auto !important;
     box-shadow: none !important;
     border: none !important;
@@ -214,6 +227,8 @@
     display: block !important;
     page-break-after: always !important;
     break-after: page !important;
+    position: relative !important;
+    box-sizing: border-box !important;
   }
   /* Last page: no forced break after */
   .print-page:last-of-type {
@@ -234,6 +249,7 @@
     background: white !important;
     font-size: 10pt !important;
   }
+
   /* Compact spacing inside invoice */
   .print-container .mb-8   { margin-bottom: 4mm !important; }
   .print-container .mb-6   { margin-bottom: 3mm !important; }
