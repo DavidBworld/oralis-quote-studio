@@ -258,7 +258,7 @@ export default function QuotePreview() {
       {/* ══════════════════════════════════════════════════════
           PAGE 1 — LETTRE DE PRÉSENTATION
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "20mm 18mm" }}>
+      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "12mm 10mm" }}>
 
         {/* Header page 1 */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -370,7 +370,7 @@ export default function QuotePreview() {
       {/* ══════════════════════════════════════════════════════
           PAGES PRODUITS (une ligne = un bloc auto-paginated)
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "14mm 18mm" }}>
+      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm" }}>
 
         <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} />
 
@@ -442,7 +442,7 @@ export default function QuotePreview() {
       {/* ══════════════════════════════════════════════════════
           PAGE RÉCAPITULATIF — TOTAUX + CONDITIONS + SIGNATURE
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "14mm 18mm" }}>
+      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm" }}>
 
         <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} />
 
@@ -555,7 +555,7 @@ export default function QuotePreview() {
       {/* ══════════════════════════════════════════════════════
           PAGE CGV — CONDITIONS GÉNÉRALES DE VENTE
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "12mm 18mm" }}>
+      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "8mm 10mm" }}>
 
         {/* CGV Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
