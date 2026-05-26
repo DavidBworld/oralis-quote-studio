@@ -102,7 +102,7 @@ function PageHeader({ quote, c, devisNumero, logo }: { quote: Quote; c: any; dev
       {/* Left: Logo or ORALIS block */}
       <div style={{ minWidth: 240 }}>
         {logo ? (
-          <img src={logo} alt="ORALIS" style={{ maxHeight: 120, maxWidth: 400, objectFit: "contain", marginBottom: 6 }} />
+          <img src={logo} alt="ORALIS" style={{ maxHeight: 240, maxWidth: 800, objectFit: "contain", marginBottom: 6 }} />
         ) : (
           <div style={{ background: "#1a1a1a", color: "#fff", padding: "8px 14px", marginBottom: 6, borderRadius: 4 }}>
             <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 22, fontWeight: 700, letterSpacing: 2 }}>ORALIS</span>
