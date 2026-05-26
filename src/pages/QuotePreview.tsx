@@ -102,7 +102,7 @@ function PageHeader({ quote, c, devisNumero, logo }: { quote: Quote; c: any; dev
       {/* Left: Logo or ORALIS block */}
       <div style={{ minWidth: 240 }}>
         {logo ? (
-          <img src={logo} alt="ORALIS" style={{ maxHeight: 240, maxWidth: 800, objectFit: "contain", marginBottom: 6 }} />
+          <img src={logo} alt="ORALIS" style={{ maxHeight: 85, maxWidth: 300, objectFit: "contain", marginBottom: 6 }} />
         ) : (
           <div style={{ background: "#1a1a1a", color: "#fff", padding: "8px 14px", marginBottom: 6, borderRadius: 4 }}>
             <span style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 22, fontWeight: 700, letterSpacing: 2 }}>ORALIS</span>
@@ -187,6 +187,46 @@ function ProductTable({ children }: { children: React.ReactNode }) {
   );
 }
 
+function cropImageTransparency(img: HTMLImageElement): string {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return img.src;
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.drawImage(img, 0, 0);
+
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imgData.data;
+  let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const alpha = data[(y * canvas.width + x) * 4 + 3];
+      if (alpha > 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return img.src;
+
+  const croppedWidth = maxX - minX + 1;
+  const croppedHeight = maxY - minY + 1;
+
+  const croppedCanvas = document.createElement("canvas");
+  croppedCanvas.width = croppedWidth;
+  croppedCanvas.height = croppedHeight;
+  const croppedCtx = croppedCanvas.getContext("2d");
+  if (!croppedCtx) return img.src;
+
+  croppedCtx.drawImage(img, minX, minY, croppedWidth, croppedHeight, 0, 0, croppedWidth, croppedHeight);
+  return croppedCanvas.toDataURL();
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function QuotePreview() {
@@ -194,13 +234,33 @@ export default function QuotePreview() {
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string>("");
 
   useEffect(() => {
     const all = loadQuotes();
     const found = all.find((q) => q.id === id);
     if (found) setQuote(found);
     else navigate("/");
-    setSettings(loadSettings());
+
+    const loadedSettings = loadSettings();
+    setSettings(loadedSettings);
+
+    if (loadedSettings.logo) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const cropped = cropImageTransparency(img);
+          setLogoUrl(cropped);
+        } catch (e) {
+          setLogoUrl(loadedSettings.logo);
+        }
+      };
+      img.onerror = () => {
+        setLogoUrl(loadedSettings.logo);
+      };
+      img.src = loadedSettings.logo;
+    }
   }, [id]);
 
   if (!quote || !settings) return null;
@@ -269,7 +329,7 @@ export default function QuotePreview() {
           {/* Left: Logo + Company */}
           <div>
             {settings.logo ? (
-              <img src={settings.logo} alt="ORALIS" style={{ maxHeight: 220, maxWidth: 320, objectFit: "contain", marginBottom: 10 }} />
+              <img src={logoUrl || settings.logo} alt="ORALIS" style={{ maxHeight: 180, maxWidth: 280, objectFit: "contain", marginBottom: 10 }} />
             ) : (
               <>
                 <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 42, fontWeight: 900, letterSpacing: 3, lineHeight: 1, color: "#111" }}>
@@ -377,7 +437,7 @@ export default function QuotePreview() {
       ══════════════════════════════════════════════════════ */}
       <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm" }}>
 
-        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={settings.logo} />
+        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} />
 
         <ProductTable>
           {quote.lignes.map((line, i) => (
@@ -449,7 +509,7 @@ export default function QuotePreview() {
       ══════════════════════════════════════════════════════ */}
       <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm" }}>
 
-        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={settings.logo} />
+        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} />
 
         {/* ── TVA detail table ── */}
         <div style={{ marginTop: 24, display: "flex", gap: 24, alignItems: "flex-start" }}>
