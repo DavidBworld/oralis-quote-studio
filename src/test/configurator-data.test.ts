@@ -236,3 +236,69 @@ describe("formatting helpers", () => {
     expect(formatCoef(1.55)).toBe("×1.55 (+55%)");
   });
 });
+
+describe("Option pricing modes (ml and m2)", () => {
+  it("should calculate correct surcharge for m2 options", () => {
+    const model: ModelePergola = {
+      id: "m_test",
+      nom: "Test Model",
+      nomFournisseur: "MB Test",
+      fournisseurId: "f1",
+      fournisseurNom: "Fournisseur A",
+      typeDim: "largeur_profondeur",
+      margeDefaut: 1.5,
+      grille: {
+        largeurs: [3000, 4000],
+        profondeurs: [2000, 3000],
+        prixAchatHT: [
+          [1000, 1200],
+          [1500, 1800],
+        ],
+      },
+      toitures: [
+        { id: "t_m2", nom: "IQRELAX Polycarbonate", surchargeHT: 50, surchargePct: 0, modeCalcul: "m2" },
+      ],
+      couleurs: [],
+      reglesPoteau: [],
+      templateDescription: "",
+    };
+
+    // Pergola 4000 x 3000 (area: 4m x 3m = 12m2)
+    // Surcharge toiture = 12 * 50 = 600€
+    const result = calculerPrix(model, 4000, 3000, "t_m2", "", 1.0);
+    expect(result.surchargeToitureHT).toBe(600);
+    expect(result.prixAchatTotalHT).toBe(1800 + 600);
+  });
+
+  it("should calculate correct surcharge for ml options based on post height and qty", () => {
+    const model: ModelePergola = {
+      id: "m_test",
+      nom: "Test Model",
+      nomFournisseur: "MB Test",
+      fournisseurId: "f1",
+      fournisseurNom: "Fournisseur A",
+      typeDim: "largeur_profondeur",
+      margeDefaut: 1.5,
+      grille: {
+        largeurs: [3000, 4000],
+        profondeurs: [2000, 3000],
+        prixAchatHT: [
+          [1000, 1200],
+          [1500, 1800],
+        ],
+      },
+      toitures: [],
+      couleurs: [
+        { id: "c_ml", nom: "Poteaux Supplémentaires", surchargeHT: 100, surchargePct: 0, modeCalcul: "ml" },
+      ],
+      reglesPoteau: [],
+      templateDescription: "",
+    };
+
+    // 2 additional posts of 3m height (total ml = 2 * 3 = 6ml)
+    // Surcharge = 6 * 100 = 600€
+    const result = calculerPrix(model, 4000, 3000, "", "c_ml", 1.0, 3000, 2);
+    expect(result.surchargeCouleurHT).toBe(600);
+    expect(result.prixAchatTotalHT).toBe(1800 + 600);
+  });
+});

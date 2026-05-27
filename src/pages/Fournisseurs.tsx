@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-  Plus, Search, Pencil, Trash2, ChevronDown, ChevronRight,
+  Plus, Search, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp,
   Truck, Save, Grid3X3, ClipboardPaste, AlertCircle, CheckCircle2, X,
   Camera, Upload,
 } from "lucide-react";
@@ -565,10 +565,28 @@ function OptionsList({
     onChange(options.map((o) => (o.id === id ? { ...o, ...patch } : o)));
   const remove = (id: string) => onChange(options.filter((o) => o.id !== id));
 
+  const moveUp = (index: number) => {
+    if (index <= 0) return;
+    const newOpts = [...options];
+    const temp = newOpts[index];
+    newOpts[index] = newOpts[index - 1];
+    newOpts[index - 1] = temp;
+    onChange(newOpts);
+  };
+
+  const moveDown = (index: number) => {
+    if (index >= options.length - 1) return;
+    const newOpts = [...options];
+    const temp = newOpts[index];
+    newOpts[index] = newOpts[index + 1];
+    newOpts[index + 1] = temp;
+    onChange(newOpts);
+  };
+
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
+        <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground font-body">
           {label}
         </label>
         <button
@@ -578,49 +596,91 @@ function OptionsList({
           <Plus size={12} /> Ajouter
         </button>
       </div>
-      {options.length === 0 && <p className="text-[12px] text-muted-foreground italic">Aucune option.</p>}
+      {options.length === 0 && <p className="text-[12px] text-muted-foreground italic font-body">Aucune option.</p>}
       <div className="space-y-2">
-        {options.map((opt) => (
-          <div key={opt.id} className="flex items-center gap-2 bg-muted/30 rounded p-2">
-            <input
-              value={opt.nom}
-              onChange={(e) => update(opt.id, { nom: e.target.value })}
-              placeholder="Nom de l'option"
-              className="form-input !h-7 !text-[12px] flex-1"
-            />
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[10px] text-muted-foreground">+€</span>
+        {options.map((opt, i) => {
+          const mode = opt.modeCalcul || "forfait";
+          const suffix = mode === "m2" ? "/m²" : mode === "ml" ? "/ml" : "";
+          return (
+            <div key={opt.id} className="flex items-center gap-2 bg-muted/30 rounded p-2 font-body">
+              <div className="flex flex-col shrink-0 gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => moveUp(i)}
+                  disabled={i === 0}
+                  className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                  title="Monter"
+                >
+                  <ChevronUp size={12} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveDown(i)}
+                  disabled={i === options.length - 1}
+                  className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                  title="Descendre"
+                >
+                  <ChevronDown size={12} />
+                </button>
+              </div>
+
               <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={opt.surchargeHT}
-                onChange={(e) => update(opt.id, { surchargeHT: parseFloat(e.target.value) || 0 })}
-                className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
-                title="Surcharge fixe €"
+                value={opt.nom}
+                onChange={(e) => update(opt.id, { nom: e.target.value })}
+                placeholder="Nom de l'option"
+                className="form-input !h-7 !text-[12px] flex-1"
               />
+
+              <div className="w-24 shrink-0">
+                <select
+                  value={mode}
+                  onChange={(e) => update(opt.id, { modeCalcul: e.target.value as any })}
+                  className="form-input !h-7 !text-[11px] py-0"
+                >
+                  <option value="forfait">Forfait</option>
+                  <option value="ml">Par ml</option>
+                  <option value="m2">Par m²</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[10px] text-muted-foreground">+{suffix}€</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={opt.surchargeHT}
+                  onChange={(e) => update(opt.id, { surchargeHT: parseFloat(e.target.value) || 0 })}
+                  className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
+                  title={mode === "forfait" ? "Surcharge fixe €" : `Surcharge € ${suffix}`}
+                />
+              </div>
+
+              {mode === "forfait" && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[10px] text-muted-foreground">+%</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={opt.surchargePct}
+                    onChange={(e) => update(opt.id, { surchargePct: parseFloat(e.target.value) || 0 })}
+                    className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
+                    title="Surcharge % du prix de base"
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={() => remove(opt.id)}
+                className="p-1 rounded hover:bg-destructive/10 transition-colors shrink-0"
+              >
+                <X size={12} className="text-destructive/70" />
+              </button>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[10px] text-muted-foreground">+%</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                value={opt.surchargePct}
-                onChange={(e) => update(opt.id, { surchargePct: parseFloat(e.target.value) || 0 })}
-                className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
-                title="Surcharge % du prix de base"
-              />
-            </div>
-            <button
-              onClick={() => remove(opt.id)}
-              className="p-1 rounded hover:bg-destructive/10 transition-colors"
-            >
-              <X size={12} className="text-destructive/70" />
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

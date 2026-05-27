@@ -99,6 +99,8 @@ interface WizardState {
   largeur: number;
   profondeur: number;
   coefficient: number;
+  hauteurPoteaux: number;
+  poteauxSupp: number;
 }
 
 function ConfigurateurWizard({ onApply, onClose }: {
@@ -114,6 +116,8 @@ function ConfigurateurWizard({ onApply, onClose }: {
     largeur: 4000,
     profondeur: 3000,
     coefficient: modeles[0]?.margeDefaut || 1.4,
+    hauteurPoteaux: 2500,
+    poteauxSupp: 0,
   });
   const [calcError, setCalcError] = useState<string | null>(null);
   const [resultat, setResultat] = useState<ResultatCalcul | null>(null);
@@ -136,12 +140,21 @@ function ConfigurateurWizard({ onApply, onClose }: {
   useEffect(() => {
     if (step < 3 || !modele || !state.toitureId || !state.couleurId) return;
     try {
-      const r = calculerPrix(modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient);
+      const r = calculerPrix(
+        modele,
+        state.largeur,
+        state.profondeur,
+        state.toitureId,
+        state.couleurId,
+        state.coefficient,
+        state.hauteurPoteaux,
+        state.poteauxSupp
+      );
       setResultat(r); setCalcError(null);
     } catch (e) {
       setCalcError((e as Error).message); setResultat(null);
     }
-  }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, step]);
+  }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, step]);
 
   // Poteaux calculés en live
   const poteauxCalc = modele ? calculerPoteaux(modele.reglesPoteau, state.largeur) : 0;
@@ -173,6 +186,8 @@ function ConfigurateurWizard({ onApply, onClose }: {
       couleur: couleur?.nom || "—",
       poteaux: resultat.nombrePoteaux,
       typeDim: modele.typeDim,
+      hauteurPoteauxMm: state.hauteurPoteaux,
+      poteauxSupp: state.poteauxSupp,
     });
 
     onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image });
@@ -326,6 +341,27 @@ function ConfigurateurWizard({ onApply, onClose }: {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-6 mb-4">
+                <div>
+                  <label className="form-label">Hauteur des poteaux (mm)</label>
+                  <input type="number" min={100} step={10} value={state.hauteurPoteaux}
+                    onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
+                    className="form-input font-mono text-lg text-center"/>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    → {formatMM(state.hauteurPoteaux)} (Standard : 2,50m)
+                  </p>
+                </div>
+                <div>
+                  <label className="form-label">Poteaux supplémentaires (Qté)</label>
+                  <input type="number" min={0} step={1} value={state.poteauxSupp}
+                    onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
+                    className="form-input font-mono text-lg text-center"/>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    → Option poteaux supp. chiffrée en ml
+                  </p>
+                </div>
+              </div>
+
               {/* Poteaux calculés automatiquement */}
               {modele.reglesPoteau.length > 0 && poteauxCalc > 0 && (
                 <div className="flex items-center gap-3 bg-accent/5 border border-accent/20 rounded-lg px-4 py-2.5 mb-3">
@@ -377,18 +413,34 @@ function ConfigurateurWizard({ onApply, onClose }: {
                       <span className="text-muted-foreground">Prix achat base HT ({formatMM(resultat.largeurGrille)} × {formatMM(resultat.profondeurGrille)})</span>
                       <span className="font-mono font-medium">{formatEUR(resultat.prixAchatBaseHT)}</span>
                     </div>
-                    {resultat.surchargeToitureHT>0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Surcharge toiture</span>
-                        <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargeToitureHT)}</span>
-                      </div>
-                    )}
-                    {resultat.surchargeCouleurHT>0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Surcharge couleur</span>
-                        <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargeCouleurHT)}</span>
-                      </div>
-                    )}
+                    {resultat.surchargeToitureHT>0 && (() => {
+                      const t = modele.toitures.find(x => x.id === state.toitureId);
+                      const detail = t?.modeCalcul === "m2"
+                        ? ` (m² : ${((state.largeur/1000)*(state.profondeur/1000)).toFixed(2)}m² × ${formatEUR(t.surchargeHT)}/m²)`
+                        : t?.modeCalcul === "ml"
+                        ? ` (ml : ${(state.poteauxSupp * (state.hauteurPoteaux/1000)).toFixed(2)}ml × ${formatEUR(t.surchargeHT)}/ml)`
+                        : "";
+                      return (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Surcharge toiture{detail}</span>
+                          <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargeToitureHT)}</span>
+                        </div>
+                      );
+                    })()}
+                    {resultat.surchargeCouleurHT>0 && (() => {
+                      const c = modele.couleurs.find(x => x.id === state.couleurId);
+                      const detail = c?.modeCalcul === "m2"
+                        ? ` (m² : ${((state.largeur/1000)*(state.profondeur/1000)).toFixed(2)}m² × ${formatEUR(c.surchargeHT)}/m²)`
+                        : c?.modeCalcul === "ml"
+                        ? ` (ml : ${(state.poteauxSupp * (state.hauteurPoteaux/1000)).toFixed(2)}ml × ${formatEUR(c.surchargeHT)}/ml)`
+                        : "";
+                      return (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Surcharge couleur{detail}</span>
+                          <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargeCouleurHT)}</span>
+                        </div>
+                      );
+                    })()}
                     <div className="flex justify-between border-t border-border pt-2">
                       <span className="text-muted-foreground font-medium">Prix achat total HT</span>
                       <span className="font-mono font-semibold">{formatEUR(resultat.prixAchatTotalHT)}</span>
@@ -399,8 +451,20 @@ function ConfigurateurWizard({ onApply, onClose }: {
                     </div>
                     {modele.reglesPoteau.length>0 && (
                       <div className="flex justify-between text-[11px]">
-                        <span className="text-muted-foreground">Poteaux</span>
+                        <span className="text-muted-foreground">Poteaux structurels</span>
                         <span className="font-mono font-semibold">{resultat.nombrePoteaux} poteaux</span>
+                      </div>
+                    )}
+                    {state.poteauxSupp>0 && (
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-muted-foreground font-semibold text-accent">Poteaux supplémentaires</span>
+                        <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux</span>
+                      </div>
+                    )}
+                    {state.hauteurPoteaux!==2500 && (
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-muted-foreground">Hauteur configurée</span>
+                        <span className="font-mono">{formatMM(state.hauteurPoteaux)}</span>
                       </div>
                     )}
                   </div>
@@ -419,7 +483,17 @@ function ConfigurateurWizard({ onApply, onClose }: {
                       {(() => {
                         const t = modele.toitures.find((x)=>x.id===state.toitureId);
                         const c = modele.couleurs.find((x)=>x.id===state.couleurId);
-                        return `Toiture : ${t?.nom||"—"} · Couleur : ${c?.nom||"—"}${modele.reglesPoteau.length>0?` · ${resultat.nombrePoteaux} poteaux`:""}`;
+                        return genererDescription(modele.templateDescription, {
+                          nom: modele.nom,
+                          largeurMm: state.largeur,
+                          profondeurMm: state.profondeur,
+                          toiture: t?.nom || "—",
+                          couleur: c?.nom || "—",
+                          poteaux: resultat.nombrePoteaux,
+                          typeDim: modele.typeDim,
+                          hauteurPoteauxMm: state.hauteurPoteaux,
+                          poteauxSupp: state.poteauxSupp,
+                        });
                       })()}
                     </div>
                   </div>

@@ -19,6 +19,7 @@ export interface OptionConfigurable {
   nom: string;
   surchargeHT: number;
   surchargePct: number;
+  modeCalcul?: "forfait" | "ml" | "m2";
 }
 
 /** Règle de calcul automatique du nombre de poteaux selon largeur */
@@ -56,6 +57,8 @@ export interface ResultatCalcul {
   largeurGrille: number;
   profondeurGrille: number;
   nombrePoteaux: number;
+  hauteurPoteaux?: number;   // en mm
+  poteauxSupp?: number;      // quantité
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -137,6 +140,8 @@ export const VARIABLES_DISPONIBLES = [
   "{{toiture}}",
   "{{couleur}}",
   "{{poteaux}}",
+  "{{hauteur_poteaux}}",
+  "{{poteaux_supp}}",
   "{{moteur}}",
 ];
 
@@ -214,7 +219,9 @@ export function calculerPrix(
   profondeur: number,
   toitureId: string,
   couleurId: string,
-  coefficient: number
+  coefficient: number,
+  hauteurPoteaux: number = 2500,
+  poteauxSupp: number = 0
 ): ResultatCalcul {
   const { prix, largeurGrille, profondeurGrille } = determinerPrixBase(
     modele.grille, largeur, profondeur
@@ -223,10 +230,22 @@ export function calculerPrix(
   const toiture = modele.toitures.find((t) => t.id === toitureId);
   const couleur = modele.couleurs.find((c) => c.id === couleurId);
 
-  const surchargeToitureHT =
-    (toiture?.surchargeHT ?? 0) + prix * ((toiture?.surchargePct ?? 0) / 100);
-  const surchargeCouleurHT =
-    (couleur?.surchargeHT ?? 0) + prix * ((couleur?.surchargePct ?? 0) / 100);
+  const calcOptionSurcharge = (opt: OptionConfigurable | undefined) => {
+    if (!opt) return 0;
+    const mode = opt.modeCalcul || "forfait";
+    if (mode === "m2") {
+      const area = (largeur / 1000) * (profondeur / 1000);
+      return area * opt.surchargeHT;
+    } else if (mode === "ml") {
+      const length = poteauxSupp * (hauteurPoteaux / 1000);
+      return length * opt.surchargeHT;
+    } else {
+      return opt.surchargeHT + prix * (opt.surchargePct / 100);
+    }
+  };
+
+  const surchargeToitureHT = calcOptionSurcharge(toiture);
+  const surchargeCouleurHT = calcOptionSurcharge(couleur);
 
   const prixAchatTotalHT = prix + surchargeToitureHT + surchargeCouleurHT;
   const prixVenteHT = Math.round(prixAchatTotalHT * coefficient * 100) / 100;
@@ -242,6 +261,8 @@ export function calculerPrix(
     largeurGrille,
     profondeurGrille,
     nombrePoteaux,
+    hauteurPoteaux,
+    poteauxSupp,
   };
 }
 
@@ -256,6 +277,8 @@ export interface ContexteDescription {
   poteaux: number;
   moteur?: string;
   typeDim: "largeur_profondeur" | "largeur_hauteur";
+  hauteurPoteauxMm?: number;
+  poteauxSupp?: number;
 }
 
 /**
@@ -269,6 +292,8 @@ export function genererDescription(
   const largeurFormate = formatDimDevis(ctx.largeurMm);
   const dim2Formate    = formatDimDevis(ctx.profondeurMm);
   const dim2Label      = ctx.typeDim === "largeur_hauteur" ? "Hauteur" : "Profondeur";
+  const hauteurPoteauxFormate = ctx.hauteurPoteauxMm ? formatDimDevis(ctx.hauteurPoteauxMm) : "2,50m";
+  const poteauxSuppText = String(ctx.poteauxSupp || 0);
 
   return template
     .replace(/\{\{nom\}\}/g,        ctx.nom)
@@ -279,6 +304,8 @@ export function genererDescription(
     .replace(/\{\{toiture\}\}/g,    ctx.toiture)
     .replace(/\{\{couleur\}\}/g,    ctx.couleur)
     .replace(/\{\{poteaux\}\}/g,    String(ctx.poteaux))
+    .replace(/\{\{hauteur_poteaux\}\}/g, hauteurPoteauxFormate)
+    .replace(/\{\{poteaux_supp\}\}/g, poteauxSuppText)
     .replace(/\{\{moteur\}\}/g,     ctx.moteur ?? "")
     .trim();
 }
