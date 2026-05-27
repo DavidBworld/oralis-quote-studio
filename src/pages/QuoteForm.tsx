@@ -701,8 +701,20 @@ export default function QuoteForm() {
 
   if (!quote) return null;
 
-  const update = (patch: Partial<Quote>) => setQuote({...quote,...patch});
-  const updateClient = (patch: Partial<Quote["client"]>) => setQuote({...quote,client:{...quote.client,...patch}});
+  const update = (patch: Partial<Quote> | ((prev: Quote) => Partial<Quote>)) => {
+    setQuote(prev => {
+      if (!prev) return null;
+      const resolvedPatch = typeof patch === "function" ? patch(prev) : patch;
+      return { ...prev, ...resolvedPatch };
+    });
+  };
+  const updateClient = (patch: Partial<Quote["client"]> | ((prev: Quote["client"]) => Partial<Quote["client"]>)) => {
+    setQuote(prev => {
+      if (!prev) return null;
+      const resolvedPatch = typeof patch === "function" ? patch(prev.client) : patch;
+      return { ...prev, client: { ...prev.client, ...resolvedPatch } };
+    });
+  };
   const updateLine = (lineId: string, patch: Partial<QuoteLine>) => {
     let finalPatch = { ...patch };
     if (patch.designation !== undefined) {
@@ -721,147 +733,162 @@ export default function QuoteForm() {
         }
       }
     }
-    update({lignes:quote.lignes.map((l)=>l.id===lineId?{...l,...finalPatch}:l)});
+    update(prev => ({
+      lignes: prev.lignes.map((l) => l.id === lineId ? { ...l, ...finalPatch } : l)
+    }));
   };
   const updateOption = (lineId: string, optId: string, patch: Partial<QuoteOption>) =>
-    update({lignes:quote.lignes.map((l)=>l.id===lineId?{...l,options:l.options.map((o)=>o.id===optId?{...o,...patch}:o)}:l)});
-  const addLine = () => update({lignes:[...quote.lignes,emptyLine(defaultTva)]});
-  const removeLine = (lineId: string) => update({lignes:quote.lignes.filter((l)=>l.id!==lineId)});
-  const addOption = (lineId: string) => updateLine(lineId,{options:[...quote.lignes.find((l)=>l.id===lineId)!.options,emptyOption(defaultTva)]});
-  const removeOption = (lineId: string, optId: string) => updateLine(lineId,{options:quote.lignes.find((l)=>l.id===lineId)!.options.filter((o)=>o.id!==optId)});
+    update(prev => ({
+      lignes: prev.lignes.map((l) => l.id === lineId ? { ...l, options: l.options.map((o) => o.id === optId ? { ...o, ...patch } : o) } : l)
+    }));
+  const addLine = () => update(prev => ({ lignes: [...prev.lignes, emptyLine(defaultTva)] }));
+  const removeLine = (lineId: string) => update(prev => ({ lignes: prev.lignes.filter((l) => l.id !== lineId) }));
+  const addOption = (lineId: string) => update(prev => ({
+    lignes: prev.lignes.map(l => l.id === lineId ? { ...l, options: [...l.options, emptyOption(defaultTva)] } : l)
+  }));
+  const removeOption = (lineId: string, optId: string) => update(prev => ({
+    lignes: prev.lignes.map(l => l.id === lineId ? { ...l, options: l.options.filter(o => o.id !== optId) } : l)
+  }));
 
   const handleApplyTvaToAll = (tva: number) => {
     setDefaultTva(tva);
-    const updatedLines = quote.lignes.map(l => ({
-      ...l,
-      tva: tva,
-      options: l.options.map(o => ({ ...o, tva: tva }))
-    }));
-    update({ lignes: updatedLines });
+    update(prev => {
+      const updatedLines = prev.lignes.map(l => ({
+        ...l,
+        tva: tva,
+        options: l.options.map(o => ({ ...o, tva: tva }))
+      }));
+      return { lignes: updatedLines };
+    });
     toast.success(`TVA ${tva}% appliquée à tout le document`);
   };
 
   const handleApplyAdjustment = () => {
-    const productLines = quote.lignes.filter(l => (l.categorie || "").toLowerCase() !== "pose");
-    const poseLines = quote.lignes.filter(l => (l.categorie || "").toLowerCase() === "pose");
-    
-    if (productLines.length === 0) {
-      toast.error("Aucune ligne de produit (hors pose) n'est disponible pour appliquer une remise.");
-      return;
-    }
-
-    const currentVenteProduits = productLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite), 0);
-    const currentVentePose = poseLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite), 0);
-    const currentQuoteTotalHT = currentVenteProduits + currentVentePose;
-
-    const currentQuoteTotalTTC = totals.totalTTC;
-    const currentTTCProduits = productLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite * (1 + l.tva / 100)), 0);
-    const currentTTCPose = poseLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite * (1 + l.tva / 100)), 0);
-
-    let factor = 1;
-    let diffHT = 0;
-
-    if (adjustmentPct !== "") {
-      const pct = parseFloat(adjustmentPct);
-      if (isNaN(pct) || pct < 0 || pct > 100) {
-        toast.error("Veuillez saisir un pourcentage valide entre 0 et 100.");
+    try {
+      if (adjustmentPct === "" && adjustmentHT === "" && adjustmentTTC === "") {
+        toast.error("Veuillez remplir au moins un des champs d'ajustement (%, HT ou TTC).");
         return;
       }
-      if (adjustmentMethod === "proportional") {
-        factor = 1 - pct / 100;
-      } else {
-        diffHT = -(currentVenteProduits * (pct / 100));
-      }
-    } else if (adjustmentHT !== "") {
-      const targetHT = parseFloat(adjustmentHT);
-      if (isNaN(targetHT) || targetHT < 0) {
-        toast.error("Veuillez saisir un montant HT valide.");
-        return;
-      }
-      diffHT = targetHT - currentQuoteTotalHT;
-      if (adjustmentMethod === "proportional") {
-        if (currentVenteProduits <= 0) {
-          toast.error("Le total de vente des produits est de 0€, impossible de répartir proportionnellement.");
-          return;
-        }
-        const targetVenteProduits = currentVenteProduits + diffHT;
-        if (targetVenteProduits < 0) {
-          toast.error("Le montant ajusté des produits ne peut pas être négatif.");
-          return;
-        }
-        factor = targetVenteProduits / currentVenteProduits;
-      }
-    } else if (adjustmentTTC !== "") {
-      const targetTTC = parseFloat(adjustmentTTC);
-      if (isNaN(targetTTC) || targetTTC < 0) {
-        toast.error("Veuillez saisir un montant TTC valide.");
-        return;
-      }
-      if (adjustmentMethod === "proportional") {
-        if (currentTTCProduits <= 0) {
-          toast.error("Le total TTC des produits est de 0€, impossible de répartir proportionnellement.");
-          return;
-        }
-        const targetTTCProduits = targetTTC - currentTTCPose;
-        if (targetTTCProduits < 0) {
-          toast.error("Le montant TTC après déduction de la pose ne peut pas être négatif.");
-          return;
-        }
-        factor = targetTTCProduits / currentTTCProduits;
-      } else {
-        const diffTTC = targetTTC - currentQuoteTotalTTC;
-        diffHT = diffTTC / (1 + defaultTva / 100);
-      }
-    } else {
-      toast.error("Veuillez remplir au moins un des champs d'ajustement (%, HT ou TTC).");
-      return;
-    }
 
-    if (adjustmentMethod === "proportional") {
-      const updatedLines = quote.lignes.map(l => {
-        if ((l.categorie || "").toLowerCase() === "pose") return l;
-        return {
-          ...l,
-          prixUnitaireHT: Math.round(l.prixUnitaireHT * factor * 100) / 100
-        };
+      update(prev => {
+        const productLines = prev.lignes.filter(l => (l.categorie || "").toLowerCase() !== "pose");
+        const poseLines = prev.lignes.filter(l => (l.categorie || "").toLowerCase() === "pose");
+        
+        if (productLines.length === 0) {
+          throw new Error("Aucune ligne de produit (hors pose) n'est disponible pour appliquer une remise.");
+        }
+
+        const currentVenteProduits = productLines.reduce((acc, l) => acc + ((l.prixUnitaireHT || 0) * l.quantite), 0);
+        const currentVentePose = poseLines.reduce((acc, l) => acc + ((l.prixUnitaireHT || 0) * l.quantite), 0);
+        const currentQuoteTotalHT = currentVenteProduits + currentVentePose;
+
+        const prevTotals = calcTotals(prev.lignes);
+        const currentQuoteTotalTTC = prevTotals.totalTTC;
+        const currentTTCProduits = productLines.reduce((acc, l) => acc + ((l.prixUnitaireHT || 0) * l.quantite * (1 + (l.tva || 0) / 100)), 0);
+        const currentTTCPose = poseLines.reduce((acc, l) => acc + ((l.prixUnitaireHT || 0) * l.quantite * (1 + (l.tva || 0) / 100)), 0);
+
+        let factor = 1;
+        let diffHT = 0;
+
+        if (adjustmentPct !== "") {
+          const pct = parseFloat(adjustmentPct);
+          if (isNaN(pct) || pct < 0 || pct > 100) {
+            throw new Error("Veuillez saisir un pourcentage valide entre 0 et 100.");
+          }
+          if (adjustmentMethod === "proportional") {
+            factor = 1 - pct / 100;
+          } else {
+            diffHT = -(currentVenteProduits * (pct / 100));
+          }
+        } else if (adjustmentHT !== "") {
+          const targetHT = parseFloat(adjustmentHT);
+          if (isNaN(targetHT) || targetHT < 0) {
+            throw new Error("Veuillez saisir un montant HT valide.");
+          }
+          diffHT = targetHT - currentQuoteTotalHT;
+          if (adjustmentMethod === "proportional") {
+            if (currentVenteProduits <= 0) {
+              throw new Error("Le total de vente des produits est de 0€, impossible de répartir proportionnellement.");
+            }
+            const targetVenteProduits = currentVenteProduits + diffHT;
+            if (targetVenteProduits < 0) {
+              throw new Error("Le montant ajusté des produits ne peut pas être négatif.");
+            }
+            factor = targetVenteProduits / currentVenteProduits;
+          }
+        } else if (adjustmentTTC !== "") {
+          const targetTTC = parseFloat(adjustmentTTC);
+          if (isNaN(targetTTC) || targetTTC < 0) {
+            throw new Error("Veuillez saisir un montant TTC valide.");
+          }
+          if (adjustmentMethod === "proportional") {
+            if (currentTTCProduits <= 0) {
+              throw new Error("Le total TTC des produits est de 0€, impossible de répartir proportionnellement.");
+            }
+            const targetTTCProduits = targetTTC - currentTTCPose;
+            if (targetTTCProduits < 0) {
+              throw new Error("Le montant TTC après déduction de la pose ne peut pas être négatif.");
+            }
+            factor = targetTTCProduits / currentTTCProduits;
+          } else {
+            const diffTTC = targetTTC - currentQuoteTotalTTC;
+            diffHT = diffTTC / (1 + defaultTva / 100);
+          }
+        }
+
+        if (adjustmentMethod === "proportional") {
+          const updatedLines = prev.lignes.map(l => {
+            if ((l.categorie || "").toLowerCase() === "pose") return l;
+            return {
+              ...l,
+              prixUnitaireHT: Math.round((l.prixUnitaireHT || 0) * factor * 100) / 100
+            };
+          });
+          setTimeout(() => toast.success("Ajustement proportionnel appliqué aux produits !"), 50);
+          return { lignes: updatedLines };
+        } else {
+          if (Math.abs(diffHT) < 0.01) {
+            setTimeout(() => toast.info("L'ajustement est trop faible pour ajouter une ligne de remise."), 50);
+            return {};
+          }
+          const isDiscount = diffHT < 0;
+          const newLine: QuoteLine = {
+            id: uid(),
+            designation: isDiscount ? "Remise commerciale exceptionnelle" : "Ajustement commercial exceptionnel",
+            description: isDiscount ? "Remise commerciale exceptionnelle" : "Ajustement commercial exceptionnel",
+            quantite: 1,
+            prixUnitaireHT: Math.round(diffHT * 100) / 100,
+            tva: defaultTva,
+            options: [],
+            prixAchatHT: 0,
+            categorie: "Remise",
+            image: "",
+            prixOriginalHT: Math.round(diffHT * 100) / 100
+          };
+          setTimeout(() => toast.success("Ligne d'ajustement commercial ajoutée avec succès !"), 50);
+          return { lignes: [...prev.lignes, newLine] };
+        }
       });
-      update({ lignes: updatedLines });
-      toast.success("Ajustement proportionnel appliqué aux produits !");
-    } else {
-      if (Math.abs(diffHT) < 0.01) {
-        toast.info("L'ajustement est trop faible pour ajouter une ligne de remise.");
-        return;
-      }
-      const isDiscount = diffHT < 0;
-      const newLine: QuoteLine = {
-        id: uid(),
-        designation: isDiscount ? "Remise commerciale exceptionnelle" : "Ajustement commercial exceptionnel",
-        description: isDiscount ? "Remise commerciale exceptionnelle" : "Ajustement commercial exceptionnel",
-        quantite: 1,
-        prixUnitaireHT: Math.round(diffHT * 100) / 100,
-        tva: defaultTva,
-        options: [],
-        prixAchatHT: 0,
-        categorie: "Remise",
-        image: ""
-      };
-      update({ lignes: [...quote.lignes, newLine] });
-      toast.success("Ligne d'ajustement commercial ajoutée avec succès !");
-    }
 
-    setAdjustmentPct("");
-    setAdjustmentHT("");
-    setAdjustmentTTC("");
+      setAdjustmentPct("");
+      setAdjustmentHT("");
+      setAdjustmentTTC("");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message);
+    }
   };
 
   const handleResetAdjustment = () => {
-    const restoredLines = quote.lignes
-      .filter(l => (l.categorie || "").toLowerCase() !== "remise" && !l.designation.includes("Remise exceptionnelle") && !l.designation.includes("Ajustement commercial") && !l.designation.includes("Remise commerciale"))
-      .map(l => ({
-        ...l,
-        prixUnitaireHT: l.prixOriginalHT !== undefined ? l.prixOriginalHT : l.prixUnitaireHT
-      }));
-    update({ lignes: restoredLines });
+    update(prev => {
+      const restoredLines = prev.lignes
+        .filter(l => (l.categorie || "").toLowerCase() !== "remise" && !l.designation.includes("Remise exceptionnelle") && !l.designation.includes("Ajustement commercial") && !l.designation.includes("Remise commerciale"))
+        .map(l => ({
+          ...l,
+          prixUnitaireHT: l.prixOriginalHT !== undefined ? l.prixOriginalHT : l.prixUnitaireHT
+        }));
+      return { lignes: restoredLines };
+    });
     setAdjustmentPct("");
     setAdjustmentHT("");
     setAdjustmentTTC("");
