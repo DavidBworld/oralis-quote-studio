@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Plus, Trash2, Upload, Camera, Wrench, X, ChevronRight, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, Users } from "lucide-react";
+import { Plus, Trash2, Upload, Camera, Wrench, X, ChevronRight, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, Users, ChevronUp, ChevronDown } from "lucide-react";
 import {
   loadQuotes, saveQuotes, createEmptyQuote, emptyLine, emptyOption,
   formatEUR, formatDate, expiryDate, calcTotals, lineMontantHT,
@@ -455,12 +455,15 @@ function ConfigurateurWizard({ onApply, onClose }: {
 
 function QuoteLineRow({
   line, li, totalLines, allProductSuggestions, TVA_RATES,
-  onUpdate, onRemove, onAddOption, onRemoveOption, onUpdateOption, onApplyTvaToAll
+  onUpdate, onRemove, onAddOption, onRemoveOption, onUpdateOption, onApplyTvaToAll,
+  onMoveUp, onMoveDown
 }: {
   line: QuoteLine; li: number; totalLines: number; allProductSuggestions: string[]; TVA_RATES: number[];
   onUpdate: (patch: Partial<QuoteLine>) => void; onRemove: () => void; onAddOption: () => void;
   onRemoveOption: (optId: string) => void; onUpdateOption: (optId: string, patch: Partial<QuoteOption>) => void;
   onApplyTvaToAll: (tva: number) => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const [showWizard, setShowWizard] = useState(false);
 
@@ -482,13 +485,33 @@ function QuoteLineRow({
       <div className="mb-6 last:mb-0 page-break-avoid">
         <div className="flex items-start justify-between mb-3">
           <span className="form-label !mb-0">Ligne {li+1}</span>
-          <div className="flex items-center gap-2">
-            <button onClick={()=>setShowWizard(true)}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-0.5 border border-border/60 rounded p-0.5 bg-muted/20">
+              <button
+                type="button"
+                onClick={onMoveUp}
+                disabled={li === 0}
+                className="p-1 text-muted-foreground hover:text-accent hover:bg-accent/5 disabled:opacity-30 disabled:pointer-events-none transition-colors rounded"
+                title="Monter la ligne (devenir ligne précédente)"
+              >
+                <ChevronUp size={14}/>
+              </button>
+              <button
+                type="button"
+                onClick={onMoveDown}
+                disabled={li === totalLines - 1}
+                className="p-1 text-muted-foreground hover:text-accent hover:bg-accent/5 disabled:opacity-30 disabled:pointer-events-none transition-colors rounded"
+                title="Descendre la ligne (devenir ligne suivante)"
+              >
+                <ChevronDown size={14}/>
+              </button>
+            </div>
+            <button type="button" onClick={()=>setShowWizard(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded border border-accent/50 text-accent hover:bg-accent/5 transition-colors"
               title="Ouvrir le configurateur">
               <Wrench size={13}/> Configurateur
             </button>
-            <button onClick={onRemove} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded" title="Supprimer la ligne"><Trash2 size={14}/></button>
+            <button type="button" onClick={onRemove} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded" title="Supprimer la ligne"><Trash2 size={14}/></button>
           </div>
         </div>
 
@@ -743,6 +766,26 @@ export default function QuoteForm() {
     }));
   const addLine = () => update(prev => ({ lignes: [...prev.lignes, emptyLine(defaultTva)] }));
   const removeLine = (lineId: string) => update(prev => ({ lignes: prev.lignes.filter((l) => l.id !== lineId) }));
+  const moveLineUp = (index: number) => {
+    if (index <= 0) return;
+    update(prev => {
+      const newLignes = [...prev.lignes];
+      const temp = newLignes[index];
+      newLignes[index] = newLignes[index - 1];
+      newLignes[index - 1] = temp;
+      return { lignes: newLignes };
+    });
+  };
+  const moveLineDown = (index: number) => {
+    update(prev => {
+      if (index < 0 || index >= prev.lignes.length - 1) return {};
+      const newLignes = [...prev.lignes];
+      const temp = newLignes[index];
+      newLignes[index] = newLignes[index + 1];
+      newLignes[index + 1] = temp;
+      return { lignes: newLignes };
+    });
+  };
   const addOption = (lineId: string) => update(prev => ({
     lignes: prev.lignes.map(l => l.id === lineId ? { ...l, options: [...l.options, emptyOption(defaultTva)] } : l)
   }));
@@ -1005,6 +1048,8 @@ export default function QuoteForm() {
               onRemoveOption={(optId)=>removeOption(line.id,optId)}
               onUpdateOption={(optId,patch)=>updateOption(line.id,optId,patch)}
               onApplyTvaToAll={handleApplyTvaToAll}
+              onMoveUp={()=>moveLineUp(li)}
+              onMoveDown={()=>moveLineDown(li)}
             />
             {li<quote.lignes.length-1 && <hr className="mt-6 mb-6 border-border"/>}
           </div>
