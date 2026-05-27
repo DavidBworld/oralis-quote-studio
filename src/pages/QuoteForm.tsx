@@ -464,7 +464,7 @@ function QuoteLineRow({
               title="Ouvrir le configurateur">
               <Wrench size={13}/> Configurateur
             </button>
-            {totalLines>1 && <button onClick={onRemove} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"><Trash2 size={14}/></button>}
+            <button onClick={onRemove} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded" title="Supprimer la ligne"><Trash2 size={14}/></button>
           </div>
         </div>
 
@@ -603,10 +603,15 @@ export default function QuoteForm() {
   const removeOption = (lineId: string, optId: string) => updateLine(lineId,{options:quote.lignes.find((l)=>l.id===lineId)!.options.filter((o)=>o.id!==optId)});
 
   const save = () => {
+    if (quote.lignes.length === 0) {
+      toast.error("Le devis doit contenir au moins une ligne.");
+      return false;
+    }
     const all = loadQuotes();
     const idx = all.findIndex((q)=>q.id===quote.id);
     if (idx>=0) all[idx]=quote; else all.push(quote);
     saveQuotes(all); navigate("/");
+    return true;
   };
 
   const totals = calcTotals(quote.lignes);
@@ -716,7 +721,7 @@ export default function QuoteForm() {
       {/* Section F — Actions */}
       <div className="flex flex-wrap gap-3">
         <button onClick={save} className="btn-gold">Sauvegarder</button>
-        <button onClick={()=>{save();const all=loadQuotes();const saved=all.find((q)=>q.id===quote.id);if(saved)navigate(`/devis/${saved.id}/apercu`);}} className="btn-outline-gold">Aperçu PDF</button>
+        <button onClick={()=>{ if (save()) { const all=loadQuotes(); const saved=all.find((q)=>q.id===quote.id); if(saved) navigate(`/devis/${saved.id}/apercu`); } }} className="btn-outline-gold">Aperçu PDF</button>
         <button onClick={()=>navigate("/")} className="btn-ghost">Retour au tableau de bord</button>
       </div>
     </div>
