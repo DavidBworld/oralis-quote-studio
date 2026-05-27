@@ -650,6 +650,11 @@ export default function QuoteForm() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
 
+  const [adjustmentPct, setAdjustmentPct] = useState<string>("");
+  const [adjustmentHT, setAdjustmentHT] = useState<string>("");
+  const [adjustmentTTC, setAdjustmentTTC] = useState<string>("");
+  const [adjustmentMethod, setAdjustmentMethod] = useState<"proportional" | "line">("proportional");
+
   const settings = loadSettings();
   const TVA_RATES = getEnabledTVARates(settings);
   const [defaultTva, setDefaultTva] = useState<number>(TVA_RATES[0] || 20);
@@ -726,6 +731,119 @@ export default function QuoteForm() {
     }));
     update({ lignes: updatedLines });
     toast.success(`TVA ${tva}% appliquée à tout le document`);
+  };
+
+  const handleApplyAdjustment = () => {
+    const productLines = quote.lignes.filter(l => (l.categorie || "").toLowerCase() !== "pose");
+    const poseLines = quote.lignes.filter(l => (l.categorie || "").toLowerCase() === "pose");
+    
+    if (productLines.length === 0) {
+      toast.error("Aucune ligne de produit (hors pose) n'est disponible pour appliquer une remise.");
+      return;
+    }
+
+    const currentVenteProduits = productLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite), 0);
+    const currentVentePose = poseLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite), 0);
+    const currentQuoteTotalHT = currentVenteProduits + currentVentePose;
+
+    const currentQuoteTotalTTC = totals.totalTTC;
+    const currentTTCProduits = productLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite * (1 + l.tva / 100)), 0);
+    const currentTTCPose = poseLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite * (1 + l.tva / 100)), 0);
+
+    let factor = 1;
+    let diffHT = 0;
+
+    if (adjustmentPct !== "") {
+      const pct = parseFloat(adjustmentPct);
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        toast.error("Veuillez saisir un pourcentage valide entre 0 et 100.");
+        return;
+      }
+      if (adjustmentMethod === "proportional") {
+        factor = 1 - pct / 100;
+      } else {
+        diffHT = -(currentVenteProduits * (pct / 100));
+      }
+    } else if (adjustmentHT !== "") {
+      const targetHT = parseFloat(adjustmentHT);
+      if (isNaN(targetHT) || targetHT < 0) {
+        toast.error("Veuillez saisir un montant HT valide.");
+        return;
+      }
+      diffHT = targetHT - currentQuoteTotalHT;
+      if (adjustmentMethod === "proportional") {
+        if (currentVenteProduits <= 0) {
+          toast.error("Le total de vente des produits est de 0€, impossible de répartir proportionnellement.");
+          return;
+        }
+        const targetVenteProduits = currentVenteProduits + diffHT;
+        if (targetVenteProduits < 0) {
+          toast.error("Le montant ajusté des produits ne peut pas être négatif.");
+          return;
+        }
+        factor = targetVenteProduits / currentVenteProduits;
+      }
+    } else if (adjustmentTTC !== "") {
+      const targetTTC = parseFloat(adjustmentTTC);
+      if (isNaN(targetTTC) || targetTTC < 0) {
+        toast.error("Veuillez saisir un montant TTC valide.");
+        return;
+      }
+      if (adjustmentMethod === "proportional") {
+        if (currentTTCProduits <= 0) {
+          toast.error("Le total TTC des produits est de 0€, impossible de répartir proportionnellement.");
+          return;
+        }
+        const targetTTCProduits = targetTTC - currentTTCPose;
+        if (targetTTCProduits < 0) {
+          toast.error("Le montant TTC après déduction de la pose ne peut pas être négatif.");
+          return;
+        }
+        factor = targetTTCProduits / currentTTCProduits;
+      } else {
+        const diffTTC = targetTTC - currentQuoteTotalTTC;
+        diffHT = diffTTC / (1 + defaultTva / 100);
+      }
+    } else {
+      toast.error("Veuillez remplir au moins un des champs d'ajustement (%, HT ou TTC).");
+      return;
+    }
+
+    if (adjustmentMethod === "proportional") {
+      const updatedLines = quote.lignes.map(l => {
+        if ((l.categorie || "").toLowerCase() === "pose") return l;
+        return {
+          ...l,
+          prixUnitaireHT: Math.round(l.prixUnitaireHT * factor * 100) / 100
+        };
+      });
+      update({ lignes: updatedLines });
+      toast.success("Ajustement proportionnel appliqué aux produits !");
+    } else {
+      if (Math.abs(diffHT) < 0.01) {
+        toast.info("L'ajustement est trop faible pour ajouter une ligne de remise.");
+        return;
+      }
+      const isDiscount = diffHT < 0;
+      const newLine: QuoteLine = {
+        id: uid(),
+        designation: isDiscount ? "Remise commerciale exceptionnelle" : "Ajustement commercial exceptionnel",
+        description: isDiscount ? "Remise commerciale exceptionnelle" : "Ajustement commercial exceptionnel",
+        quantite: 1,
+        prixUnitaireHT: Math.round(diffHT * 100) / 100,
+        tva: defaultTva,
+        options: [],
+        prixAchatHT: 0,
+        categorie: "Remise",
+        image: ""
+      };
+      update({ lignes: [...quote.lignes, newLine] });
+      toast.success("Ligne d'ajustement commercial ajoutée avec succès !");
+    }
+
+    setAdjustmentPct("");
+    setAdjustmentHT("");
+    setAdjustmentTTC("");
   };
 
   const save = () => {
@@ -843,6 +961,104 @@ export default function QuoteForm() {
           </div>
         ))}
         <button onClick={addLine} className="mt-5 btn-outline-gold flex items-center gap-2 text-xs"><Plus size={14}/> Ajouter une ligne</button>
+      </section>
+
+      {/* Section D1 — Remises & Ajustements (Interne) */}
+      <section className="luxury-card mb-5 bg-accent/5 border-accent/25">
+        <h2 className="section-title text-accent">Remises &amp; Ajustements (Interne)</h2>
+        <p className="text-xs text-muted-foreground mb-4">
+          Ajustez le montant du devis. La pose ne sera jamais impactée par ces remises ou augmentations.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div>
+            <label className="form-label">Remise en % (produits)</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                placeholder="Ex: 5"
+                value={adjustmentPct || ""}
+                onChange={(e) => {
+                  setAdjustmentPct(e.target.value);
+                  setAdjustmentHT("");
+                  setAdjustmentTTC("");
+                }}
+                className="form-input font-mono"
+              />
+              <span className="flex items-center text-sm font-semibold px-2 bg-muted border border-border rounded">%</span>
+            </div>
+          </div>
+          
+          <div>
+            <label className="form-label">Nouveau Total HT souhaité (€)</label>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              placeholder="Ex: 10500"
+              value={adjustmentHT || ""}
+              onChange={(e) => {
+                setAdjustmentHT(e.target.value);
+                setAdjustmentPct("");
+                setAdjustmentTTC("");
+              }}
+              className="form-input font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Nouveau Total TTC souhaité (€)</label>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              placeholder="Ex: 12500"
+              value={adjustmentTTC || ""}
+              onChange={(e) => {
+                setAdjustmentTTC(e.target.value);
+                setAdjustmentPct("");
+                setAdjustmentHT("");
+              }}
+              className="form-input font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Méthode d'application</label>
+            <select
+              value={adjustmentMethod}
+              onChange={(e) => setAdjustmentMethod(e.target.value as "proportional" | "line")}
+              className="form-input font-semibold text-accent"
+            >
+              <option value="proportional">Répartition Proportionnelle</option>
+              <option value="line">Ligne "Remise exceptionnelle"</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setAdjustmentPct("");
+              setAdjustmentHT("");
+              setAdjustmentTTC("");
+            }}
+            className="btn-ghost text-xs border border-border"
+          >
+            Réinitialiser les champs
+          </button>
+          <button
+            type="button"
+            onClick={handleApplyAdjustment}
+            className="btn-gold text-xs font-semibold"
+          >
+            Appliquer l'ajustement
+          </button>
+        </div>
       </section>
 
       {/* Section D — Totals */}
