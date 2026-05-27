@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   Plus, Search, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp,
   Truck, Save, Grid3X3, ClipboardPaste, AlertCircle, CheckCircle2, X,
-  Camera, Upload,
+  Camera, Upload, Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
@@ -12,6 +12,7 @@ import {
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
   type ModelePergola, type OptionConfigurable, type GrilleTarif, type ReglePoteau,
 } from "@/lib/configurator-data";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 // ── processImageFile ───────────────────────────────────────────────────────────
 
@@ -144,13 +145,21 @@ function ProduitRow({
   produit,
   onUpdate,
   onDelete,
+  onDuplicate,
 }: {
   produit: ProduitFournisseur;
   onUpdate: (p: ProduitFournisseur) => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(produit);
+
+  // Sync draft when product changes
+  useEffect(() => {
+    setDraft(produit);
+  }, [produit]);
+
   const save = () => {
     onUpdate(draft);
     setEditing(false);
@@ -187,10 +196,13 @@ function ProduitRow({
         <td className="px-4 py-2 text-[12px] text-muted-foreground">{produit.unite}</td>
         <td className="px-4 py-2 text-right">
           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={() => setEditing(true)} className="p-1.5 rounded hover:bg-muted transition-colors">
+            <button onClick={onDuplicate} className="p-1.5 rounded hover:bg-muted transition-colors" title="Dupliquer">
+              <Copy size={13} className="text-muted-foreground" />
+            </button>
+            <button onClick={() => setEditing(true)} className="p-1.5 rounded hover:bg-muted transition-colors" title="Modifier">
               <Pencil size={13} className="text-muted-foreground" />
             </button>
-            <button onClick={onDelete} className="p-1.5 rounded hover:bg-destructive/10 transition-colors">
+            <button onClick={onDelete} className="p-1.5 rounded hover:bg-destructive/10 transition-colors" title="Supprimer">
               <Trash2 size={13} className="text-destructive/70" />
             </button>
           </div>
@@ -347,6 +359,15 @@ function FournisseurRow({
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(fournisseur);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const saveInfo = () => {
     onUpdate({ ...draft, produits: fournisseur.produits });
@@ -354,8 +375,31 @@ function FournisseurRow({
   };
   const updateProduit = (p: ProduitFournisseur) =>
     onUpdate({ ...fournisseur, produits: fournisseur.produits.map((x) => (x.id === p.id ? p : x)) });
-  const deleteProduit = (pid: string) =>
-    onUpdate({ ...fournisseur, produits: fournisseur.produits.filter((p) => p.id !== pid) });
+  const deleteProduit = (pid: string) => {
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer ce produit / tarif ?",
+      onConfirm: () => {
+        onUpdate({ ...fournisseur, produits: fournisseur.produits.filter((p) => p.id !== pid) });
+      },
+    });
+  };
+  const duplicateProduit = (p: ProduitFournisseur) => {
+    const duplicated: ProduitFournisseur = {
+      ...p,
+      id: uid(),
+      designation: p.designation ? `${p.designation} (copie)` : "(copie)",
+    };
+    const idx = fournisseur.produits.findIndex((x) => x.id === p.id);
+    const updated = [...fournisseur.produits];
+    if (idx >= 0) {
+      updated.splice(idx + 1, 0, duplicated);
+    } else {
+      updated.push(duplicated);
+    }
+    onUpdate({ ...fournisseur, produits: updated });
+    toast.success("Produit dupliqué !");
+  };
   const addProduit = () => {
     onUpdate({ ...fournisseur, produits: [...fournisseur.produits, blankProduit()] });
     setExpanded(true);
@@ -527,6 +571,7 @@ function FournisseurRow({
                       produit={p}
                       onUpdate={updateProduit}
                       onDelete={() => deleteProduit(p.id)}
+                      onDuplicate={() => duplicateProduit(p)}
                     />
                   ))}
                 </tbody>
@@ -545,6 +590,15 @@ function FournisseurRow({
           </div>
         </div>
       )}
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }
@@ -794,6 +848,8 @@ function TemplateEditor({ value, onChange }: { value: string; onChange: (v: stri
     .replace(/\{\{toiture\}\}/g, "Verre clair")
     .replace(/\{\{couleur\}\}/g, "Anthracite RAL 7016")
     .replace(/\{\{poteaux\}\}/g, "3")
+    .replace(/\{\{hauteur_poteaux\}\}/g, "2,50m")
+    .replace(/\{\{poteaux_supp\}\}/g, "0")
     .replace(/\{\{moteur\}\}/g, "Moteur 15 NM");
 
   return (
@@ -833,7 +889,7 @@ function TemplateEditor({ value, onChange }: { value: string; onChange: (v: stri
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="form-input w-full !h-36 resize-none font-mono !text-[11px] leading-relaxed"
-        placeholder="Ex: {{nom}} sur mesure&#10;Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux&#10;Couverture : {{toiture}}&#10;Couleur : {{couleur}}"
+        placeholder="Ex: {{nom}} sur mesure&#10;Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})&#10;Couverture : {{toiture}}&#10;Couleur : {{couleur}}"
       />
 
       {showPreview && (
@@ -1318,6 +1374,15 @@ function ModeleEditorModal({
 function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
   const [modeles, setModeles] = useState<ModelePergola[]>([]);
   const [editingModele, setEditingModele] = useState<ModelePergola | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   useEffect(() => setModeles(loadModeles()), []);
 
@@ -1334,9 +1399,34 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm("Supprimer ce modèle et sa grille de tarifs ?")) return;
-    save(modeles.filter((m) => m.id !== id));
-    toast.success("Modèle supprimé");
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer ce modèle et sa grille de tarifs ?",
+      onConfirm: () => {
+        save(modeles.filter((m) => m.id !== id));
+        toast.success("Modèle supprimé");
+      },
+    });
+  };
+
+  const handleDuplicate = (m: ModelePergola) => {
+    const duplicated: ModelePergola = {
+      ...m,
+      id: uid(),
+      nom: `${m.nom} (copie)`,
+      grille: {
+        ...m.grille,
+        largeurs: [...m.grille.largeurs],
+        profondeurs: [...m.grille.profondeurs],
+        prixAchatHT: m.grille.prixAchatHT.map((row) => [...row]),
+      },
+      toitures: m.toitures.map((t) => ({ ...t, id: uid() })),
+      couleurs: m.couleurs.map((c) => ({ ...c, id: uid() })),
+      reglesPoteau: m.reglesPoteau.map((r) => ({ ...r })),
+    };
+    save([...modeles, duplicated]);
+    setEditingModele(duplicated);
+    toast.success("Modèle dupliqué ! Modifiez-le ci-dessous.");
   };
 
   return (
@@ -1419,6 +1509,12 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
+                      onClick={() => handleDuplicate(m)}
+                      className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
+                    >
+                      <Copy size={13} /> Dupliquer
+                    </button>
+                    <button
                       onClick={() => setEditingModele(m)}
                       className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
                     >
@@ -1443,6 +1539,15 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           onClose={() => setEditingModele(null)}
         />
       )}
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }
@@ -1454,6 +1559,15 @@ export default function Fournisseurs() {
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("toutes");
   const [activeTab, setActiveTab] = useState<"fournisseurs" | "grilles">("fournisseurs");
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const reload = useCallback(() => setFournisseurs(loadFournisseurs()), []);
   useEffect(() => reload(), [reload]);
@@ -1468,9 +1582,14 @@ export default function Fournisseurs() {
   };
   const updateFournisseur = (f: Fournisseur) => save(fournisseurs.map((x) => (x.id === f.id ? f : x)));
   const deleteFournisseur = (id: string) => {
-    if (!confirm("Supprimer ce fournisseur et tous ses tarifs ?")) return;
-    save(fournisseurs.filter((f) => f.id !== id));
-    toast.success("Fournisseur supprimé");
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer ce fournisseur et tous ses tarifs ?",
+      onConfirm: () => {
+        save(fournisseurs.filter((f) => f.id !== id));
+        toast.success("Fournisseur supprimé");
+      },
+    });
   };
 
   const allCats = Array.from(new Set(fournisseurs.map((f) => f.categorie).filter(Boolean)));
@@ -1615,6 +1734,15 @@ export default function Fournisseurs() {
       )}
 
       {activeTab === "grilles" && <GrilleTarifsTab fournisseurs={fournisseurs} />}
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   loadCommandes, saveCommandes, nextCommandeNumber,
   createCommandeFromDevis, getCommandeResteAFacturer,
@@ -454,6 +455,15 @@ export default function Dashboard() {
   const [convertModal, setConvertModal] = useState<Quote | null>(null);
   const [factureModal, setFactureModal] = useState<Quote | null>(null);
   const [relancesOpen, setRelancesOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const reload = useCallback(() => {
     setQuotes(loadQuotes());
@@ -509,10 +519,16 @@ export default function Dashboard() {
   };
 
   const deleteQuote = (q: Quote) => {
-    const all = loadQuotes().filter((x) => x.id !== q.id);
-    saveQuotes(all);
-    reload();
-    toast.success("Devis supprimé");
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer ce devis ?",
+      onConfirm: () => {
+        const all = loadQuotes().filter((x) => x.id !== q.id);
+        saveQuotes(all);
+        reload();
+        toast.success("Devis supprimé");
+      },
+    });
   };
 
   const toggleFav = (q: Quote) => {
@@ -832,6 +848,16 @@ export default function Dashboard() {
       {/* Modals */}
       {convertModal && <ConvertCommandeModal quote={convertModal} onClose={() => setConvertModal(null)} onDone={reload} />}
       {factureModal && <FactureAcompteModal quote={factureModal} onClose={() => setFactureModal(null)} onDone={reload} />}
+
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }

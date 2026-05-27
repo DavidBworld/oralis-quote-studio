@@ -12,11 +12,21 @@ import {
   type CatalogPose,
 } from "@/lib/settings-data";
 import { uid } from "@/lib/quote-data";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [activeTab, setActiveTab] = useState<"entreprise" | "tarifs" | "bibliotheque">("entreprise");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const update = (patch: Partial<AppSettings>) => setSettings((s) => ({ ...s, ...patch }));
   const updateCompany = (patch: Partial<AppSettings["company"]>) =>
@@ -55,9 +65,29 @@ export default function Settings() {
         ))}
       </div>
 
-      {activeTab === "entreprise" && <EntrepriseTab settings={settings} update={update} updateCompany={updateCompany} fileInputRef={fileInputRef} />}
-      {activeTab === "tarifs" && <TarifsTab settings={settings} update={update} />}
-      {activeTab === "bibliotheque" && <BibliothequeTab settings={settings} update={update} />}
+      {activeTab === "entreprise" && (
+        <EntrepriseTab
+          settings={settings}
+          update={update}
+          updateCompany={updateCompany}
+          fileInputRef={fileInputRef}
+          setConfirmDelete={setConfirmDelete}
+        />
+      )}
+      {activeTab === "tarifs" && (
+        <TarifsTab
+          settings={settings}
+          update={update}
+          setConfirmDelete={setConfirmDelete}
+        />
+      )}
+      {activeTab === "bibliotheque" && (
+        <BibliothequeTab
+          settings={settings}
+          update={update}
+          setConfirmDelete={setConfirmDelete}
+        />
+      )}
 
       {/* Save */}
       <div className="mt-8">
@@ -65,6 +95,15 @@ export default function Settings() {
           Enregistrer les paramètres
         </button>
       </div>
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }
@@ -78,11 +117,13 @@ function EntrepriseTab({
   update,
   updateCompany,
   fileInputRef,
+  setConfirmDelete,
 }: {
   settings: AppSettings;
   update: (p: Partial<AppSettings>) => void;
   updateCompany: (p: Partial<AppSettings["company"]>) => void;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  setConfirmDelete: React.Dispatch<React.SetStateAction<{ isOpen: boolean; message: string; onConfirm: () => void }>>;
 }) {
   const [docSubTab, setDocSubTab] = useState<"devis" | "facture">("devis");
   const c = settings.company;
@@ -209,8 +250,15 @@ function EntrepriseTab({
                   <button
                     type="button"
                     onClick={() => {
-                      const updatedList = settings.paymentConditionsList.filter((x) => x.id !== cond.id);
-                      update({ paymentConditionsList: updatedList });
+                      setConfirmDelete({
+                        isOpen: true,
+                        message: "Voulez-vous vraiment supprimer cette formule de règlement ?",
+                        onConfirm: () => {
+                          const updatedList = settings.paymentConditionsList.filter((x) => x.id !== cond.id);
+                          update({ paymentConditionsList: updatedList });
+                          toast.success("Formule de règlement supprimée");
+                        },
+                      });
                     }}
                     className="p-2 text-destructive hover:bg-destructive/10 transition-colors rounded self-end"
                     title="Supprimer cette condition"
@@ -473,9 +521,11 @@ function EntrepriseTab({
 function TarifsTab({
   settings,
   update,
+  setConfirmDelete,
 }: {
   settings: AppSettings;
   update: (p: Partial<AppSettings>) => void;
+  setConfirmDelete: React.Dispatch<React.SetStateAction<{ isOpen: boolean; message: string; onConfirm: () => void }>>;
 }) {
   const updateCoeff = (id: string, patch: Partial<CoefficientRow>) =>
     update({ coefficients: settings.coefficients.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
@@ -527,7 +577,17 @@ function TarifsTab({
                   </td>
                   <td className="py-3 pl-1">
                     <button
-                      onClick={() => update({ coefficients: settings.coefficients.filter((c) => c.id !== row.id) })}
+                      type="button"
+                      onClick={() => {
+                        setConfirmDelete({
+                          isOpen: true,
+                          message: `Voulez-vous vraiment supprimer la catégorie de coefficient "${row.categorie || "Sans nom"}" ?`,
+                          onConfirm: () => {
+                            update({ coefficients: settings.coefficients.filter((c) => c.id !== row.id) });
+                            toast.success("Catégorie supprimée");
+                          },
+                        });
+                      }}
                       className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
                     >
                       <Trash2 size={14} />
@@ -595,7 +655,20 @@ function TarifsTab({
                       <input type="text" value={r.notes} onChange={(e) => updateRemise(r.id, { notes: e.target.value })} className="form-input" />
                     </td>
                     <td className="py-3 pl-1">
-                      <button onClick={() => update({ fournisseurRemises: settings.fournisseurRemises.filter((x) => x.id !== r.id) })} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmDelete({
+                            isOpen: true,
+                            message: `Voulez-vous vraiment supprimer la remise pour le fournisseur "${r.fournisseur || "Sans nom"}" ?`,
+                            onConfirm: () => {
+                              update({ fournisseurRemises: settings.fournisseurRemises.filter((x) => x.id !== r.id) });
+                              toast.success("Remise supprimée");
+                            },
+                          });
+                        }}
+                        className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
+                      >
                         <Trash2 size={14} />
                       </button>
                     </td>
@@ -623,9 +696,11 @@ function TarifsTab({
 function BibliothequeTab({
   settings,
   update,
+  setConfirmDelete,
 }: {
   settings: AppSettings;
   update: (p: Partial<AppSettings>) => void;
+  setConfirmDelete: React.Dispatch<React.SetStateAction<{ isOpen: boolean; message: string; onConfirm: () => void }>>;
 }) {
   const [subTab, setSubTab] = useState<"produits" | "pose">("produits");
   const [search, setSearch] = useState("");
@@ -751,10 +826,21 @@ function BibliothequeTab({
           {((subTab === "produits" && settings.catalogProduits.length > 0) || (subTab === "pose" && settings.catalogPose.length > 0)) && (
             <button
               onClick={() => {
-                if (confirm("Supprimer tous les éléments ?")) {
-                  if (subTab === "produits") update({ catalogProduits: [] });
-                  else update({ catalogPose: [] });
-                }
+                setConfirmDelete({
+                  isOpen: true,
+                  message: subTab === "produits" 
+                    ? "Voulez-vous vraiment supprimer TOUS les produits de la bibliothèque ?"
+                    : "Voulez-vous vraiment supprimer TOUS les tarifs de pose de la bibliothèque ?",
+                  onConfirm: () => {
+                    if (subTab === "produits") {
+                      update({ catalogProduits: [] });
+                      toast.success("Tous les produits ont été supprimés");
+                    } else {
+                      update({ catalogPose: [] });
+                      toast.success("Tous les tarifs de pose ont été supprimés");
+                    }
+                  },
+                });
               }}
               className="btn-danger text-xs px-3 py-1.5"
             >
@@ -798,7 +884,20 @@ function BibliothequeTab({
                       <td className="py-3 pr-2 text-muted-foreground">{p.fournisseur}</td>
                       <td className="py-3 pr-2 text-right font-medium font-mono text-accent">{formatEURCoeff(p.prixAchatHT, getCoeffForCategory(p.categorie))}</td>
                       <td className="py-3">
-                        <button onClick={() => update({ catalogProduits: settings.catalogProduits.filter((x) => x.id !== p.id) })} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmDelete({
+                              isOpen: true,
+                              message: `Voulez-vous vraiment supprimer le produit "${p.designation}" de la bibliothèque ?`,
+                              onConfirm: () => {
+                                update({ catalogProduits: settings.catalogProduits.filter((x) => x.id !== p.id) });
+                                toast.success("Produit supprimé de la bibliothèque");
+                              },
+                            });
+                          }}
+                          className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
+                        >
                           <Trash2 size={14} />
                         </button>
                       </td>
@@ -833,7 +932,20 @@ function BibliothequeTab({
                       <td className="py-3 text-right font-mono">{formatEURCoeff(p.prixUnitaireHT, 1)}</td>
                       <td className="py-3 text-center font-mono">{p.dureeEstimee}</td>
                       <td className="py-3">
-                        <button onClick={() => update({ catalogPose: settings.catalogPose.filter((x) => x.id !== p.id) })} className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmDelete({
+                              isOpen: true,
+                              message: `Voulez-vous vraiment supprimer le tarif de pose "${p.typePose}" de la bibliothèque ?`,
+                              onConfirm: () => {
+                                update({ catalogPose: settings.catalogPose.filter((x) => x.id !== p.id) });
+                                toast.success("Tarif de pose supprimé de la bibliothèque");
+                              },
+                            });
+                          }}
+                          className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
+                        >
                           <Trash2 size={14} />
                         </button>
                       </td>

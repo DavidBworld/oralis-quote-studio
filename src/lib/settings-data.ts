@@ -224,6 +224,43 @@ export function loadSettings(): AppSettings {
       };
       // If no logo was set, use the default ORALIS logo
       if (!merged.logo) merged.logo = defaults.logo;
+
+      // Migrate / ensure unique ids exist on all items
+      if (merged.coefficients) {
+        merged.coefficients = merged.coefficients.map((c: any) => ({
+          id: c.id || uid(),
+          ...c
+        }));
+      }
+      if (merged.paymentConditionsList) {
+        merged.paymentConditionsList = merged.paymentConditionsList.map((p: any) => ({
+          id: p.id || uid(),
+          ...p,
+          steps: (p.steps || []).map((s: any) => ({
+            id: s.id || uid(),
+            ...s
+          }))
+        }));
+      }
+      if (merged.fournisseurRemises) {
+        merged.fournisseurRemises = merged.fournisseurRemises.map((r: any) => ({
+          id: r.id || uid(),
+          ...r
+        }));
+      }
+      if (merged.catalogProduits) {
+        merged.catalogProduits = merged.catalogProduits.map((p: any) => ({
+          id: p.id || uid(),
+          ...p
+        }));
+      }
+      if (merged.catalogPose) {
+        merged.catalogPose = merged.catalogPose.map((p: any) => ({
+          id: p.id || uid(),
+          ...p
+        }));
+      }
+
       return merged;
     }
     return defaultSettings();

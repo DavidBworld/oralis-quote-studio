@@ -12,6 +12,7 @@ import {
 } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
 import { nextFactureNumberOR } from "@/lib/commande-data";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 // ── Facture types ──
 interface Reglement {
@@ -354,6 +355,15 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
   const [tab, setTab] = useState<"affaire" | "contenu" | "reglement">("affaire");
   const [reglementModal, setReglementModal] = useState(false);
   const navigate = useNavigate();
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const reload = useCallback(() => {
     const all = loadFactures();
@@ -633,15 +643,21 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
                       <td className="px-4 py-2 text-right font-mono font-medium">{formatEUR(r.montant)}</td>
                       <td className="px-4 py-2 text-right">
                         <button onClick={() => {
-                          const all = loadFactures();
-                          const idx = all.findIndex((f) => f.id === facture.id);
-                          if (idx >= 0) {
-                            all[idx].reglements = all[idx].reglements.filter((x) => x.id !== r.id);
-                            const newTotal = all[idx].reglements.reduce((s, x) => s + x.montant, 0);
-                            all[idx].statut = newTotal >= all[idx].montantAcompte ? "payee" : newTotal > 0 ? "partiel" : "non_payee";
-                            saveFactures(all);
-                            reload();
-                          }
+                          setConfirmDelete({
+                            isOpen: true,
+                            message: "Voulez-vous vraiment supprimer ce règlement ?",
+                            onConfirm: () => {
+                              const all = loadFactures();
+                              const idx = all.findIndex((f) => f.id === facture.id);
+                              if (idx >= 0) {
+                                all[idx].reglements = all[idx].reglements.filter((x) => x.id !== r.id);
+                                const newTotal = all[idx].reglements.reduce((s, x) => s + x.montant, 0);
+                                all[idx].statut = newTotal >= all[idx].montantAcompte ? "payee" : newTotal > 0 ? "partiel" : "non_payee";
+                                saveFactures(all);
+                                reload();
+                              }
+                            },
+                          });
                         }} className="p-1.5 rounded hover:bg-muted transition-colors"><Trash2 size={13} className="text-destructive" /></button>
                       </td>
                     </tr>
@@ -671,6 +687,15 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
           {reglementModal && <ReglementModal facture={facture} onClose={() => setReglementModal(false)} onDone={reload} />}
         </div>
       )}
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }
@@ -687,6 +712,15 @@ export default function Factures() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; facture: Facture } | null>(null);
   const [reglementModal, setReglementModal] = useState<Facture | null>(null);
   const [kpiPeriod, setKpiPeriod] = useState<"mois" | "mois_prec" | "annee" | "tout">("mois");
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const reload = useCallback(() => {
     initializeSampleFactures();
@@ -834,10 +868,16 @@ export default function Factures() {
       }
       case "print": navigate(`/factures/${f.id}/apercu`); break;
       case "delete": {
-        const all = loadFactures().filter((x) => x.id !== f.id);
-        saveFactures(all);
-        reload();
-        toast.success("Facture supprimée");
+        setConfirmDelete({
+          isOpen: true,
+          message: "Voulez-vous vraiment supprimer cette facture ?",
+          onConfirm: () => {
+            const all = loadFactures().filter((x) => x.id !== f.id);
+            saveFactures(all);
+            reload();
+            toast.success("Facture supprimée");
+          },
+        });
         break;
       }
     }
@@ -998,6 +1038,16 @@ export default function Factures() {
 
       {/* Reglement Modal */}
       {reglementModal && <ReglementModal facture={reglementModal} onClose={() => setReglementModal(null)} onDone={reload} />}
+
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }

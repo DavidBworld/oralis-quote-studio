@@ -22,6 +22,7 @@ export interface QuoteLine {
 
 export interface QuoteClient {
   type: "particulier" | "professionnel";
+  civilite?: string;
   prenom: string;
   nom: string;
   societe: string;

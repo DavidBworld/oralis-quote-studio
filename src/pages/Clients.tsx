@@ -12,6 +12,7 @@ import {
   PROFIL_LABELS, STATUT_CLIENT_LABELS,
 } from "@/lib/client-data";
 import { loadQuotes, formatEUR, formatDate, calcTotals, STATUT_LABELS, uid } from "@/lib/quote-data";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 const statusClassMap: Record<Client["statut"], string> = {
   prospect: "status-envoye",
@@ -59,6 +60,15 @@ export default function Clients() {
   const [paysFilter, setPaysFilter] = useState("tous");
   const [tvaFilter, setTvaFilter] = useState("tous");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; client: Client } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   useEffect(() => {
     initializeClients();
@@ -103,11 +113,16 @@ export default function Clients() {
   };
 
   const deleteClient = (clientId: string) => {
-    if (!confirm("Supprimer ce client ?")) return;
-    const all = loadClients().filter((c) => c.id !== clientId);
-    saveClients(all);
-    setClients(all);
-    if (id === clientId) navigate("/clients");
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer ce client ?",
+      onConfirm: () => {
+        const all = loadClients().filter((c) => c.id !== clientId);
+        saveClients(all);
+        setClients(all);
+        if (id === clientId) navigate("/clients");
+      },
+    });
   };
 
   const toggleFavori = (clientId: string) => {
@@ -134,12 +149,23 @@ export default function Clients() {
 
   if (selectedClient) {
     return (
-      <ClientDetail
-        client={selectedClient}
-        onUpdate={updateClient}
-        onDelete={deleteClient}
-        onBack={() => navigate("/clients")}
-      />
+      <>
+        <ClientDetail
+          client={selectedClient}
+          onUpdate={updateClient}
+          onDelete={deleteClient}
+          onBack={() => navigate("/clients")}
+        />
+        <ConfirmModal
+          isOpen={confirmDelete.isOpen}
+          message={confirmDelete.message}
+          onConfirm={() => {
+            setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+            confirmDelete.onConfirm();
+          }}
+          onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+        />
+      </>
     );
   }
 
@@ -370,6 +396,15 @@ export default function Clients() {
           </button>
         </div>
       )}
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }
@@ -653,8 +688,24 @@ function TabSuivi({ form, setForm, onSave }: { form: Client; setForm: (f: Client
     });
   };
 
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
+
   const deleteOpp = (id: string) => {
-    setForm({ ...form, resteAFaire: form.resteAFaire.filter((o) => o.id !== id) });
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer cette opportunité ?",
+      onConfirm: () => {
+        setForm({ ...form, resteAFaire: form.resteAFaire.filter((o) => o.id !== id) });
+      },
+    });
   };
 
   return (
@@ -754,6 +805,15 @@ function TabSuivi({ form, setForm, onSave }: { form: Client; setForm: (f: Client
       </div>
 
       <button onClick={onSave} className="btn-gold">Enregistrer</button>
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }
@@ -1048,8 +1108,24 @@ function TabChantier({ form, setForm, onSave }: { form: Client; setForm: (f: Cli
     });
   };
 
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
+
   const deletePhoto = (id: string) => {
-    setForm({ ...form, photos: form.photos.filter((p) => p.id !== id) });
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer cette photo ?",
+      onConfirm: () => {
+        setForm({ ...form, photos: form.photos.filter((p) => p.id !== id) });
+      },
+    });
   };
 
   return (
@@ -1107,6 +1183,15 @@ function TabChantier({ form, setForm, onSave }: { form: Client; setForm: (f: Cli
       )}
 
       <button onClick={onSave} className="btn-gold">Enregistrer</button>
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }

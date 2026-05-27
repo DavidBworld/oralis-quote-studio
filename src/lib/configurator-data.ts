@@ -126,7 +126,7 @@ export function blankOption(): OptionConfigurable {
 
 /** Template description par défaut — variables remplacées à l'injection */
 export const TEMPLATE_DEFAUT = `{{nom}} sur mesure
-Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux
+Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})
 Couverture : {{toiture}}
 Couleur structure : {{couleur}}
 Structure aluminium thermolaquée — résistance aux UV et aux intempéries
@@ -295,7 +295,18 @@ export function genererDescription(
   const hauteurPoteauxFormate = ctx.hauteurPoteauxMm ? formatDimDevis(ctx.hauteurPoteauxMm) : "2,50m";
   const poteauxSuppText = String(ctx.poteauxSupp || 0);
 
-  return template
+  let resultTemplate = template || "";
+  if (resultTemplate.trim() && !resultTemplate.includes("{{hauteur_poteaux}}")) {
+    if (resultTemplate.includes("{{poteaux}} poteaux")) {
+      resultTemplate = resultTemplate.replace("{{poteaux}} poteaux", "{{poteaux}} poteaux (hauteur {{hauteur_poteaux}})");
+    } else if (resultTemplate.includes("{{poteaux}}")) {
+      resultTemplate = resultTemplate.replace("{{poteaux}}", "{{poteaux}} (hauteur {{hauteur_poteaux}})");
+    } else {
+      resultTemplate = resultTemplate + "\nHauteur poteaux : {{hauteur_poteaux}}";
+    }
+  }
+
+  return resultTemplate
     .replace(/\{\{nom\}\}/g,        ctx.nom)
     .replace(/\{\{largeur\}\}/g,    largeurFormate)
     .replace(/\{\{profondeur\}\}/g, dim2Formate)

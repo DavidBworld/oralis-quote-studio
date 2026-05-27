@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Plus, Trash2, Upload, Camera, Wrench, X, ChevronRight, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, Users, ChevronUp, ChevronDown } from "lucide-react";
+import { toast } from "sonner";
 import {
   loadQuotes, saveQuotes, createEmptyQuote, emptyLine, emptyOption,
   formatEUR, formatDate, expiryDate, calcTotals, lineMontantHT,
@@ -13,6 +14,7 @@ import {
   formatMM, formatCoef, formatDimDevis,
   type ModelePergola, type ResultatCalcul,
 } from "@/lib/configurator-data";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 const CATEGORIES = [
   "Pergola bioclimatique",
@@ -750,6 +752,15 @@ export default function QuoteForm() {
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const [adjustmentPct, setAdjustmentPct] = useState<string>("");
   const [adjustmentHT, setAdjustmentHT] = useState<string>("");
@@ -839,7 +850,16 @@ export default function QuoteForm() {
       lignes: prev.lignes.map((l) => l.id === lineId ? { ...l, options: l.options.map((o) => o.id === optId ? { ...o, ...patch } : o) } : l)
     }));
   const addLine = () => update(prev => ({ lignes: [...prev.lignes, emptyLine(defaultTva)] }));
-  const removeLine = (lineId: string) => update(prev => ({ lignes: prev.lignes.filter((l) => l.id !== lineId) }));
+  const removeLine = (lineId: string) => {
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer cette ligne de devis ?",
+      onConfirm: () => {
+        update(prev => ({ lignes: prev.lignes.filter((l) => l.id !== lineId) }));
+        toast.success("Ligne de devis supprimée");
+      },
+    });
+  };
   const moveLineUp = (index: number) => {
     if (index <= 0) return;
     update(prev => {
@@ -863,9 +883,18 @@ export default function QuoteForm() {
   const addOption = (lineId: string) => update(prev => ({
     lignes: prev.lignes.map(l => l.id === lineId ? { ...l, options: [...l.options, emptyOption(defaultTva)] } : l)
   }));
-  const removeOption = (lineId: string, optId: string) => update(prev => ({
-    lignes: prev.lignes.map(l => l.id === lineId ? { ...l, options: l.options.filter(o => o.id !== optId) } : l)
-  }));
+  const removeOption = (lineId: string, optId: string) => {
+    setConfirmDelete({
+      isOpen: true,
+      message: "Voulez-vous vraiment supprimer cette option de la ligne ?",
+      onConfirm: () => {
+        update(prev => ({
+          lignes: prev.lignes.map(l => l.id === lineId ? { ...l, options: l.options.filter(o => o.id !== optId) } : l)
+        }));
+        toast.success("Option supprimée");
+      },
+    });
+  };
 
   const handleApplyTvaToAll = (tva: number) => {
     setDefaultTva(tva);
@@ -1317,6 +1346,15 @@ export default function QuoteForm() {
         <button onClick={()=>{ if (save()) { const all=loadQuotes(); const saved=all.find((q)=>q.id===quote.id); if(saved) navigate(`/devis/${saved.id}/apercu`); } }} className="btn-outline-gold">Aperçu PDF</button>
         <button onClick={()=>navigate("/")} className="btn-ghost">Retour au tableau de bord</button>
       </div>
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }

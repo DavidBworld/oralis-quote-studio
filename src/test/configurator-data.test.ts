@@ -132,7 +132,7 @@ describe("genererDescription", () => {
 Largeur {{largeur}} x {{dim2_label}} {{profondeur}}
 Toiture: {{toiture}}
 Couleur: {{couleur}}
-Poteaux: {{poteaux}}`;
+Poteaux: {{poteaux}} (hauteur {{hauteur_poteaux}})`;
 
     const ctx = {
       nom: "Pergola Design",
@@ -142,6 +142,7 @@ Poteaux: {{poteaux}}`;
       couleur: "RAL 7016",
       poteaux: 3,
       typeDim: "largeur_profondeur" as const,
+      hauteurPoteauxMm: 2800,
     };
 
     const desc = genererDescription(template, ctx);
@@ -149,7 +150,24 @@ Poteaux: {{poteaux}}`;
     expect(desc).toContain("Largeur 4,25m x Profondeur 2,90m");
     expect(desc).toContain("Toiture: Polycarbonate transparent");
     expect(desc).toContain("Couleur: RAL 7016");
-    expect(desc).toContain("Poteaux: 3");
+    expect(desc).toContain("Poteaux: 3 (hauteur 2,80m)");
+  });
+
+  it("should apply fallback auto-injection of post height if missing from template", () => {
+    const template = `{{nom}} sur mesure
+Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux`;
+    const ctx = {
+      nom: "Pergola Design",
+      largeurMm: 4000,
+      profondeurMm: 3000,
+      toiture: "Polycarbonate transparent",
+      couleur: "RAL 7016",
+      poteaux: 2,
+      typeDim: "largeur_profondeur" as const,
+      hauteurPoteauxMm: 2600,
+    };
+    const desc = genererDescription(template, ctx);
+    expect(desc).toContain("Dimensions : Largeur 4,00m × Profondeur 3,00m — 2 poteaux (hauteur 2,60m)");
   });
 });
 
