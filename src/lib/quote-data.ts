@@ -42,6 +42,7 @@ export interface Quote {
   client: QuoteClient;
   lignes: QuoteLine[];
   conditionsPaiement: string;
+  paymentConditionId?: string;
   delaiRealisation: string;
   notes: string;
 }
@@ -200,6 +201,7 @@ export function createEmptyQuote(quotes: Quote[]): Quote {
     client: emptyClient(),
     lignes: [emptyLine()],
     conditionsPaiement: "50% à la commande, 45% à la livraison, 5% à la réception des travaux",
+    paymentConditionId: "std-50-45-5",
     delaiRealisation: "6 à 8 semaines",
     notes: "",
   };

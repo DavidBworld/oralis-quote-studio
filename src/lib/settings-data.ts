@@ -74,6 +74,19 @@ export interface CatalogPose {
   dureeEstimee: number;
 }
 
+export interface PaymentConditionStep {
+  id: string;
+  type: "acompte" | "solde";
+  label: string;
+  pct: number;
+}
+
+export interface PaymentCondition {
+  id: string;
+  nom: string;
+  steps: PaymentConditionStep[];
+}
+
 export interface AppSettings {
   company: CompanySettings;
   logo: string; // base64 or ""
@@ -84,6 +97,7 @@ export interface AppSettings {
   fournisseurRemises: FournisseurRemise[];
   catalogProduits: CatalogProduct[];
   catalogPose: CatalogPose[];
+  paymentConditionsList: PaymentCondition[];
 }
 
 // ── Defaults ──
@@ -148,6 +162,36 @@ export function defaultTVARates(): TVARateSetting[] {
   ];
 }
 
+export function defaultPaymentConditions(): PaymentCondition[] {
+  return [
+    {
+      id: "std-50-45-5",
+      nom: "Standard (50% / 45% / 5%)",
+      steps: [
+        { id: "step-1", type: "acompte", label: "à la commande", pct: 50 },
+        { id: "step-2", type: "acompte", label: "à la livraison", pct: 45 },
+        { id: "step-3", type: "solde", label: "à la fin des travaux", pct: 5 }
+      ]
+    },
+    {
+      id: "std-30-40-30",
+      nom: "Standard 2 (30% / 40% / 30%)",
+      steps: [
+        { id: "step-4", type: "acompte", label: "à la commande", pct: 30 },
+        { id: "step-5", type: "acompte", label: "à la livraison", pct: 40 },
+        { id: "step-6", type: "solde", label: "à la fin des travaux", pct: 30 }
+      ]
+    },
+    {
+      id: "solde-100",
+      nom: "Paiement 100% commande",
+      steps: [
+        { id: "step-7", type: "solde", label: "à la commande", pct: 100 }
+      ]
+    }
+  ];
+}
+
 export function defaultSettings(): AppSettings {
   return {
     company: defaultCompany(),
@@ -159,6 +203,7 @@ export function defaultSettings(): AppSettings {
     fournisseurRemises: [],
     catalogProduits: [],
     catalogPose: [],
+    paymentConditionsList: defaultPaymentConditions(),
   };
 }
 
@@ -171,7 +216,12 @@ export function loadSettings(): AppSettings {
       const parsed = JSON.parse(raw);
       // Merge with defaults to handle new fields
       const defaults = defaultSettings();
-      const merged = { ...defaults, ...parsed, company: { ...defaults.company, ...parsed.company } };
+      const merged = {
+        ...defaults,
+        ...parsed,
+        company: { ...defaults.company, ...parsed.company },
+        paymentConditionsList: parsed.paymentConditionsList || defaults.paymentConditionsList
+      };
       // If no logo was set, use the default ORALIS logo
       if (!merged.logo) merged.logo = defaults.logo;
       return merged;

@@ -1186,9 +1186,52 @@ export default function QuoteForm() {
       {/* Section E — Terms */}
       <section className="luxury-card mb-5">
         <h2 className="section-title">Conditions commerciales</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div><label className="form-label">Conditions de paiement</label><input type="text" value={quote.conditionsPaiement} onChange={(e)=>update({conditionsPaiement:e.target.value})} className="form-input"/></div>
-          <div><label className="form-label">Délai de réalisation</label><input type="text" value={quote.delaiRealisation} onChange={(e)=>update({delaiRealisation:e.target.value})} className="form-input"/></div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label className="form-label">Formule de règlement</label>
+            <select
+              value={quote.paymentConditionId || ""}
+              onChange={(e) => {
+                const condId = e.target.value;
+                const foundCond = settings?.paymentConditionsList?.find(c => c.id === condId);
+                if (foundCond) {
+                  const autoText = foundCond.steps.map(s => `${s.pct}% ${s.label}`).join(", ");
+                  update({
+                    paymentConditionId: condId,
+                    conditionsPaiement: autoText
+                  });
+                } else {
+                  update({ paymentConditionId: "" });
+                }
+              }}
+              className="form-input"
+            >
+              <option value="">-- Personnalisé / Autre --</option>
+              {settings?.paymentConditionsList?.map((cond) => (
+                <option key={cond.id} value={cond.id}>
+                  {cond.nom || "Formule sans nom"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">Conditions de paiement (Description)</label>
+            <input
+              type="text"
+              value={quote.conditionsPaiement}
+              onChange={(e) => update({ conditionsPaiement: e.target.value })}
+              className="form-input"
+            />
+          </div>
+          <div>
+            <label className="form-label">Délai de réalisation</label>
+            <input
+              type="text"
+              value={quote.delaiRealisation}
+              onChange={(e) => update({ delaiRealisation: e.target.value })}
+              className="form-input"
+            />
+          </div>
         </div>
         <div className="mb-4"><label className="form-label">Notes / Remarques</label><textarea value={quote.notes} onChange={(e)=>update({notes:e.target.value})} className="form-input resize-none" rows={3}/></div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">Devis valable {quote.validite} jours. TVA selon pays du chantier. {getLegalMention(settings)}</p>

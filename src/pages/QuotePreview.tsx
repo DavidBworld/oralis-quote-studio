@@ -286,10 +286,18 @@ export default function QuotePreview() {
     baseHTByRate[l.tva] = (baseHTByRate[l.tva] ?? 0) + ht;
   });
 
-  // Payment amounts
-  const acompte1 = Math.round(totals.totalTTC * 0.50 * 100) / 100;
-  const acompte2 = Math.round(totals.totalTTC * 0.45 * 100) / 100;
-  const solde = Math.round(totals.totalTTC * 0.05 * 100) / 100;
+  // Find selected payment condition or fall back to standard 50/45/5
+  const selectedCond = settings?.paymentConditionsList?.find(c => c.id === quote.paymentConditionId);
+  const defaultSteps = [
+    { id: "step-1", type: "acompte" as const, label: "à la commande", pct: 50 },
+    { id: "step-2", type: "acompte" as const, label: "à la livraison", pct: 45 },
+    { id: "step-3", type: "solde" as const, label: "à la fin des travaux", pct: 5 }
+  ];
+  const steps = selectedCond?.steps && selectedCond.steps.length > 0 ? selectedCond.steps : defaultSteps;
+  const calculatedPayments = steps.map((step) => {
+    const amount = Math.round(totals.totalTTC * (step.pct / 100) * 100) / 100;
+    return { ...step, amount };
+  });
 
   // Numero for display (OR2026xxx format from devis number)
   const devisNumeroDisplay = quote.numero.replace("ORALIS-", "ORA").replace(/-/g, "");
@@ -555,11 +563,23 @@ export default function QuotePreview() {
             {/* Payment conditions */}
             <div style={{ marginTop: 12, border: "1px solid #ddd", padding: "10px 12px", fontSize: 11, lineHeight: 1.8 }}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                Règlement : Acompte 1 de 50% à la commande — Acompte 2 de 45% à la livraison — Solde à la fin des travaux
+                Règlement : {quote.conditionsPaiement || steps.map(s => `${s.pct}% ${s.label}`).join(", ")}
               </div>
-              <div><strong>Acompte 1 demandé : {formatEUR(acompte1)}</strong></div>
-              <div>2ème acompte : {formatEUR(acompte2)}</div>
-              <div>Solde prévu : {formatEUR(solde)}</div>
+              {calculatedPayments.map((p, idx) => {
+                const isSolde = p.type === "solde";
+                const label = isSolde 
+                  ? `Solde prévu (${p.pct}%) ${p.label ? p.label : ""}` 
+                  : `Acompte (${p.pct}%) ${p.label ? p.label : ""}`;
+                return (
+                  <div key={p.id || idx}>
+                    {idx === 0 ? (
+                      <strong>{label} : {formatEUR(p.amount)}</strong>
+                    ) : (
+                      <span>{label} : {formatEUR(p.amount)}</span>
+                    )}
+                  </div>
+                );
+              })}
               <div style={{ marginTop: 6, fontSize: 10, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
                 💳 {IBAN}
               </div>

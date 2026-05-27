@@ -178,6 +178,175 @@ function EntrepriseTab({
         </div>
       </section>
 
+      {/* Section A2: Conditions de paiement configurables */}
+      <section className="luxury-card">
+        <h2 className="section-title">Conditions de paiement personnalisées</h2>
+        <p className="text-xs text-muted-foreground mb-4 font-body">
+          Définissez les formules de règlement (acomptes et solde) utilisables pour vos devis. La somme des pourcentages de chaque formule doit être égale à 100%.
+        </p>
+
+        <div className="space-y-6">
+          {(settings.paymentConditionsList || []).map((cond) => {
+            const totalPct = cond.steps.reduce((sum, s) => sum + (s.pct || 0), 0);
+            return (
+              <div key={cond.id} className="border border-border/80 rounded-lg p-4 bg-muted/10 space-y-4 font-body">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <label className="form-label">Nom de la formule</label>
+                    <input
+                      type="text"
+                      value={cond.nom}
+                      onChange={(e) => {
+                        const updatedList = settings.paymentConditionsList.map((x) =>
+                          x.id === cond.id ? { ...x, nom: e.target.value } : x
+                        );
+                        update({ paymentConditionsList: updatedList });
+                      }}
+                      placeholder="Ex: Standard (50 / 45 / 5)"
+                      className="form-input font-medium"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updatedList = settings.paymentConditionsList.filter((x) => x.id !== cond.id);
+                      update({ paymentConditionsList: updatedList });
+                    }}
+                    className="p-2 text-destructive hover:bg-destructive/10 transition-colors rounded self-end"
+                    title="Supprimer cette condition"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                {/* Steps list */}
+                <div className="space-y-2">
+                  <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Étapes du règlement</div>
+                  {cond.steps.map((step, idx) => (
+                    <div key={step.id} className="flex flex-wrap items-center gap-2 bg-background border border-border/40 p-2 rounded">
+                      <span className="text-xs font-semibold text-muted-foreground w-16">Étape {idx + 1}</span>
+                      
+                      <div className="w-28">
+                        <select
+                          value={step.type}
+                          onChange={(e) => {
+                            const updatedSteps = cond.steps.map((s) =>
+                              s.id === step.id ? { ...s, type: e.target.value as any } : s
+                            );
+                            const updatedList = settings.paymentConditionsList.map((x) =>
+                              x.id === cond.id ? { ...x, steps: updatedSteps } : x
+                            );
+                            update({ paymentConditionsList: updatedList });
+                          }}
+                          className="form-input text-xs py-1"
+                        >
+                          <option value="acompte">Acompte</option>
+                          <option value="solde">Solde</option>
+                        </select>
+                      </div>
+
+                      <div className="w-24 flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={step.pct || 0}
+                          min={0}
+                          max={100}
+                          onChange={(e) => {
+                            const val = Number(e.target.value) || 0;
+                            const updatedSteps = cond.steps.map((s) =>
+                              s.id === step.id ? { ...s, pct: val } : s
+                            );
+                            const updatedList = settings.paymentConditionsList.map((x) =>
+                              x.id === cond.id ? { ...x, steps: updatedSteps } : x
+                            );
+                            update({ paymentConditionsList: updatedList });
+                          }}
+                          className="form-input text-xs text-center font-mono py-1"
+                          placeholder="%"
+                        />
+                        <span className="text-xs text-muted-foreground font-semibold">%</span>
+                      </div>
+
+                      <div className="flex-1 min-w-[150px]">
+                        <input
+                          type="text"
+                          value={step.label}
+                          onChange={(e) => {
+                            const updatedSteps = cond.steps.map((s) =>
+                              s.id === step.id ? { ...s, label: e.target.value } : s
+                            );
+                            const updatedList = settings.paymentConditionsList.map((x) =>
+                              x.id === cond.id ? { ...x, steps: updatedSteps } : x
+                            );
+                            update({ paymentConditionsList: updatedList });
+                          }}
+                          className="form-input text-xs py-1"
+                          placeholder="Ex: à la commande, à la livraison, etc."
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updatedSteps = cond.steps.filter((s) => s.id !== step.id);
+                          const updatedList = settings.paymentConditionsList.map((x) =>
+                            x.id === cond.id ? { ...x, steps: updatedSteps } : x
+                          );
+                          update({ paymentConditionsList: updatedList });
+                        }}
+                        className="p-1 text-destructive hover:bg-destructive/10 transition-colors rounded"
+                        title="Supprimer cette étape"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newStep = { id: uid(), type: "acompte" as const, label: "", pct: 0 };
+                      const updatedSteps = [...cond.steps, newStep];
+                      const updatedList = settings.paymentConditionsList.map((x) =>
+                        x.id === cond.id ? { ...x, steps: updatedSteps } : x
+                      );
+                      update({ paymentConditionsList: updatedList });
+                    }}
+                    className="text-xs text-accent hover:text-accent-hover font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus size={13} /> Ajouter une étape
+                  </button>
+
+                  <div className={`text-xs font-semibold ${totalPct === 100 ? "text-emerald-600" : "text-amber-600"}`}>
+                    Total : {totalPct}% {totalPct !== 100 && `(doit être égal à 100%)`}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            const newCond = {
+              id: uid(),
+              nom: "",
+              steps: [
+                { id: uid(), type: "acompte" as const, label: "à la commande", pct: 50 },
+                { id: uid(), type: "solde" as const, label: "à la fin des travaux", pct: 50 }
+              ]
+            };
+            update({ paymentConditionsList: [...(settings.paymentConditionsList || []), newCond] });
+          }}
+          className="mt-4 btn-outline-gold flex items-center gap-1.5 text-xs py-1.5"
+        >
+          <Plus size={13} /> Créer une condition de paiement
+        </button>
+      </section>
+
       {/* Section B: Logo */}
       <section className="luxury-card">
         <h2 className="section-title">Logo</h2>
