@@ -469,6 +469,7 @@ function QuoteLineRow({
       designation: data.designation,
       description: data.description,
       prixUnitaireHT: data.prixVenteHT,
+      prixOriginalHT: data.prixVenteHT,
       prixAchatHT: data.prixAchatHT,
       categorie: "Pergola bioclimatique",
       image: data.image
@@ -528,7 +529,10 @@ function QuoteLineRow({
           </div>
           <div className="md:col-span-2">
             <label className="form-label">Prix U. HT (€)</label>
-            <input type="number" min={0} step={0.01} value={line.prixUnitaireHT||""} onChange={(e)=>onUpdate({prixUnitaireHT:Number(e.target.value)||0})} className="form-input font-mono"/>
+            <input type="number" min={0} step={0.01} value={line.prixUnitaireHT||""} onChange={(e)=>{
+              const val = Number(e.target.value)||0;
+              onUpdate({ prixUnitaireHT: val, prixOriginalHT: val });
+            }} className="form-input font-mono"/>
           </div>
           <div className="md:col-span-2">
             <div className="flex justify-between items-center mb-1">
@@ -709,6 +713,10 @@ export default function QuoteForm() {
           if (prod.notes) finalPatch.description = prod.notes;
           else if (prod.reference) finalPatch.description = prod.reference;
           if (prod.image) finalPatch.image = prod.image;
+          finalPatch.prixAchatHT = prod.prixAchatHT || 0;
+          finalPatch.categorie = prod.categorie || "";
+          finalPatch.prixUnitaireHT = prod.prixVenteHT || 0;
+          finalPatch.prixOriginalHT = prod.prixVenteHT || 0;
           break;
         }
       }
@@ -844,6 +852,20 @@ export default function QuoteForm() {
     setAdjustmentPct("");
     setAdjustmentHT("");
     setAdjustmentTTC("");
+  };
+
+  const handleResetAdjustment = () => {
+    const restoredLines = quote.lignes
+      .filter(l => (l.categorie || "").toLowerCase() !== "remise" && !l.designation.includes("Remise exceptionnelle") && !l.designation.includes("Ajustement commercial") && !l.designation.includes("Remise commerciale"))
+      .map(l => ({
+        ...l,
+        prixUnitaireHT: l.prixOriginalHT !== undefined ? l.prixOriginalHT : l.prixUnitaireHT
+      }));
+    update({ lignes: restoredLines });
+    setAdjustmentPct("");
+    setAdjustmentHT("");
+    setAdjustmentTTC("");
+    toast.success("Prix d'origine et totaux restaurés !");
   };
 
   const save = () => {
@@ -1042,14 +1064,11 @@ export default function QuoteForm() {
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => {
-              setAdjustmentPct("");
-              setAdjustmentHT("");
-              setAdjustmentTTC("");
-            }}
-            className="btn-ghost text-xs border border-border"
+            onClick={handleResetAdjustment}
+            className="btn-ghost text-xs border border-border text-destructive hover:bg-destructive/5"
+            title="Annuler toutes les remises/ajustements et restaurer les prix d'origine des lignes"
           >
-            Réinitialiser les champs
+            Réinitialiser &amp; Annuler Ajustements
           </button>
           <button
             type="button"
