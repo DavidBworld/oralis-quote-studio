@@ -430,8 +430,8 @@ export default function QuotePreview() {
         </div>
 
         {/* Page number */}
-        <div style={{ textAlign: "center", fontSize: 10, color: "#aaa", marginTop: 8 }}>
-          1 sur {quote.lignes.length + 3}
+        <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
+          1 sur 4
         </div>
       </div>
 
@@ -505,6 +505,9 @@ export default function QuotePreview() {
         </ProductTable>
 
         <PageFooter c={c} />
+        <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
+          2 sur 4
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════
@@ -618,6 +621,9 @@ export default function QuotePreview() {
         </div>
 
         <PageFooter c={c} />
+        <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
+          3 sur 4
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════
@@ -673,6 +679,9 @@ export default function QuotePreview() {
               Créateur d'espaces extérieurs
             </div>
           </div>
+        </div>
+        <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
+          4 sur 4
         </div>
       </div>
 
