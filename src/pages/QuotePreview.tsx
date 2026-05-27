@@ -426,7 +426,7 @@ export default function QuotePreview() {
         {/* Signature */}
         <div style={{ textAlign: "right", fontSize: 12, color: "#333", marginBottom: 16 }}>
           <div style={{ fontWeight: 600 }}>David BOILON</div>
-          <div style={{ color: "#777" }}>Votre conseiller commercial</div>
+          <div style={{ color: "#777" }}>Votre expert conseil</div>
         </div>
 
         {/* Page number */}
