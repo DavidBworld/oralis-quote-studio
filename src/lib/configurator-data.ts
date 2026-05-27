@@ -61,8 +61,38 @@ export interface ResultatCalcul {
 
 const STORAGE_KEY = "oralis_modeles_pergola";
 
+/**
+ * Migration auto : corrige les modèles enregistrés en cm (valeurs < 2000) → mm ×10.
+ * S'exécute silencieusement au premier chargement après import cm.
+ */
+function migrateModeles(modeles: ModelePergola[]): ModelePergola[] {
+  let migrated = false;
+  const fixed = modeles.map((m) => {
+    const maxLarg = Math.max(...(m.grille?.largeurs ?? [0]));
+    if (maxLarg > 0 && maxLarg < 2000) {
+      migrated = true;
+      return {
+        ...m,
+        grille: {
+          ...m.grille,
+          largeurs:    m.grille.largeurs.map((v) => Math.round(v * 10)),
+          profondeurs: m.grille.profondeurs.map((v) => Math.round(v * 10)),
+        },
+        reglesPoteau: (m.reglesPoteau ?? []).map((r) =>
+          r.largeurMaxMm < 2000
+            ? { ...r, largeurMinMm: r.largeurMinMm * 10, largeurMaxMm: r.largeurMaxMm * 10 }
+            : r
+        ),
+      };
+    }
+    return m;
+  });
+  if (migrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(fixed));
+  return fixed;
+}
+
 export function loadModeles(): ModelePergola[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+  try { return migrateModeles(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")); }
   catch { return []; }
 }
 
@@ -253,6 +283,21 @@ export function genererDescription(
 
 // ── Parseur Excel TSV ─────────────────────────────────────────────────────────
 
+/**
+ * Détecte automatiquement si les dimensions sont en cm ou mm.
+ * Règle : si toutes les valeurs de largeur sont < 2000 → cm → on multiplie par 10.
+ * Exemples MB Aluminium : 306, 406, 506... → cm → converti en 3060, 4060, 5060mm
+ * Exemples déjà en mm   : 3000, 4000, 5000... → conservés tels quels
+ */
+function detectAndConvertDim(values: number[]): { values: number[]; unitDetected: "cm" | "mm" } {
+  const maxVal = Math.max(...values);
+  if (maxVal < 2000) {
+    // Dimensions en cm — conversion vers mm
+    return { values: values.map((v) => Math.round(v * 10)), unitDetected: "cm" };
+  }
+  return { values, unitDetected: "mm" };
+}
+
 export function parseExcelGrid(tsv: string): GrilleTarif | null {
   const lines = tsv
     .trim()
@@ -263,32 +308,40 @@ export function parseExcelGrid(tsv: string): GrilleTarif | null {
 
   if (lines.length < 2) return null;
 
-  const largeurs = lines[0]
+  // Ligne 0 → largeurs (ignorer la 1ère cellule vide/label)
+  const largeursRaw = lines[0]
     .slice(1)
     .map((c) => parseFloat(c.replace(/[^\d.]/g, "")))
     .filter((n) => !isNaN(n) && n > 0);
 
-  if (largeurs.length === 0) return null;
+  if (largeursRaw.length === 0) return null;
 
-  const profondeurs: number[] = [];
+  // Conversion cm→mm si nécessaire
+  const { values: largeurs } = detectAndConvertDim(largeursRaw);
+
+  // Lignes suivantes → profondeurs + prix
+  const profondeursRaw: number[] = [];
   const prixAchatHT: number[][] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const row = lines[i];
-    const profondeur = parseFloat(row[0].replace(/[^\d.]/g, ""));
-    if (isNaN(profondeur) || profondeur <= 0) continue;
+    const profRaw = parseFloat(row[0].replace(/[^\d.]/g, ""));
+    if (isNaN(profRaw) || profRaw <= 0) continue;
+    profondeursRaw.push(profRaw);
 
-    const prix = row.slice(1, largeurs.length + 1).map((c) => {
+    const prix = row.slice(1, largeursRaw.length + 1).map((c) => {
       const n = parseFloat(c.replace(/[^\d.]/g, ""));
       return isNaN(n) ? 0 : n;
     });
     while (prix.length < largeurs.length) prix.push(0);
-
-    profondeurs.push(profondeur);
     prixAchatHT.push(prix);
   }
 
-  if (profondeurs.length === 0) return null;
+  if (profondeursRaw.length === 0) return null;
+
+  // Conversion cm→mm pour les profondeurs (même règle)
+  const { values: profondeurs } = detectAndConvertDim(profondeursRaw);
+
   return { largeurs, profondeurs, prixAchatHT };
 }
 
