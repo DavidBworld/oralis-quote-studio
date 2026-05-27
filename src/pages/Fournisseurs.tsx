@@ -50,6 +50,7 @@ export interface ProduitFournisseur {
   prixVenteHT: number;
   unite: string;
   notes: string;
+  image?: string;
 }
 
 export interface Fournisseur {
@@ -88,6 +89,7 @@ const CATEGORIES = [
   "Éclairage LED",
   "Motorisation",
   "Bardage",
+  "Pose",
   "Autre",
 ];
 
@@ -116,6 +118,7 @@ function blankProduit(): ProduitFournisseur {
     prixVenteHT: 0,
     unite: "unité",
     notes: "",
+    image: "",
   };
 }
 
@@ -160,6 +163,13 @@ function ProduitRow({
   if (!editing)
     return (
       <tr className="border-b border-border last:border-0 hover:bg-accent/5 transition-colors group">
+        <td className="px-4 py-2">
+          {produit.image ? (
+            <img src={produit.image} alt={produit.designation} className="w-10 h-10 object-cover rounded border border-border" />
+          ) : (
+            <div className="w-10 h-10 bg-muted border border-border border-dashed rounded flex items-center justify-center text-[10px] text-muted-foreground">—</div>
+          )}
+        </td>
         <td className="px-4 py-2 font-medium text-[13px]">
           {produit.designation || <span className="text-muted-foreground italic">—</span>}
         </td>
@@ -190,7 +200,7 @@ function ProduitRow({
 
   return (
     <tr className="border-b border-border bg-accent/5">
-      <td className="px-2 py-1.5" colSpan={8}>
+      <td className="px-2 py-1.5" colSpan={9}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Désignation *</label>
@@ -221,6 +231,41 @@ function ProduitRow({
                 <option key={c} value={c} />
               ))}
             </datalist>
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold text-accent">Image</label>
+            <div className="flex items-center gap-2 mt-0.5">
+              {draft.image ? (
+                <div className="relative group w-8 h-8 rounded border border-border overflow-hidden">
+                  <img src={draft.image} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setDraft({ ...draft, image: "" })}
+                    className="absolute inset-0 bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 size={12} className="text-white hover:text-destructive" />
+                  </button>
+                </div>
+              ) : (
+                <label className="h-8 px-2 border border-border border-dashed rounded flex items-center gap-1 cursor-pointer text-[11px] text-muted-foreground hover:text-accent hover:border-accent/50 transition-colors w-full">
+                  <Camera size={12} />
+                  <span>Ajouter</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        try {
+                          setDraft({ ...draft, image: await processImageFile(f) });
+                        } catch {}
+                      }
+                    }}
+                  />
+                </label>
+              )}
+            </div>
           </div>
           <div>
             <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Unité</label>
@@ -262,15 +307,16 @@ function ProduitRow({
               className="form-input !h-8 !text-[12px] w-full"
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex items-end justify-center">
             <MarginBadge achat={draft.prixAchatHT} vente={draft.prixVenteHT} />
           </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Notes</label>
-            <input
+          <div className="col-span-2">
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Notes (Description devis)</label>
+            <textarea
               value={draft.notes}
               onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-              className="form-input !h-8 !text-[12px] w-full"
+              className="form-input !text-[12px] w-full min-h-[60px] py-1 resize-none"
+              rows={2}
             />
           </div>
         </div>
@@ -463,6 +509,7 @@ function FournisseurRow({
               <table className="w-full min-w-[700px] text-sm">
                 <thead>
                   <tr className="table-header-dark text-[11px]">
+                    <th className="text-left px-4 py-2 w-16">Visuel</th>
                     <th className="text-left px-4 py-2">Désignation</th>
                     <th className="text-left px-4 py-2">Référence</th>
                     <th className="text-left px-4 py-2">Catégorie</th>

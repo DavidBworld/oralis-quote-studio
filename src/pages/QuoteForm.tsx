@@ -570,11 +570,28 @@ export default function QuoteForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
 
   const settings = loadSettings();
   const TVA_RATES = getEnabledTVARates(settings);
   const catalogDesignations = settings.catalogProduits.map((p) => p.designation);
-  const allProductSuggestions = [...PRODUCT_CATALOG, ...catalogDesignations.filter((d)=>!PRODUCT_CATALOG.includes(d))];
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("oralis_fournisseurs");
+      if (raw) setSuppliers(JSON.parse(raw));
+    } catch (e) {
+      console.error("Error loading suppliers in QuoteForm:", e);
+    }
+  }, []);
+
+  const supplierProductDesignations = suppliers.flatMap((s) => (s.produits || []).map((p: any) => p.designation));
+
+  const allProductSuggestions = [
+    ...PRODUCT_CATALOG,
+    ...catalogDesignations.filter((d) => !PRODUCT_CATALOG.includes(d)),
+    ...supplierProductDesignations.filter((d) => !PRODUCT_CATALOG.includes(d) && !catalogDesignations.includes(d))
+  ];
 
   useEffect(()=>{
     const all = loadQuotes();
@@ -593,8 +610,22 @@ export default function QuoteForm() {
 
   const update = (patch: Partial<Quote>) => setQuote({...quote,...patch});
   const updateClient = (patch: Partial<Quote["client"]>) => setQuote({...quote,client:{...quote.client,...patch}});
-  const updateLine = (lineId: string, patch: Partial<QuoteLine>) =>
-    update({lignes:quote.lignes.map((l)=>l.id===lineId?{...l,...patch}:l)});
+  const updateLine = (lineId: string, patch: Partial<QuoteLine>) => {
+    let finalPatch = { ...patch };
+    if (patch.designation !== undefined) {
+      // Find matching product in suppliers
+      for (const s of suppliers) {
+        const prod = (s.produits || []).find((p: any) => p.designation === patch.designation);
+        if (prod) {
+          if (prod.notes) finalPatch.description = prod.notes;
+          else if (prod.reference) finalPatch.description = prod.reference;
+          if (prod.image) finalPatch.image = prod.image;
+          break;
+        }
+      }
+    }
+    update({lignes:quote.lignes.map((l)=>l.id===lineId?{...l,...finalPatch}:l)});
+  };
   const updateOption = (lineId: string, optId: string, patch: Partial<QuoteOption>) =>
     update({lignes:quote.lignes.map((l)=>l.id===lineId?{...l,options:l.options.map((o)=>o.id===optId?{...o,...patch}:o)}:l)});
   const addLine = () => update({lignes:[...quote.lignes,emptyLine()]});
