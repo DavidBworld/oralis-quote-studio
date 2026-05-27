@@ -5,7 +5,7 @@ import {
   loadQuotes, saveQuotes, createEmptyQuote, emptyLine, emptyOption,
   formatEUR, formatDate, expiryDate, calcTotals, lineMontantHT,
   PRODUCT_CATALOG, OPTION_CATALOG, VALIDITE_OPTIONS, PAYS_OPTIONS, STATUT_LABELS,
-  type Quote, type QuoteLine, type QuoteOption,
+  type Quote, type QuoteLine, type QuoteOption, uid
 } from "@/lib/quote-data";
 import { loadSettings, getEnabledTVARates, getLegalMention } from "@/lib/settings-data";
 import {
