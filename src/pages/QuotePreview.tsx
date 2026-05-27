@@ -475,7 +475,7 @@ export default function QuotePreview() {
                 <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
                   <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{line.designation || "—"}</div>
                   {line.description && (
-                    <div style={{ fontSize: 10, color: "#666", marginBottom: 6, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 10, color: "#666", marginBottom: 6, lineHeight: 1.5, whiteSpace: "pre-line" }}>
                       {line.description}
                     </div>
                   )}

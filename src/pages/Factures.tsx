@@ -541,7 +541,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
                     <td className="px-4 py-2 font-mono text-[13px]">{i + 1}</td>
                     <td className="px-4 py-2">
                       <span className="font-medium">{l.designation}</span>
-                      {l.description && <p className="text-xs text-muted-foreground">{l.description}</p>}
+                      {l.description && <p className="text-xs text-muted-foreground whitespace-pre-line">{l.description}</p>}
                     </td>
                     <td className="px-4 py-2 text-center text-muted-foreground">—</td>
                     <td className="px-4 py-2 text-center text-muted-foreground">—</td>

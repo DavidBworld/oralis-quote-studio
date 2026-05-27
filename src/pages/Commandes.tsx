@@ -414,7 +414,7 @@ function CommandeDetail({ commande, onBack, onReload }: {
               <tr key={l.id} className={`border-b border-border ${i % 2 === 1 ? "bg-background" : ""}`}>
                 <td className="py-3 px-4">
                   <span className="font-medium">{l.designation}</span>
-                  {l.description && <p className="text-xs text-muted-foreground italic">{l.description}</p>}
+                  {l.description && <p className="text-xs text-muted-foreground italic whitespace-pre-line">{l.description}</p>}
                   {l.options.map((o) => (
                     <p key={o.id} className="text-xs text-muted-foreground ml-4 mt-0.5">↳ {o.designation} — {formatEUR(o.prixHT)}</p>
                   ))}
