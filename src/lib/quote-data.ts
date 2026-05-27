@@ -15,6 +15,8 @@ export interface QuoteLine {
   prixUnitaireHT: number;
   tva: number;
   options: QuoteOption[];
+  prixAchatHT?: number;
+  categorie?: string;
 }
 
 export interface QuoteClient {
@@ -177,6 +179,8 @@ export function emptyLine(tvaDefault: number = 20): QuoteLine {
     prixUnitaireHT: 0,
     tva: tvaDefault,
     options: [],
+    prixAchatHT: 0,
+    categorie: "",
   };
 }
 

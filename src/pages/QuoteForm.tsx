@@ -14,6 +14,21 @@ import {
   type ModelePergola, type ResultatCalcul,
 } from "@/lib/configurator-data";
 
+const CATEGORIES = [
+  "Pergola bioclimatique",
+  "Pergola aluminium",
+  "Store banne",
+  "Store vertical",
+  "Brise-soleil",
+  "Carport",
+  "Toiture terrasse",
+  "Éclairage LED",
+  "Motorisation",
+  "Bardage",
+  "Pose",
+  "Autre",
+];
+
 // ── processImageFile ───────────────────────────────────────────────────────────
 
 function processImageFile(file: File): Promise<string> {
@@ -450,7 +465,14 @@ function QuoteLineRow({
   const [showWizard, setShowWizard] = useState(false);
 
   const handleWizardApply = (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string }) => {
-    onUpdate({ designation: data.designation, description: data.description, prixUnitaireHT: data.prixVenteHT, image: data.image });
+    onUpdate({
+      designation: data.designation,
+      description: data.description,
+      prixUnitaireHT: data.prixVenteHT,
+      prixAchatHT: data.prixAchatHT,
+      categorie: "Pergola bioclimatique",
+      image: data.image
+    });
     setShowWizard(false);
   };
 
@@ -530,9 +552,54 @@ function QuoteLineRow({
           </div>
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Description</label>
-          <textarea value={line.description} onChange={(e)=>onUpdate({description:e.target.value})} className="form-input resize-none" rows={3} placeholder="Renseigné automatiquement par le configurateur..."/>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
+          <div className="md:col-span-8">
+            <label className="form-label">Description</label>
+            <textarea value={line.description} onChange={(e)=>onUpdate({description:e.target.value})} className="form-input resize-none" rows={3} placeholder="Renseigné automatiquement par le configurateur..."/>
+          </div>
+          <div className="md:col-span-4 bg-muted/20 border border-border rounded-lg p-3 flex flex-col justify-between">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Achat HT (€)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={line.prixAchatHT || 0}
+                  onChange={(e)=>onUpdate({prixAchatHT:Number(e.target.value)||0})}
+                  className="form-input font-mono !h-8 !text-xs mt-1 w-full"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Marge Unit.</label>
+                <div className="h-8 flex items-center justify-end font-mono text-[11px] font-semibold text-right mt-1 px-2 bg-muted border border-border rounded">
+                  {(() => {
+                    const achat = line.prixAchatHT || 0;
+                    const vente = line.prixUnitaireHT || 0;
+                    if ((line.categorie || "").toLowerCase() === "pose") {
+                      return <span className="text-muted-foreground/60 italic text-[9px]">Exclue (Pose)</span>;
+                    }
+                    if (vente <= 0) return "—";
+                    const marginValue = vente - achat;
+                    const marginPct = (marginValue / vente) * 100;
+                    return `${formatEUR(marginValue)} (${marginPct.toFixed(0)}%)`;
+                  })()}
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground uppercase font-medium">Catégorie</span>
+              <select
+                value={line.categorie || ""}
+                onChange={(e)=>onUpdate({categorie:e.target.value})}
+                className="bg-transparent border-0 text-accent font-semibold text-right focus:ring-0 p-0 text-[11px] cursor-pointer"
+              >
+                <option value="">Sélectionner...</option>
+                {CATEGORIES.map((c)=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
         </div>
 
         {line.options.length>0 && (
@@ -675,6 +742,12 @@ export default function QuoteForm() {
 
   const totals = calcTotals(quote.lignes);
 
+  const productLines = quote.lignes.filter(l => (l.categorie || "").toLowerCase() !== "pose");
+  const totalAchatProduits = productLines.reduce((acc, l) => acc + ((l.prixAchatHT || 0) * l.quantite), 0);
+  const totalVenteProduits = productLines.reduce((acc, l) => acc + (l.prixUnitaireHT * l.quantite), 0);
+  const totalMargeHT = totalVenteProduits - totalAchatProduits;
+  const marginPct = totalVenteProduits > 0 ? (totalMargeHT / totalVenteProduits) * 100 : 0;
+
   return (
     <div className="p-6 lg:p-8 w-full pb-32">
       <h1 className="font-display text-[28px] font-semibold mb-1 tracking-tight">
@@ -774,15 +847,31 @@ export default function QuoteForm() {
 
       {/* Section D — Totals */}
       <section className="bg-primary text-primary-foreground border border-sidebar-border p-6 mb-5 sticky bottom-0 z-10 rounded-lg shadow-elevated">
-        <div className="flex flex-col items-end gap-1 text-sm">
-          <div className="flex justify-between w-72"><span className="text-primary-foreground/60">Sous-total HT</span><span className="font-mono">{formatEUR(totals.sousTotal)}</span></div>
-          {Object.entries(totals.tvaMap).filter(([,v])=>v>0).sort(([a],[b])=>Number(a)-Number(b)).map(([rate,amount])=>(
-            <div key={rate} className="flex justify-between w-72"><span className="text-primary-foreground/60">TVA {rate}%</span><span className="font-mono">{formatEUR(amount)}</span></div>
-          ))}
-          <div className="flex justify-between w-72"><span className="text-primary-foreground/60">Total TVA</span><span className="font-mono">{formatEUR(totals.totalTVA)}</span></div>
-          <div className="border-t-2 border-accent mt-2 pt-3 flex justify-between w-72">
-            <span className="font-display text-xl font-bold">TOTAL TTC</span>
-            <span className="font-display text-xl font-bold text-accent">{formatEUR(totals.totalTTC)}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          {/* Marge Interne (gauche) */}
+          <div className="border-b md:border-b-0 md:border-r border-primary-foreground/20 pb-4 md:pb-0 md:pr-6">
+            <div className="text-[11px] uppercase tracking-wider text-accent font-semibold mb-2">Marge commerciale (Interne)</div>
+            <div className="space-y-1 text-xs">
+              <div className="flex justify-between max-w-xs"><span className="text-primary-foreground/60">Achat (Hors Pose) :</span><span className="font-mono">{formatEUR(totalAchatProduits)}</span></div>
+              <div className="flex justify-between max-w-xs"><span className="text-primary-foreground/60">Vente (Hors Pose) :</span><span className="font-mono">{formatEUR(totalVenteProduits)}</span></div>
+              <div className="flex justify-between max-w-xs font-semibold border-t border-primary-foreground/10 pt-1 mt-1 text-[13px]">
+                <span>Marge brute :</span>
+                <span className="font-mono text-accent">{formatEUR(totalMargeHT)} ({marginPct.toFixed(0)}%)</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Totaux client (droite) */}
+          <div className="flex flex-col items-end gap-1 text-sm">
+            <div className="flex justify-between w-full md:w-72"><span className="text-primary-foreground/60">Sous-total HT</span><span className="font-mono">{formatEUR(totals.sousTotal)}</span></div>
+            {Object.entries(totals.tvaMap).filter(([,v])=>v>0).sort(([a],[b])=>Number(a)-Number(b)).map(([rate,amount])=>(
+              <div key={rate} className="flex justify-between w-full md:w-72"><span className="text-primary-foreground/60">TVA {rate}%</span><span className="font-mono">{formatEUR(amount)}</span></div>
+            ))}
+            <div className="flex justify-between w-full md:w-72"><span className="text-primary-foreground/60">Total TVA</span><span className="font-mono">{formatEUR(totals.totalTVA)}</span></div>
+            <div className="border-t border-accent mt-2 pt-3 flex justify-between w-full md:w-72">
+              <span className="font-display text-xl font-bold">TOTAL TTC</span>
+              <span className="font-display text-xl font-bold text-accent">{formatEUR(totals.totalTTC)}</span>
+            </div>
           </div>
         </div>
       </section>
