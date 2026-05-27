@@ -440,11 +440,12 @@ function ConfigurateurWizard({ onApply, onClose }: {
 
 function QuoteLineRow({
   line, li, totalLines, allProductSuggestions, TVA_RATES,
-  onUpdate, onRemove, onAddOption, onRemoveOption, onUpdateOption
+  onUpdate, onRemove, onAddOption, onRemoveOption, onUpdateOption, onApplyTvaToAll
 }: {
   line: QuoteLine; li: number; totalLines: number; allProductSuggestions: string[]; TVA_RATES: number[];
   onUpdate: (patch: Partial<QuoteLine>) => void; onRemove: () => void; onAddOption: () => void;
   onRemoveOption: (optId: string) => void; onUpdateOption: (optId: string, patch: Partial<QuoteOption>) => void;
+  onApplyTvaToAll: (tva: number) => void;
 }) {
   const [showWizard, setShowWizard] = useState(false);
 
@@ -508,7 +509,17 @@ function QuoteLineRow({
             <input type="number" min={0} step={0.01} value={line.prixUnitaireHT||""} onChange={(e)=>onUpdate({prixUnitaireHT:Number(e.target.value)||0})} className="form-input font-mono"/>
           </div>
           <div className="md:col-span-2">
-            <label className="form-label">TVA</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="form-label !mb-0">TVA</label>
+              <button
+                type="button"
+                onClick={() => onApplyTvaToAll(line.tva)}
+                className="text-[10px] text-accent hover:text-accent/80 hover:underline font-semibold"
+                title="Appliquer cette TVA à toutes les lignes existantes et futures"
+              >
+                Appliquer à tout
+              </button>
+            </div>
             <select value={line.tva} onChange={(e)=>onUpdate({tva:Number(e.target.value)})} className="form-input">
               {TVA_RATES.map((r)=><option key={r} value={r}>{r}%</option>)}
             </select>
@@ -574,6 +585,7 @@ export default function QuoteForm() {
 
   const settings = loadSettings();
   const TVA_RATES = getEnabledTVARates(settings);
+  const [defaultTva, setDefaultTva] = useState<number>(TVA_RATES[0] || 20);
   const catalogDesignations = settings.catalogProduits.map((p) => p.designation);
 
   useEffect(() => {
@@ -597,7 +609,12 @@ export default function QuoteForm() {
     const all = loadQuotes();
     if (id && id!=="nouveau") {
       const found = all.find((q)=>q.id===id);
-      if (found) setQuote(found); else navigate("/");
+      if (found) {
+        setQuote(found);
+        if (found.lignes && found.lignes.length > 0) {
+          setDefaultTva(found.lignes[0].tva);
+        }
+      } else navigate("/");
     } else {
       const nq = createEmptyQuote(all);
       nq.conditionsPaiement = settings.company.conditionsPaiement||nq.conditionsPaiement;
@@ -628,10 +645,21 @@ export default function QuoteForm() {
   };
   const updateOption = (lineId: string, optId: string, patch: Partial<QuoteOption>) =>
     update({lignes:quote.lignes.map((l)=>l.id===lineId?{...l,options:l.options.map((o)=>o.id===optId?{...o,...patch}:o)}:l)});
-  const addLine = () => update({lignes:[...quote.lignes,emptyLine()]});
+  const addLine = () => update({lignes:[...quote.lignes,emptyLine(defaultTva)]});
   const removeLine = (lineId: string) => update({lignes:quote.lignes.filter((l)=>l.id!==lineId)});
-  const addOption = (lineId: string) => updateLine(lineId,{options:[...quote.lignes.find((l)=>l.id===lineId)!.options,emptyOption()]});
+  const addOption = (lineId: string) => updateLine(lineId,{options:[...quote.lignes.find((l)=>l.id===lineId)!.options,emptyOption(defaultTva)]});
   const removeOption = (lineId: string, optId: string) => updateLine(lineId,{options:quote.lignes.find((l)=>l.id===lineId)!.options.filter((o)=>o.id!==optId)});
+
+  const handleApplyTvaToAll = (tva: number) => {
+    setDefaultTva(tva);
+    const updatedLines = quote.lignes.map(l => ({
+      ...l,
+      tva: tva,
+      options: l.options.map(o => ({ ...o, tva: tva }))
+    }));
+    update({ lignes: updatedLines });
+    toast.success(`TVA ${tva}% appliquée à tout le document`);
+  };
 
   const save = () => {
     if (quote.lignes.length === 0) {
@@ -668,11 +696,31 @@ export default function QuoteForm() {
             </select></div>
           <div><label className="form-label">Expiration</label><input type="text" readOnly value={formatDate(expiryDate(quote.date,quote.validite))} className="form-input bg-muted"/></div>
         </div>
-        <div className="mt-4 max-w-xs">
-          <label className="form-label">Statut</label>
-          <select value={quote.statut} onChange={(e)=>update({statut:e.target.value as Quote["statut"]})} className="form-input">
-            {(Object.keys(STATUT_LABELS) as Quote["statut"][]).map((s)=><option key={s} value={s}>{STATUT_LABELS[s]}</option>)}
-          </select>
+        <div className="mt-4 flex flex-wrap gap-4 items-end">
+          <div className="w-48">
+            <label className="form-label">Statut</label>
+            <select value={quote.statut} onChange={(e)=>update({statut:e.target.value as Quote["statut"]})} className="form-input">
+              {(Object.keys(STATUT_LABELS) as Quote["statut"][]).map((s)=><option key={s} value={s}>{STATUT_LABELS[s]}</option>)}
+            </select>
+          </div>
+          <div className="w-64">
+            <label className="form-label text-accent font-semibold">TVA par défaut du document</label>
+            <div className="flex gap-2">
+              <select value={defaultTva} onChange={(e)=>{
+                const val = Number(e.target.value);
+                setDefaultTva(val);
+              }} className="form-input w-24">
+                {TVA_RATES.map((r)=><option key={r} value={r}>{r}%</option>)}
+              </select>
+              <button
+                type="button"
+                onClick={() => handleApplyTvaToAll(defaultTva)}
+                className="px-3 py-1.5 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 rounded font-medium text-[12px] flex-1"
+              >
+                Appliquer à tout le devis
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -716,6 +764,7 @@ export default function QuoteForm() {
               onAddOption={()=>addOption(line.id)}
               onRemoveOption={(optId)=>removeOption(line.id,optId)}
               onUpdateOption={(optId,patch)=>updateOption(line.id,optId,patch)}
+              onApplyTvaToAll={handleApplyTvaToAll}
             />
             {li<quote.lignes.length-1 && <hr className="mt-6 mb-6 border-border"/>}
           </div>

@@ -167,7 +167,7 @@ export function emptyClient(): QuoteClient {
   };
 }
 
-export function emptyLine(): QuoteLine {
+export function emptyLine(tvaDefault: number = 20): QuoteLine {
   return {
     id: uid(),
     image: "",
@@ -175,13 +175,13 @@ export function emptyLine(): QuoteLine {
     description: "",
     quantite: 1,
     prixUnitaireHT: 0,
-    tva: 20,
+    tva: tvaDefault,
     options: [],
   };
 }
 
-export function emptyOption(): QuoteOption {
-  return { id: uid(), designation: "", prixHT: 0, tva: 20 };
+export function emptyOption(tvaDefault: number = 20): QuoteOption {
+  return { id: uid(), designation: "", prixHT: 0, tva: tvaDefault };
 }
 
 export function createEmptyQuote(quotes: Quote[]): Quote {
