@@ -106,6 +106,7 @@ describe("calculerPrix", () => {
     ],
     reglesPoteau: [{ largeurMinMm: 0, largeurMaxMm: 6000, nombrePoteaux: 2 }],
     templateDescription: "{{nom}} sur mesure",
+    image: "test_image.jpg",
   };
 
   it("should calculate correct base price, surcharges, coefficient, and margin", () => {

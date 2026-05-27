@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   Plus, Search, Pencil, Trash2, ChevronDown, ChevronRight,
   Truck, Save, Grid3X3, ClipboardPaste, AlertCircle, CheckCircle2, X,
+  Camera, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
@@ -11,6 +12,32 @@ import {
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
   type ModelePergola, type OptionConfigurable, type GrilleTarif, type ReglePoteau,
 } from "@/lib/configurator-data";
+
+// ── processImageFile ───────────────────────────────────────────────────────────
+
+function processImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxDim = 300;
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxDim) { h = Math.round(h*maxDim/w); w = maxDim; } }
+        else { if (h > maxDim) { w = Math.round(w*maxDim/h); h = maxDim; } }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (ctx) { ctx.fillStyle="#fff"; ctx.fillRect(0,0,w,h); ctx.drawImage(img,0,0,w,h); resolve(canvas.toDataURL("image/jpeg",0.7)); }
+        else resolve(e.target?.result as string);
+      };
+      img.onerror = () => reject(new Error("Image error"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("File error"));
+    reader.readAsDataURL(file);
+  });
+}
 
 // ── Types Fournisseurs ─────────────────────────────────────────────────────────
 
@@ -995,78 +1022,131 @@ function ModeleEditorModal({
 
         {/* Infos générales */}
         <div className="px-6 py-4 border-b border-border bg-muted/20">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="md:col-span-2">
-              <label className="form-label">
-                Nom catalogue ORALIS * <span className="text-[10px] text-muted-foreground font-normal">(visible client)</span>
-              </label>
-              <input
-                value={draft.nom}
-                onChange={(e) => setDraft({ ...draft, nom: e.target.value })}
-                className="form-input w-full"
-                placeholder="ex: ORIS SOLID, PRIME ADVANCED..."
-              />
+          <div className="flex flex-col md:flex-row gap-5">
+            {/* Infos textuelles (gauche) */}
+            <div className="flex-1 space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="col-span-2">
+                  <label className="form-label">
+                    Nom catalogue ORALIS * <span className="text-[10px] text-muted-foreground font-normal">(visible client)</span>
+                  </label>
+                  <input
+                    value={draft.nom}
+                    onChange={(e) => setDraft({ ...draft, nom: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: ORIS SOLID, PRIME ADVANCED..."
+                  />
+                </div>
+                <div>
+                  <label className="form-label">
+                    Nom fournisseur <span className="text-[10px] text-muted-foreground font-normal">(interne)</span>
+                  </label>
+                  <input
+                    value={draft.nomFournisseur}
+                    onChange={(e) => setDraft({ ...draft, nomFournisseur: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: MB SOLID"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Marge par défaut — {formatCoef(draft.margeDefaut)}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.05}
+                    value={draft.margeDefaut}
+                    onChange={(e) => setDraft({ ...draft, margeDefaut: parseFloat(e.target.value) || 1.4 })}
+                    className="form-input w-full font-mono"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Fournisseur</label>
+                  <select
+                    value={draft.fournisseurId}
+                    onChange={(e) => {
+                      const f = fournisseurs.find((x) => x.id === e.target.value);
+                      setDraft({ ...draft, fournisseurId: e.target.value, fournisseurNom: f?.societe || f?.nom || "" });
+                    }}
+                    className="form-input w-full"
+                  >
+                    <option value="">— Non lié —</option>
+                    {fournisseurs.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.societe || f.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Type de dimensions</label>
+                  <select
+                    value={draft.typeDim}
+                    onChange={(e) => setDraft({ ...draft, typeDim: e.target.value as any })}
+                    className="form-input w-full"
+                  >
+                    <option value="largeur_profondeur">Largeur × Profondeur (pergolas, vérandas)</option>
+                    <option value="largeur_hauteur">Largeur × Hauteur (screens, volets, parois)</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="form-label">
-                Nom fournisseur <span className="text-[10px] text-muted-foreground font-normal">(interne)</span>
-              </label>
-              <input
-                value={draft.nomFournisseur}
-                onChange={(e) => setDraft({ ...draft, nomFournisseur: e.target.value })}
-                className="form-input w-full"
-                placeholder="ex: MB SOLID"
-              />
-            </div>
-            <div>
-              <label className="form-label">Fournisseur</label>
-              <select
-                value={draft.fournisseurId}
-                onChange={(e) => {
-                  const f = fournisseurs.find((x) => x.id === e.target.value);
-                  setDraft({ ...draft, fournisseurId: e.target.value, fournisseurNom: f?.societe || f?.nom || "" });
-                }}
-                className="form-input w-full"
-              >
-                <option value="">— Non lié —</option>
-                {fournisseurs.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.societe || f.nom}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Marge par défaut — {formatCoef(draft.margeDefaut)}</label>
-              <input
-                type="number"
-                min={1}
-                max={5}
-                step={0.05}
-                value={draft.margeDefaut}
-                onChange={(e) => setDraft({ ...draft, margeDefaut: parseFloat(e.target.value) || 1.4 })}
-                className="form-input w-full font-mono"
-              />
-            </div>
-          </div>
-          <div className="mt-3">
-            <label className="form-label">Type de dimensions</label>
-            <div className="flex gap-2">
-              {(["largeur_profondeur", "largeur_hauteur"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setDraft({ ...draft, typeDim: t })}
-                  className={`px-3 py-1.5 text-[12px] rounded border transition-all ${
-                    draft.typeDim === t
-                      ? "bg-accent text-accent-foreground border-accent"
-                      : "border-border text-muted-foreground hover:border-accent/50"
-                  }`}
-                >
-                  {t === "largeur_profondeur"
-                    ? "Largeur × Profondeur (pergolas, vérandas)"
-                    : "Largeur × Hauteur (screens, volets, parois)"}
-                </button>
-              ))}
+
+            {/* Photo / Image (droite) */}
+            <div className="w-full md:w-44 shrink-0 flex flex-col justify-between">
+              <label className="form-label">Photo du modèle</label>
+              <div className="relative group flex items-center justify-center border border-border rounded-lg h-[88px] bg-card overflow-hidden hover:border-accent/50 transition-colors">
+                {draft.image ? (
+                  <>
+                    <img src={draft.image} alt={draft.nom || "Modèle"} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                      <label className="p-1.5 text-white hover:text-accent rounded cursor-pointer transition-colors bg-black/40 hover:bg-black/60">
+                        <Upload size={14} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              try {
+                                setDraft({ ...draft, image: await processImageFile(f) });
+                              } catch {}
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setDraft({ ...draft, image: "" })}
+                        className="p-1.5 text-white hover:text-destructive rounded transition-colors bg-black/40 hover:bg-black/60"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-1 w-full h-full cursor-pointer text-xs font-semibold text-muted-foreground hover:text-accent transition-colors">
+                    <Camera size={18} />
+                    <span>Ajouter photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          try {
+                            setDraft({ ...draft, image: await processImageFile(f) });
+                          } catch {}
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1180,60 +1260,67 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
       ) : (
         <div className="space-y-3">
           {modeles.map((m) => (
-            <div key={m.id} className="bg-card border border-border rounded-lg p-4 shadow-[var(--shadow-card)]">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium text-[14px]">{m.nom}</div>
-                    {m.nomFournisseur && (
-                      <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
-                        {m.nomFournisseur}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground mt-0.5">
-                    {m.fournisseurNom && <span>{m.fournisseurNom} · </span>}
-                    <span className="font-mono">{formatCoef(m.margeDefaut)}</span>
-                    {" · "}
-                    <span>
-                      {m.grille.largeurs.length} largeurs × {m.grille.profondeurs.length} profondeurs
-                    </span>
-                    {" · "}
-                    <span>
-                      {m.toitures.length} toiture{m.toitures.length !== 1 ? "s" : ""}
-                    </span>
-                    {" · "}
-                    <span>
-                      {m.couleurs.length} couleur{m.couleurs.length !== 1 ? "s" : ""}
-                    </span>
-                    {m.reglesPoteau.length > 0 && (
-                      <span>
-                        {" "}
-                        · {m.reglesPoteau.length} règle{m.reglesPoteau.length !== 1 ? "s" : ""} poteaux
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex gap-1 mt-2 flex-wrap">
-                    {m.grille.largeurs.slice(0, 8).map((l, i) => (
-                      <span key={i} className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-mono">
-                        {(l / 1000).toFixed(2).replace(".", ",")}m
-                      </span>
-                    ))}
-                    {m.grille.largeurs.length > 8 && (
-                      <span className="text-[10px] text-muted-foreground">+{m.grille.largeurs.length - 8}</span>
-                    )}
-                  </div>
+            <div key={m.id} className="bg-card border border-border rounded-lg p-4 shadow-[var(--shadow-card)] flex gap-4 items-center">
+              {m.image && (
+                <div className="w-16 h-16 rounded border border-border overflow-hidden shrink-0 bg-muted/20">
+                  <img src={m.image} alt={m.nom} className="w-full h-full object-cover" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setEditingModele(m)}
-                    className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
-                  >
-                    <Pencil size={13} /> Modifier
-                  </button>
-                  <button onClick={() => handleDelete(m.id)} className="p-2 rounded hover:bg-destructive/10 transition-colors">
-                    <Trash2 size={14} className="text-destructive/70" />
-                  </button>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-[14px]">{m.nom}</div>
+                      {m.nomFournisseur && (
+                        <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                          {m.nomFournisseur}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[12px] text-muted-foreground mt-0.5">
+                      {m.fournisseurNom && <span>{m.fournisseurNom} · </span>}
+                      <span className="font-mono">{formatCoef(m.margeDefaut)}</span>
+                      {" · "}
+                      <span>
+                        {m.grille.largeurs.length} largeurs × {m.grille.profondeurs.length} profondeurs
+                      </span>
+                      {" · "}
+                      <span>
+                        {m.toitures.length} toiture{m.toitures.length !== 1 ? "s" : ""}
+                      </span>
+                      {" · "}
+                      <span>
+                        {m.couleurs.length} couleur{m.couleurs.length !== 1 ? "s" : ""}
+                      </span>
+                      {m.reglesPoteau.length > 0 && (
+                        <span>
+                          {" "}
+                          · {m.reglesPoteau.length} règle{m.reglesPoteau.length !== 1 ? "s" : ""} poteaux
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-1 mt-2 flex-wrap">
+                      {m.grille.largeurs.slice(0, 8).map((l, i) => (
+                        <span key={i} className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-mono">
+                          {(l / 1000).toFixed(2).replace(".", ",")}m
+                        </span>
+                      ))}
+                      {m.grille.largeurs.length > 8 && (
+                        <span className="text-[10px] text-muted-foreground">+{m.grille.largeurs.length - 8}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setEditingModele(m)}
+                      className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
+                    >
+                      <Pencil size={13} /> Modifier
+                    </button>
+                    <button onClick={() => handleDelete(m.id)} className="p-2 rounded hover:bg-destructive/10 transition-colors">
+                      <Trash2 size={14} className="text-destructive/70" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

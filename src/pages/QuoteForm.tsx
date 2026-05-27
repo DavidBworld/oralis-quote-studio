@@ -87,7 +87,7 @@ interface WizardState {
 }
 
 function ConfigurateurWizard({ onApply, onClose }: {
-  onApply: (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number }) => void;
+  onApply: (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string }) => void;
   onClose: () => void;
 }) {
   const modeles = loadModeles();
@@ -160,7 +160,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
       typeDim: modele.typeDim,
     });
 
-    onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT });
+    onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image });
   };
 
   const STEPS = [
@@ -448,8 +448,8 @@ function QuoteLineRow({
 }) {
   const [showWizard, setShowWizard] = useState(false);
 
-  const handleWizardApply = (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number }) => {
-    onUpdate({ designation: data.designation, description: data.description, prixUnitaireHT: data.prixVenteHT });
+  const handleWizardApply = (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string }) => {
+    onUpdate({ designation: data.designation, description: data.description, prixUnitaireHT: data.prixVenteHT, image: data.image });
     setShowWizard(false);
   };
 

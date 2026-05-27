@@ -42,6 +42,7 @@ export interface ModelePergola {
   couleurs: OptionConfigurable[];
   reglesPoteau: ReglePoteau[];    // calcul automatique nb poteaux
   templateDescription: string;   // template avec {{variables}} pour le devis
+  image?: string;                 // image optionnelle du modèle
 }
 
 /** Résultat de calcul complet */
@@ -166,6 +167,7 @@ export function blankModele(): ModelePergola {
       { largeurMinMm: 9061,  largeurMaxMm: 12060, nombrePoteaux: 4 },
     ],
     templateDescription: TEMPLATE_DEFAUT,
+    image: "",
   };
 }
 
