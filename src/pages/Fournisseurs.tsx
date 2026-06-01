@@ -1605,7 +1605,7 @@ function ModeleCoulissantEditorModal({
                   Variables disponibles :
                 </span>
                 <div className="flex flex-wrap gap-1.5">
-                  {["{{nom}}", "{{vantaux}}", "{{tarif_panneau}}", "{{couleur}}", "{{options_texte}}"].map((v) => (
+                  {["{{nom}}", "{{vantaux}}", "{{tarif_panneau}}", "{{couleur}}", "{{options_texte}}", "{{largeur_verre}}", "{{hauteur_verre}}", "{{hauteur_encastrement}}"].map((v) => (
                     <button
                       key={v}
                       type="button"

@@ -617,6 +617,29 @@ export function mmToCm(mm: number): number {
   return mm / 10;
 }
 
+export interface AbaquePanneau {
+  hauteurVerre: number;        // en cm (ex: 190)
+  encastrementMin: number;     // en cm (ex: 198)
+  encastrementMax: number;     // en cm (ex: 202)
+  largeursPermises: number[];   // largeurs autorisées en cm
+}
+
+export const ABAQUE_COULISSANT: AbaquePanneau[] = [
+  { hauteurVerre: 190, encastrementMin: 198, encastrementMax: 202, largeursPermises: [90, 98, 103] },
+  { hauteurVerre: 195, encastrementMin: 203, encastrementMax: 207, largeursPermises: [82, 90, 98, 103] },
+  { hauteurVerre: 200, encastrementMin: 208, encastrementMax: 212, largeursPermises: [82, 90, 98, 103] },
+  { hauteurVerre: 205, encastrementMin: 213, encastrementMax: 217, largeursPermises: [82, 90, 98, 103] },
+  { hauteurVerre: 210, encastrementMin: 218, encastrementMax: 222, largeursPermises: [82, 90, 98, 103] },
+  { hauteurVerre: 215, encastrementMin: 223, encastrementMax: 227, largeursPermises: [82, 90, 98, 103] },
+  { hauteurVerre: 220, encastrementMin: 228, encastrementMax: 232, largeursPermises: [82, 90, 98, 103] },
+  { hauteurVerre: 225, encastrementMin: 233, encastrementMax: 237, largeursPermises: [82, 90, 98, 103] },
+  { hauteurVerre: 230, encastrementMin: 238, encastrementMax: 242, largeursPermises: [90, 98, 103] },
+  { hauteurVerre: 235, encastrementMin: 243, encastrementMax: 247, largeursPermises: [90, 98, 103] },
+  { hauteurVerre: 240, encastrementMin: 248, encastrementMax: 252, largeursPermises: [90, 98, 103] },
+  { hauteurVerre: 245, encastrementMin: 253, encastrementMax: 257, largeursPermises: [90, 98, 103] },
+  { hauteurVerre: 250, encastrementMin: 258, encastrementMax: 262, largeursPermises: [90, 98, 103] },
+];
+
 export function blankModeleCoulissant(): ModeleCoulissant {
   return {
     id: uid(),
@@ -661,7 +684,8 @@ export function blankModeleCoulissant(): ModeleCoulissant {
     ],
     templateDescription:
 `Parois coulissantes aluminium {{nom}} sur mesure
-Configuration : {{vantaux}} vantaux coulissants
+Configuration : {{vantaux}} vantaux coulissants (verre {{largeur_verre}} × {{hauteur_verre}} cm)
+Hauteur d'encastrement : {{hauteur_encastrement}} cm
 Verre : {{tarif_panneau}}
 Couleur structure : {{couleur}}
 {{options_texte}}
@@ -717,19 +741,37 @@ export function genererDescriptionCoulissant(
     tarifPanneau: string;
     couleur: string;
     options: string[];
+    largeurVerre?: number;
+    hauteurVerre?: number;
+    hauteurEncastrement?: string;
   }
 ): string {
   const optionsText = ctx.options.length > 0
     ? ctx.options.map(o => `${o} incluse`).join("\n")
     : "";
 
-  let desc = (modele.templateDescription || "")
+  let template = modele.templateDescription || "";
+  let desc = template
     .replace(/\{\{nom\}\}/g, modele.nom)
     .replace(/\{\{vantaux\}\}/g, String(ctx.vantaux))
     .replace(/\{\{tarif_panneau\}\}/g, ctx.tarifPanneau)
     .replace(/\{\{couleur\}\}/g, ctx.couleur)
     .replace(/\{\{options_texte\}\}/g, optionsText)
+    .replace(/\{\{largeur_verre\}\}/g, ctx.largeurVerre ? String(ctx.largeurVerre) : "")
+    .replace(/\{\{hauteur_verre\}\}/g, ctx.hauteurVerre ? String(ctx.hauteurVerre) : "")
+    .replace(/\{\{hauteur_encastrement\}\}/g, ctx.hauteurEncastrement ? String(ctx.hauteurEncastrement) : "")
     .trim();
+
+  // Règle de repli (Fallback auto-injection) si le template ne contient pas les dimensions du verre
+  if (ctx.largeurVerre && ctx.hauteurVerre && !template.includes("{{largeur_verre}}") && !template.includes("{{hauteur_verre}}")) {
+    const encText = ctx.hauteurEncastrement ? ` — Encastrement : ${ctx.hauteurEncastrement} cm` : "";
+    const glassLine = `Dimensions verre : ${ctx.largeurVerre} cm (largeur) × ${ctx.hauteurVerre} cm (hauteur)${encText}`;
+    if (/Configuration\s*:/i.test(desc)) {
+      desc = desc.replace(/Configuration\s*:\s*[^\n]*/i, `Configuration : ${ctx.vantaux} vantaux coulissants (verre ${ctx.largeurVerre} × ${ctx.hauteurVerre} cm)${encText}`);
+    } else {
+      desc = desc + "\n" + glassLine;
+    }
+  }
 
   if (optionsText && !modele.templateDescription.includes("{{options_texte}}")) {
     desc += "\n" + optionsText;

@@ -14,6 +14,7 @@ import {
   calculerPrixCoulissant,
   genererDescriptionCoulissant,
   getLabelsModele,
+  ABAQUE_COULISSANT,
   type GrilleTarif,
   type ModelePergola,
   type ModeleCoulissant,
@@ -595,13 +596,45 @@ describe("ModeleCoulissant calculations & description", () => {
       tarifPanneau: "Verre clair standard",
       couleur: "Anthracite RAL 7016",
       options: ["Serrure + éléments d'entraînement"],
+      largeurVerre: 90,
+      hauteurVerre: 200,
+      hauteurEncastrement: "208 - 212",
     });
 
     expect(desc).toContain("Parois coulissantes aluminium ORALIS sur mesure");
-    expect(desc).toContain("Configuration : 3 vantaux coulissants");
+    expect(desc).toContain("Configuration : 3 vantaux coulissants (verre 90 × 200 cm)");
+    expect(desc).toContain("Hauteur d'encastrement : 208 - 212 cm");
     expect(desc).toContain("Verre : Verre clair standard");
     expect(desc).toContain("Couleur structure : Anthracite RAL 7016");
     expect(desc).toContain("Serrure + éléments d'entraînement incluse");
+  });
+
+  it("should use fallback auto-injection if template lacks glass size variables", () => {
+    const model = blankModeleCoulissant();
+    model.nom = "ORALIS";
+    model.templateDescription = `Configuration : {{vantaux}} vantaux coulissants\nVerre : {{tarif_panneau}}`;
+
+    const desc = genererDescriptionCoulissant(model, {
+      vantaux: 3,
+      tarifPanneau: "Verre clair standard",
+      couleur: "Anthracite RAL 7016",
+      options: [],
+      largeurVerre: 90,
+      hauteurVerre: 200,
+      hauteurEncastrement: "208 - 212",
+    });
+
+    expect(desc).toContain("Configuration : 3 vantaux coulissants (verre 90 × 200 cm) — Encastrement : 208 - 212 cm");
+    expect(desc).toContain("Verre : Verre clair standard");
+  });
+
+  it("should validate abacus definitions", () => {
+    expect(ABAQUE_COULISSANT.length).toBe(13);
+    const abac190 = ABAQUE_COULISSANT.find(a => a.hauteurVerre === 190);
+    expect(abac190?.largeursPermises).toEqual([90, 98, 103]);
+    
+    const abac200 = ABAQUE_COULISSANT.find(a => a.hauteurVerre === 200);
+    expect(abac200?.largeursPermises).toEqual([82, 90, 98, 103]);
   });
 });
 

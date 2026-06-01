@@ -13,6 +13,7 @@ import {
   loadModeles, calculerPrix, calculerPoteaux, genererDescription,
   formatMM, formatCoef, formatDimDevis, getLabelsModele,
   calculerPrixCoulissant, genererDescriptionCoulissant,
+  ABAQUE_COULISSANT, type AbaquePanneau,
   type ModelePergola, type ResultatCalcul, type ModeleCoulissant, type ResultatCoulissant, type AnyModele,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -107,6 +108,14 @@ interface WizardState {
   longueurPoteauxSupp: number;
   moteur?: string;
   optionsSuppIds?: string[];
+  
+  // Parois coulissantes
+  vantaux?: number;
+  tarifPanneauId?: string;
+  couleurCoulissant?: string;
+  optionsCoulissantIds?: string[];
+  largeurVerre?: number;
+  hauteurVerre?: number;
 }
 
 function ConfigurateurWizard({ initialState, onApply, onClose }: {
@@ -135,6 +144,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           tarifPanneauId: initialState.tarifPanneauId || (found?.typeModele === "coulissant" ? (found as ModeleCoulissant).tarifsPanneau[0]?.id : ""),
           couleurCoulissant: initialState.couleurCoulissant || "Anthracite RAL 7016",
           optionsCoulissantIds: initialState.optionsCoulissantIds || [],
+          largeurVerre: initialState.largeurVerre || 90,
+          hauteurVerre: initialState.hauteurVerre || 200,
         };
       }
     }
@@ -155,6 +166,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       tarifPanneauId: defaultModele?.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).tarifsPanneau[0]?.id : "",
       couleurCoulissant: "Anthracite RAL 7016",
       optionsCoulissantIds: [],
+      largeurVerre: 90,
+      hauteurVerre: 200,
     };
   });
 
@@ -182,6 +195,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           tarifPanneauId: mc.tarifsPanneau[0]?.id || "",
           couleurCoulissant: "Anthracite RAL 7016",
           optionsCoulissantIds: [],
+          largeurVerre: 90,
+          hauteurVerre: 200,
         }));
       } else {
         const mp = modele as ModelePergola;
@@ -268,12 +283,18 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         .filter((o) => (state.optionsCoulissantIds || []).includes(o.id))
         .map((o) => o.nom);
 
+      const abac = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === state.hauteurVerre);
+      const encastrementStr = abac ? `${abac.encastrementMin} - ${abac.encastrementMax}` : "";
+
       const designation = `Parois coulissantes ${mc.nom} — ${state.vantaux} vantaux`;
       const description = genererDescriptionCoulissant(mc, {
         vantaux: state.vantaux || 3,
         tarifPanneau: tarif?.label || "—",
         couleur: state.couleurCoulissant || "—",
         options: opts,
+        largeurVerre: state.largeurVerre,
+        hauteurVerre: state.hauteurVerre,
+        hauteurEncastrement: encastrementStr,
       });
 
       onApply({ designation, description, prixVenteHT: resultatCoulissant.prixVenteHT, prixAchatHT: resultatCoulissant.prixAchatTotalHT, image: mc.image }, state);
@@ -813,6 +834,77 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         )}
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Dimensions du verre (Abaque) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-muted/20 border border-border">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                      Largeur du panneau de verre
+                    </label>
+                    <div className="flex gap-2">
+                      {[82, 90, 98, 103].map((w) => {
+                        const hVal = state.hauteurVerre || 200;
+                        const abacForH = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === hVal);
+                        const isAllowed = abacForH ? abacForH.largeursPermises.includes(w) : true;
+                        const isSelected = state.largeurVerre === w;
+                        return (
+                          <button
+                            key={w}
+                            type="button"
+                            onClick={() => {
+                              let nextH = state.hauteurVerre || 200;
+                              const abacForNewW = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === nextH);
+                              if (abacForNewW && !abacForNewW.largeursPermises.includes(w)) {
+                                nextH = 200; // Fallback
+                              }
+                              setState({ ...state, largeurVerre: w, hauteurVerre: nextH });
+                            }}
+                            className={`flex-1 py-2 text-xs font-semibold rounded border transition-all text-center ${
+                              isSelected
+                                ? "bg-accent text-accent-foreground border-accent shadow-sm"
+                                : isAllowed
+                                ? "border-border text-muted-foreground hover:border-accent/40 bg-card"
+                                : "border-border/30 text-muted-foreground/30 bg-muted/10 cursor-not-allowed"
+                            }`}
+                            title={!isAllowed ? "Non disponible pour la hauteur sélectionnée" : ""}
+                          >
+                            {w} cm
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                      Hauteur du panneau (et Encastrement)
+                    </label>
+                    <select
+                      value={state.hauteurVerre || 200}
+                      onChange={(e) => {
+                        const hVal = parseInt(e.target.value) || 200;
+                        let nextW = state.largeurVerre || 90;
+                        const abacForNewH = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === hVal);
+                        if (abacForNewH && !abacForNewH.largeursPermises.includes(nextW)) {
+                          nextW = 90; // Fallback
+                        }
+                        setState({ ...state, hauteurVerre: hVal, largeurVerre: nextW });
+                      }}
+                      className="form-input w-full font-body text-sm"
+                    >
+                      {ABAQUE_COULISSANT.map((abaque) => {
+                        const wVal = state.largeurVerre || 90;
+                        const isAllowed = abaque.largeursPermises.includes(wVal);
+                        if (!isAllowed) return null; // Filtre les hauteurs autorisées pour la largeur courante
+                        return (
+                          <option key={abaque.hauteurVerre} value={abaque.hauteurVerre}>
+                            {abaque.hauteurVerre} cm (Encastrement : {abaque.encastrementMin} - {abaque.encastrementMax} cm)
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
                 </div>
 
