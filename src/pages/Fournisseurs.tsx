@@ -745,9 +745,17 @@ function OptionsList({
 function ReglesPoteauxEditor({
   regles,
   onChange,
+  sectionPoteaux,
+  onChangeSection,
+  tarifPoteauSuppHT,
+  onChangeTarif,
 }: {
   regles: ReglePoteau[];
   onChange: (r: ReglePoteau[]) => void;
+  sectionPoteaux: string;
+  onChangeSection: (s: string) => void;
+  tarifPoteauSuppHT: number;
+  onChangeTarif: (t: number) => void;
 }) {
   const add = () => {
     const last = regles[regles.length - 1];
@@ -765,72 +773,114 @@ function ReglesPoteauxEditor({
   const remove = (i: number) => onChange(regles.filter((_, idx) => idx !== i));
 
   return (
-    <div className="mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
-            Règles poteaux (informatif — visible dans le devis)
-          </label>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            Le nombre de poteaux est calculé automatiquement selon la largeur saisie.
-          </p>
-        </div>
-        <button
-          onClick={add}
-          className="flex items-center gap-1 text-[11px] text-accent hover:text-accent/80 font-medium transition-colors shrink-0"
-        >
-          <Plus size={12} /> Ajouter
-        </button>
-      </div>
-      {regles.length === 0 && (
-        <p className="text-[12px] text-muted-foreground italic">
-          Aucune règle — le nombre de poteaux ne sera pas affiché.
-        </p>
-      )}
-      <div className="space-y-2">
-        {regles.map((r, i) => (
-          <div key={i} className="flex items-center gap-2 bg-muted/30 rounded p-2 text-[12px]">
-            <span className="text-muted-foreground w-20 shrink-0 text-[11px]">Largeur de</span>
+    <div className="space-y-6">
+      {/* Configuration Caractéristiques & Tarification des Poteaux */}
+      <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+        <h4 className="font-semibold text-[13px] text-accent uppercase tracking-wider mb-3">
+          Caractéristiques &amp; Tarification des poteaux
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="form-label text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Section des poteaux</label>
             <input
-              type="number"
-              min={0}
-              step={10}
-              value={r.largeurMinMm}
-              onChange={(e) => update(i, { largeurMinMm: parseInt(e.target.value) || 0 })}
-              className="form-input !h-7 !text-[12px] w-24 text-right font-mono"
-              title="Largeur min (mm)"
+              type="text"
+              value={sectionPoteaux}
+              onChange={(e) => onChangeSection(e.target.value)}
+              className="form-input w-full font-mono text-[13px] mt-1"
+              placeholder="Ex: 136×136 mm (laisser vide pour la section standard)"
             />
-            <span className="text-muted-foreground text-[11px] shrink-0">mm à</span>
-            <input
-              type="number"
-              min={0}
-              step={10}
-              value={r.largeurMaxMm}
-              onChange={(e) => update(i, { largeurMaxMm: parseInt(e.target.value) || 0 })}
-              className="form-input !h-7 !text-[12px] w-24 text-right font-mono"
-              title="Largeur max (mm)"
-            />
-            <span className="text-muted-foreground text-[11px] shrink-0">mm →</span>
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={r.nombrePoteaux}
-              onChange={(e) => update(i, { nombrePoteaux: parseInt(e.target.value) || 2 })}
-              className="form-input !h-7 !text-[12px] w-16 text-center font-mono font-bold"
-              title="Nombre de poteaux"
-            />
-            <span className="text-muted-foreground text-[11px] shrink-0">poteau{r.nombrePoteaux > 1 ? "x" : ""}</span>
-            {regles.length > 1 && (
-              <button
-                onClick={() => remove(i)}
-                className="p-1 rounded hover:bg-destructive/10 transition-colors ml-auto"
-              >
-                <X size={12} className="text-destructive/70" />
-              </button>
-            )}
+            <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+              Cette section sera injectée automatiquement dans les descriptifs de devis (ex: "poteaux (section 136×136mm, hauteur...)").
+            </p>
           </div>
-        ))}
+          <div>
+            <label className="form-label text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Tarif d'achat poteaux supp. (€ HT / ml)</label>
+            <div className="flex gap-2 mt-1">
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                value={tarifPoteauSuppHT || ""}
+                onChange={(e) => onChangeTarif(parseFloat(e.target.value) || 0)}
+                className="form-input w-full font-mono text-[13px] text-right"
+                placeholder="Ex: 32"
+              />
+              <span className="flex items-center text-sm font-semibold px-3 bg-muted border border-border rounded">€/ml</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
+              Prix d'achat HT par mètre linéaire. Appliqué automatiquement selon la longueur configurée dans le devis. Mettre à 0 pour désactiver.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-border rounded-xl p-4 bg-muted/10">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
+              Règles poteaux (pour le calcul automatique du nombre de poteaux)
+            </label>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Le nombre de poteaux est calculé automatiquement selon la largeur saisie.
+            </p>
+          </div>
+          <button
+            onClick={add}
+            className="flex items-center gap-1 text-[11px] text-accent hover:text-accent/80 font-medium transition-colors shrink-0"
+          >
+            <Plus size={12} /> Ajouter une règle
+          </button>
+        </div>
+        {regles.length === 0 && (
+          <p className="text-[12px] text-muted-foreground italic">
+            Aucune règle — le nombre de poteaux ne sera pas affiché.
+          </p>
+        )}
+        <div className="space-y-2">
+          {regles.map((r, i) => (
+            <div key={i} className="flex items-center gap-2 bg-card border border-border rounded p-2 text-[12px]">
+              <span className="text-muted-foreground w-20 shrink-0 text-[11px]">Largeur de</span>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={r.largeurMinMm}
+                onChange={(e) => update(i, { largeurMinMm: parseInt(e.target.value) || 0 })}
+                className="form-input !h-7 !text-[12px] w-24 text-right font-mono"
+                title="Largeur min (mm)"
+              />
+              <span className="text-muted-foreground text-[11px] shrink-0">mm à</span>
+              <input
+                type="number"
+                min={0}
+                step={10}
+                value={r.largeurMaxMm}
+                onChange={(e) => update(i, { largeurMaxMm: parseInt(e.target.value) || 0 })}
+                className="form-input !h-7 !text-[12px] w-24 text-right font-mono"
+                title="Largeur max (mm)"
+              />
+              <span className="text-muted-foreground text-[11px] shrink-0">mm →</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={r.nombrePoteaux}
+                onChange={(e) => update(i, { nombrePoteaux: parseInt(e.target.value) || 2 })}
+                className="form-input !h-7 !text-[12px] w-16 text-center font-mono font-bold"
+                title="Nombre de poteaux"
+              />
+              <span className="text-muted-foreground text-[11px] shrink-0">poteau{r.nombrePoteaux > 1 ? "x" : ""}</span>
+              {regles.length > 1 && (
+                <button
+                  onClick={() => remove(i)}
+                  className="p-1 rounded hover:bg-destructive/10 transition-colors ml-auto"
+                >
+                  <X size={12} className="text-destructive/70" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1346,7 +1396,14 @@ function ModeleEditorModal({
             </div>
           )}
           {tab === "poteaux" && (
-            <ReglesPoteauxEditor regles={draft.reglesPoteau} onChange={(r) => setDraft({ ...draft, reglesPoteau: r })} />
+            <ReglesPoteauxEditor
+              regles={draft.reglesPoteau}
+              onChange={(r) => setDraft({ ...draft, reglesPoteau: r })}
+              sectionPoteaux={draft.sectionPoteaux || ""}
+              onChangeSection={(s) => setDraft({ ...draft, sectionPoteaux: s })}
+              tarifPoteauSuppHT={draft.tarifPoteauSuppHT || 0}
+              onChangeTarif={(t) => setDraft({ ...draft, tarifPoteauSuppHT: t })}
+            />
           )}
           {tab === "description" && (
             <TemplateEditor

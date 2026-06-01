@@ -382,4 +382,48 @@ describe("Option pricing modes (ml and m2)", () => {
     });
     expect(desc).toContain("section 136×136mm");
   });
+
+  it("should calculate correctly for custom post section and linear meter surcharge", () => {
+    const model: ModelePergola = {
+      id: "custom-poteau-model",
+      nom: "Pergola Deluxe",
+      nomFournisseur: "Deluxe",
+      fournisseurId: "f1",
+      fournisseurNom: "MB",
+      typeDim: "largeur_profondeur",
+      margeDefaut: 1.5,
+      grille: {
+        largeurs: [4000],
+        profondeurs: [3000],
+        prixAchatHT: [[2000]],
+      },
+      toitures: [],
+      couleurs: [],
+      reglesPoteau: [{ largeurMinMm: 0, largeurMaxMm: 6000, nombrePoteaux: 2 }],
+      templateDescription: "{{nom}} — {{poteaux}} poteaux",
+      sectionPoteaux: "150x150 mm",
+      tarifPoteauSuppHT: 45, // 45€ / ml HT
+    };
+
+    // 2 additional posts of 3000mm length -> 2 * 3.0m * 45e = 270e HT surcharge
+    const result = calculerPrix(model, 4000, 3000, "", "", 1.0, 2500, 2, 3000);
+    expect(result.surchargePoteauxAchatHT).toBe(270);
+    expect(result.prixAchatTotalHT).toBe(2270);
+
+    const desc = genererDescription(model.templateDescription, {
+      nom: model.nom,
+      largeurMm: 4000,
+      profondeurMm: 3000,
+      toiture: "—",
+      couleur: "—",
+      poteaux: 2,
+      typeDim: "largeur_profondeur",
+      hauteurPoteauxMm: 2500,
+      poteauxSupp: 2,
+      longueurPoteauxSuppMm: 3000,
+      sectionPoteaux: model.sectionPoteaux,
+    });
+    expect(desc).toContain("section 150x150 mm");
+    expect(desc).toContain("2 poteaux supplémentaires (section 150x150 mm, hauteur 3,00m)");
+  });
 });

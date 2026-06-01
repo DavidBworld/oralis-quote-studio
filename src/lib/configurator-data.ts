@@ -44,6 +44,8 @@ export interface ModelePergola {
   reglesPoteau: ReglePoteau[];    // calcul automatique nb poteaux
   templateDescription: string;   // template avec {{variables}} pour le devis
   image?: string;                 // image optionnelle du modèle
+  sectionPoteaux?: string;        // ex: "136x136 mm"
+  tarifPoteauSuppHT?: number;     // prix d'achat par ml pour poteaux supp
 }
 
 /** Résultat de calcul complet */
@@ -176,6 +178,8 @@ export function blankModele(): ModelePergola {
     ],
     templateDescription: TEMPLATE_DEFAUT,
     image: "",
+    sectionPoteaux: "",
+    tarifPoteauSuppHT: 0,
   };
 }
 
@@ -252,12 +256,16 @@ export function calculerPrix(
   const surchargeCouleurHT = calcOptionSurcharge(couleur);
   const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur);
 
-  // Calcule automatique surcharge poteaux pour ORIS SOLID (section 136x136, achat 32e/ml)
+  // Calcule automatique surcharge poteaux (section/tarif configurable, achat par ml)
   // S'applique UNIQUEMENT aux poteaux supplémentaires avec leur propre longueur configurée
   let surchargePoteauxAchatHT = 0;
-  if (modele.nom.toLowerCase().includes("oris solid")) {
+  let tarifSupp = modele.tarifPoteauSuppHT;
+  if (tarifSupp === undefined && modele.nom.toLowerCase().includes("oris solid")) {
+    tarifSupp = 32;
+  }
+  if (tarifSupp !== undefined && tarifSupp > 0) {
     if (poteauxSupp > 0) {
-      surchargePoteauxAchatHT += poteauxSupp * (longueurPoteauxSupp / 1000) * 32;
+      surchargePoteauxAchatHT += poteauxSupp * (longueurPoteauxSupp / 1000) * tarifSupp;
     }
   }
 
@@ -295,6 +303,7 @@ export interface ContexteDescription {
   hauteurPoteauxMm?: number;
   poteauxSupp?: number;
   longueurPoteauxSuppMm?: number;
+  sectionPoteaux?: string;
 }
 
 /**
@@ -338,22 +347,28 @@ export function genererDescription(
     .replace(/\{\{moteur\}\}/g,     ctx.moteur ?? "")
     .trim();
 
-  if (ctx.nom.toLowerCase().includes("oris solid")) {
-    // Inject post section 136x136mm
-    desc = desc.replace(/poteaux\s*\(hauteur/gi, "poteaux (section 136×136mm, hauteur");
-    desc = desc.replace(/poteaux\s*\(h\s*:/gi, "poteaux (section 136×136mm, h :");
-    if (desc.includes("Hauteur poteaux :")) {
-      desc = desc.replace("Hauteur poteaux :", "Poteaux (section 136×136mm) - Hauteur :");
-    }
+  let section = ctx.sectionPoteaux;
+  if (!section && ctx.nom.toLowerCase().includes("oris solid")) {
+    section = "136×136mm";
+  }
 
-    if (ctx.poteauxSupp && ctx.poteauxSupp > 0) {
-      const lineText = `— ${ctx.poteauxSupp} poteau${ctx.poteauxSupp > 1 ? "x" : ""} supplémentaire${ctx.poteauxSupp > 1 ? "s" : ""} (section 136×136mm, hauteur ${longueurPoteauxSuppFormate})`;
-      if (!desc.includes("poteaux supplémentaire") && !desc.includes("poteau supplémentaire")) {
-        desc = desc + "\n" + lineText;
-      } else {
-        desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteaux\s*supplémentaires/gi, lineText);
-        desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteau\s*supplémentaire/gi, lineText);
-      }
+  if (section) {
+    // Inject post section
+    desc = desc.replace(/poteaux\s*\(hauteur/gi, `poteaux (section ${section}, hauteur`);
+    desc = desc.replace(/poteaux\s*\(h\s*:/gi, `poteaux (section ${section}, h :`);
+    if (desc.includes("Hauteur poteaux :")) {
+      desc = desc.replace("Hauteur poteaux :", `Poteaux (section ${section}) - Hauteur :`);
+    }
+  }
+
+  if (ctx.poteauxSupp && ctx.poteauxSupp > 0) {
+    const details = section ? `section ${section}, hauteur ${longueurPoteauxSuppFormate}` : `hauteur ${longueurPoteauxSuppFormate}`;
+    const lineText = `— ${ctx.poteauxSupp} poteau${ctx.poteauxSupp > 1 ? "x" : ""} supplémentaire${ctx.poteauxSupp > 1 ? "s" : ""} (${details})`;
+    if (!desc.includes("poteaux supplémentaire") && !desc.includes("poteau supplémentaire")) {
+      desc = desc + "\n" + lineText;
+    } else {
+      desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteaux\s*supplémentaires/gi, lineText);
+      desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteau\s*supplémentaire/gi, lineText);
     }
   }
   return desc;

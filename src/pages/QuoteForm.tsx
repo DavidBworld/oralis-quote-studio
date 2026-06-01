@@ -195,6 +195,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
       hauteurPoteauxMm: state.hauteurPoteaux,
       poteauxSupp: state.poteauxSupp,
       longueurPoteauxSuppMm: state.longueurPoteauxSupp,
+      sectionPoteaux: modele.sectionPoteaux,
     });
 
     onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image });
@@ -544,6 +545,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
                           hauteurPoteauxMm: state.hauteurPoteaux,
                           poteauxSupp: state.poteauxSupp,
                           longueurPoteauxSuppMm: state.longueurPoteauxSupp,
+                          sectionPoteaux: modele.sectionPoteaux,
                         });
                       })()}
                     </div>
