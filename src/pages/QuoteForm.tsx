@@ -674,8 +674,17 @@ function QuoteLineRow({
             <AutocompleteInput value={line.designation} onChange={(v)=>onUpdate({designation:v})} suggestions={allProductSuggestions} placeholder="Sélectionner ou saisir..."/>
           </div>
           <div className="md:col-span-1">
-            <label className="form-label">Qté</label>
-            <input type="number" min={1} value={line.quantite} onChange={(e)=>onUpdate({quantite:Number(e.target.value)||1})} className="form-input text-center font-mono"/>
+            <label className="form-label">
+              {line.unite && line.unite !== "unité" ? `Qté (${line.unite})` : "Qté"}
+            </label>
+            <input
+              type="number"
+              min={line.unite && ["ml", "m²", "m³"].includes(line.unite) ? 0.01 : 1}
+              step={line.unite && ["ml", "m²", "m³"].includes(line.unite) ? "0.01" : "1"}
+              value={line.quantite}
+              onChange={(e) => onUpdate({ quantite: Number(e.target.value) || 1 })}
+              className="form-input text-center font-mono"
+            />
           </div>
           <div className="md:col-span-2">
             <label className="form-label">Prix U. HT (€)</label>
@@ -740,6 +749,17 @@ function QuoteLineRow({
                   })()}
                 </div>
               </div>
+            </div>
+            
+            <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-[10px]">
+              <span className="text-muted-foreground uppercase font-medium">Unité</span>
+              <select
+                value={line.unite || "unité"}
+                onChange={(e)=>onUpdate({unite:e.target.value})}
+                className="bg-transparent border-0 text-accent font-semibold text-right focus:ring-0 p-0 text-[11px] cursor-pointer"
+              >
+                {["unité", "ml", "m²", "m³", "lot", "forfait"].map((u)=><option key={u} value={u}>{u}</option>)}
+              </select>
             </div>
             
             <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-[10px]">
@@ -888,6 +908,7 @@ export default function QuoteForm() {
           finalPatch.categorie = prod.categorie || "";
           finalPatch.prixUnitaireHT = prod.prixVenteHT || 0;
           finalPatch.prixOriginalHT = prod.prixVenteHT || 0;
+          finalPatch.unite = prod.unite || "unité";
           break;
         }
       }

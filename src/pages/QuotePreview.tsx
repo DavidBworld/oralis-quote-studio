@@ -92,6 +92,14 @@ function formatFullDate(dateStr: string) {
   return d.toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 }
 
+function formatQuantite(q: number, unite?: string) {
+  const formattedNum = q.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  if (unite && unite !== "unité") {
+    return `${formattedNum} ${unite}`;
+  }
+  return formattedNum;
+}
+
 const IBAN = "SAS TOUT POUR MA TERRASSE — IBAN FR76 1695 8000 0129 8680 2762 960";
 
 // ── Sub-components ──────────────────────────────────────────────────────────
@@ -538,8 +546,8 @@ export default function QuotePreview() {
                       </ul>
                     )}
                   </td>
-                  <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 500 }}>
-                    {line.quantite}
+                  <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 500, whiteSpace: "nowrap" }}>
+                    {formatQuantite(line.quantite, line.unite)}
                   </td>
                   <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontFamily: "DM Mono, monospace" }}>
                     {formatEUR(line.prixUnitaireHT)}
