@@ -217,9 +217,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       .filter(Boolean) as string[];
 
     // Désignation
-    const largeurM = formatDimDevis(state.largeur);
-    const dim2M    = formatDimDevis(state.profondeur);
-    const designation = `${modele.nom} ${largeurM} × ${dim2M}`;
+    const designation = modele.nom;
 
     // Description auto depuis template
     const description = genererDescription(modele.templateDescription, {
@@ -651,7 +649,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                   {/* Preview désignation + description */}
                   <div className="bg-muted/20 border border-border rounded p-3 text-[11px]">
                     <div className="font-semibold text-foreground text-[12px] mb-1">
-                      {modele.nom} {formatDimDevis(state.largeur)} × {formatDimDevis(state.profondeur)}
+                      {modele.nom}
                     </div>
                     <div className="text-muted-foreground whitespace-pre-line leading-relaxed">
                       {(() => {
