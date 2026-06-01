@@ -125,6 +125,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
   const [resultat, setResultat] = useState<ResultatCalcul | null>(null);
 
   const modele = modeles.find((m) => m.id === state.modeleId);
+  const isOrisSolid = modele ? modele.nom.toLowerCase().includes("oris solid") : false;
 
   // Auto-sélection toiture/couleur quand le modèle change
   useEffect(() => {
@@ -346,11 +347,25 @@ function ConfigurateurWizard({ onApply, onClose }: {
               <div className="grid grid-cols-2 gap-6 mb-4">
                 <div>
                   <label className="form-label">Hauteur des poteaux (mm)</label>
-                  <input type="number" min={100} step={10} value={state.hauteurPoteaux}
-                    onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
-                    className="form-input font-mono text-lg text-center"/>
+                  {isOrisSolid ? (
+                    <select
+                      value={state.hauteurPoteaux}
+                      onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
+                      className="form-input font-mono text-lg text-center h-11"
+                    >
+                      <option value={2500}>2500 mm (2,50 m - Standard)</option>
+                      <option value={3000}>3000 mm (3,00 m)</option>
+                      <option value={3500}>3500 mm (3,50 m)</option>
+                      <option value={5000}>5000 mm (5,00 m)</option>
+                      <option value={6000}>6000 mm (6,00 m)</option>
+                    </select>
+                  ) : (
+                    <input type="number" min={100} step={10} value={state.hauteurPoteaux}
+                      onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
+                      className="form-input font-mono text-lg text-center"/>
+                  )}
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    → {formatMM(state.hauteurPoteaux)} (Standard : 2,50m)
+                    {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatMM(state.hauteurPoteaux)} (Standard : 2,50m)`}
                   </p>
                 </div>
                 <div>
@@ -443,6 +458,12 @@ function ConfigurateurWizard({ onApply, onClose }: {
                         </div>
                       );
                     })()}
+                    {resultat.surchargePoteauxAchatHT !== undefined && resultat.surchargePoteauxAchatHT > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Surcharge poteaux (32€/ml HT)</span>
+                        <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargePoteauxAchatHT)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between border-t border-border pt-2">
                       <span className="text-muted-foreground font-medium">Prix achat total HT</span>
                       <span className="font-mono font-semibold">{formatEUR(resultat.prixAchatTotalHT)}</span>
@@ -461,6 +482,12 @@ function ConfigurateurWizard({ onApply, onClose }: {
                       <div className="flex justify-between text-[11px]">
                         <span className="text-muted-foreground font-semibold text-accent">Poteaux supplémentaires</span>
                         <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux</span>
+                      </div>
+                    )}
+                    {isOrisSolid && (
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-muted-foreground">Section poteaux</span>
+                        <span className="font-mono">136×136 mm</span>
                       </div>
                     )}
                     {state.hauteurPoteaux!==2500 && (

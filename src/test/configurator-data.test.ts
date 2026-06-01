@@ -319,4 +319,69 @@ describe("Option pricing modes (ml and m2)", () => {
     expect(result.surchargeCouleurHT).toBe(600);
     expect(result.prixAchatTotalHT).toBe(1800 + 600);
   });
+
+  it("should calculate correctly for ORIS SOLID posts surcharge", () => {
+    const model: ModelePergola = {
+      id: "oris-solid-test",
+      nom: "ORIS SOLID",
+      nomFournisseur: "MB Oris",
+      fournisseurId: "f1",
+      fournisseurNom: "MB",
+      typeDim: "largeur_profondeur",
+      margeDefaut: 1.4,
+      grille: {
+        largeurs: [3000, 4000],
+        profondeurs: [2000, 3000],
+        prixAchatHT: [
+          [1000, 1200],
+          [1500, 1800],
+        ],
+      },
+      toitures: [],
+      couleurs: [],
+      reglesPoteau: [
+        { largeurMinMm: 0, largeurMaxMm: 6000, nombrePoteaux: 2 }
+      ],
+      templateDescription: "{{nom}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})",
+    };
+
+    // Case 1: Standard height (2500mm), 0 extra posts
+    // Prix total should be 1800 (base grid price)
+    const result1 = calculerPrix(model, 4000, 3000, "", "", 1.0, 2500, 0);
+    expect(result1.prixAchatTotalHT).toBe(1800);
+    expect(result1.surchargePoteauxAchatHT).toBe(0);
+
+    // Case 2: Standard height (2500mm), 2 extra posts (2.5m * 32e = 80e each, total 160e)
+    // Prix total = 1800 + 160 = 1960
+    const result2 = calculerPrix(model, 4000, 3000, "", "", 1.0, 2500, 2);
+    expect(result2.surchargePoteauxAchatHT).toBe(160);
+    expect(result2.prixAchatTotalHT).toBe(1960);
+
+    // Case 3: Tall height (3000mm), 0 extra posts
+    // Extra height surcharge for standard posts: 2 posts * (3.0m - 2.5m) * 32e = 2 * 0.5 * 32 = 32e
+    const result3 = calculerPrix(model, 4000, 3000, "", "", 1.0, 3000, 0);
+    expect(result3.surchargePoteauxAchatHT).toBe(32);
+    expect(result3.prixAchatTotalHT).toBe(1832);
+
+    // Case 4: Tall height (3000mm), 2 extra posts
+    // Standard posts extra height: 32e
+    // Additional posts: 2 * 3.0m * 32e = 192e
+    // Total surcharge: 224e
+    const result4 = calculerPrix(model, 4000, 3000, "", "", 1.0, 3000, 2);
+    expect(result4.surchargePoteauxAchatHT).toBe(224);
+    expect(result4.prixAchatTotalHT).toBe(2024);
+
+    // Description generation check
+    const desc = genererDescription(model.templateDescription, {
+      nom: model.nom,
+      largeurMm: 4000,
+      profondeurMm: 3000,
+      toiture: "—",
+      couleur: "—",
+      poteaux: 2,
+      typeDim: "largeur_profondeur",
+      hauteurPoteauxMm: 3000,
+    });
+    expect(desc).toContain("section 136×136mm");
+  });
 });

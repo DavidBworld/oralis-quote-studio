@@ -51,6 +51,7 @@ export interface ResultatCalcul {
   prixAchatBaseHT: number;
   surchargeToitureHT: number;
   surchargeCouleurHT: number;
+  surchargePoteauxAchatHT?: number; // Surcharge poteaux pour ORIS SOLID
   prixAchatTotalHT: number;
   coefficient: number;
   prixVenteHT: number;
@@ -246,15 +247,27 @@ export function calculerPrix(
 
   const surchargeToitureHT = calcOptionSurcharge(toiture);
   const surchargeCouleurHT = calcOptionSurcharge(couleur);
-
-  const prixAchatTotalHT = prix + surchargeToitureHT + surchargeCouleurHT;
-  const prixVenteHT = Math.round(prixAchatTotalHT * coefficient * 100) / 100;
   const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur);
+
+  // Calcule automatique surcharge poteaux pour ORIS SOLID (section 136x136, achat 32e/ml)
+  let surchargePoteauxAchatHT = 0;
+  if (modele.nom.toLowerCase().includes("oris solid")) {
+    if (hauteurPoteaux > 2500) {
+      surchargePoteauxAchatHT += nombrePoteaux * ((hauteurPoteaux - 2500) / 1000) * 32;
+    }
+    if (poteauxSupp > 0) {
+      surchargePoteauxAchatHT += poteauxSupp * (hauteurPoteaux / 1000) * 32;
+    }
+  }
+
+  const prixAchatTotalHT = prix + surchargeToitureHT + surchargeCouleurHT + surchargePoteauxAchatHT;
+  const prixVenteHT = Math.round(prixAchatTotalHT * coefficient * 100) / 100;
 
   return {
     prixAchatBaseHT: prix,
     surchargeToitureHT,
     surchargeCouleurHT,
+    surchargePoteauxAchatHT,
     prixAchatTotalHT,
     coefficient,
     prixVenteHT,
@@ -306,7 +319,7 @@ export function genererDescription(
     }
   }
 
-  return resultTemplate
+  let desc = resultTemplate
     .replace(/\{\{nom\}\}/g,        ctx.nom)
     .replace(/\{\{largeur\}\}/g,    largeurFormate)
     .replace(/\{\{profondeur\}\}/g, dim2Formate)
@@ -319,6 +332,16 @@ export function genererDescription(
     .replace(/\{\{poteaux_supp\}\}/g, poteauxSuppText)
     .replace(/\{\{moteur\}\}/g,     ctx.moteur ?? "")
     .trim();
+
+  if (ctx.nom.toLowerCase().includes("oris solid")) {
+    // Inject post section 136x136mm
+    desc = desc.replace(/poteaux\s*\(hauteur/gi, "poteaux (section 136×136mm, hauteur");
+    desc = desc.replace(/poteaux\s*\(h\s*:/gi, "poteaux (section 136×136mm, h :");
+    if (desc.includes("Hauteur poteaux :")) {
+      desc = desc.replace("Hauteur poteaux :", "Poteaux (section 136×136mm) - Hauteur :");
+    }
+  }
+  return desc;
 }
 
 // ── Parseur Excel TSV ─────────────────────────────────────────────────────────
