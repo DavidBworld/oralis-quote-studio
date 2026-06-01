@@ -357,17 +357,15 @@ describe("Option pricing modes (ml and m2)", () => {
     expect(result2.surchargePoteauxAchatHT).toBe(160);
     expect(result2.prixAchatTotalHT).toBe(1960);
 
-    // Case 3: Tall height (3000mm), 0 extra posts
-    // Extra height surcharge for standard posts: 2 posts * (3.0m - 2.5m) * 32e = 2 * 0.5 * 32 = 32e
+    // Case 3: Tall height (3000mm) for standard posts, 0 extra posts
+    // Standard posts do not receive any surcharge. Surcharge is 0.
     const result3 = calculerPrix(model, 4000, 3000, "", "", 1.0, 3000, 0);
-    expect(result3.surchargePoteauxAchatHT).toBe(32);
-    expect(result3.prixAchatTotalHT).toBe(1832);
+    expect(result3.surchargePoteauxAchatHT).toBe(0);
+    expect(result3.prixAchatTotalHT).toBe(1800);
 
-    // Case 4: Tall height (3000mm), 2 extra posts
-    // Standard posts extra height: 32e
-    // Additional posts: 2 * 3.0m * 32e = 192e
-    // Total surcharge: 224e
-    const result4 = calculerPrix(model, 4000, 3000, "", "", 1.0, 3000, 2);
+    // Case 4: Tall height (3000mm) for standard posts, 2 extra posts with length 3500mm
+    // Surcharge: 2 * 3.5m * 32e = 224e
+    const result4 = calculerPrix(model, 4000, 3000, "", "", 1.0, 3000, 2, 3500);
     expect(result4.surchargePoteauxAchatHT).toBe(224);
     expect(result4.prixAchatTotalHT).toBe(2024);
 

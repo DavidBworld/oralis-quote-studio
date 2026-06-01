@@ -60,6 +60,7 @@ export interface ResultatCalcul {
   nombrePoteaux: number;
   hauteurPoteaux?: number;   // en mm
   poteauxSupp?: number;      // quantité
+  longueurPoteauxSupp?: number; // en mm
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -143,6 +144,7 @@ export const VARIABLES_DISPONIBLES = [
   "{{poteaux}}",
   "{{hauteur_poteaux}}",
   "{{poteaux_supp}}",
+  "{{longueur_poteaux_supp}}",
   "{{moteur}}",
 ];
 
@@ -222,7 +224,8 @@ export function calculerPrix(
   couleurId: string,
   coefficient: number,
   hauteurPoteaux: number = 2500,
-  poteauxSupp: number = 0
+  poteauxSupp: number = 0,
+  longueurPoteauxSupp: number = 2500
 ): ResultatCalcul {
   const { prix, largeurGrille, profondeurGrille } = determinerPrixBase(
     modele.grille, largeur, profondeur
@@ -250,13 +253,11 @@ export function calculerPrix(
   const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur);
 
   // Calcule automatique surcharge poteaux pour ORIS SOLID (section 136x136, achat 32e/ml)
+  // S'applique UNIQUEMENT aux poteaux supplémentaires avec leur propre longueur configurée
   let surchargePoteauxAchatHT = 0;
   if (modele.nom.toLowerCase().includes("oris solid")) {
-    if (hauteurPoteaux > 2500) {
-      surchargePoteauxAchatHT += nombrePoteaux * ((hauteurPoteaux - 2500) / 1000) * 32;
-    }
     if (poteauxSupp > 0) {
-      surchargePoteauxAchatHT += poteauxSupp * (hauteurPoteaux / 1000) * 32;
+      surchargePoteauxAchatHT += poteauxSupp * (longueurPoteauxSupp / 1000) * 32;
     }
   }
 
@@ -276,6 +277,7 @@ export function calculerPrix(
     nombrePoteaux,
     hauteurPoteaux,
     poteauxSupp,
+    longueurPoteauxSupp,
   };
 }
 
@@ -292,6 +294,7 @@ export interface ContexteDescription {
   typeDim: "largeur_profondeur" | "largeur_hauteur";
   hauteurPoteauxMm?: number;
   poteauxSupp?: number;
+  longueurPoteauxSuppMm?: number;
 }
 
 /**
@@ -307,6 +310,7 @@ export function genererDescription(
   const dim2Label      = ctx.typeDim === "largeur_hauteur" ? "Hauteur" : "Profondeur";
   const hauteurPoteauxFormate = ctx.hauteurPoteauxMm ? formatDimDevis(ctx.hauteurPoteauxMm) : "2,50m";
   const poteauxSuppText = String(ctx.poteauxSupp || 0);
+  const longueurPoteauxSuppFormate = ctx.longueurPoteauxSuppMm ? formatDimDevis(ctx.longueurPoteauxSuppMm) : "2,50m";
 
   let resultTemplate = template || "";
   if (resultTemplate.trim() && !resultTemplate.includes("{{hauteur_poteaux}}")) {
@@ -330,6 +334,7 @@ export function genererDescription(
     .replace(/\{\{poteaux\}\}/g,    String(ctx.poteaux))
     .replace(/\{\{hauteur_poteaux\}\}/g, hauteurPoteauxFormate)
     .replace(/\{\{poteaux_supp\}\}/g, poteauxSuppText)
+    .replace(/\{\{longueur_poteaux_supp\}\}/g, longueurPoteauxSuppFormate)
     .replace(/\{\{moteur\}\}/g,     ctx.moteur ?? "")
     .trim();
 
@@ -339,6 +344,16 @@ export function genererDescription(
     desc = desc.replace(/poteaux\s*\(h\s*:/gi, "poteaux (section 136×136mm, h :");
     if (desc.includes("Hauteur poteaux :")) {
       desc = desc.replace("Hauteur poteaux :", "Poteaux (section 136×136mm) - Hauteur :");
+    }
+
+    if (ctx.poteauxSupp && ctx.poteauxSupp > 0) {
+      const lineText = `— ${ctx.poteauxSupp} poteau${ctx.poteauxSupp > 1 ? "x" : ""} supplémentaire${ctx.poteauxSupp > 1 ? "s" : ""} (section 136×136mm, hauteur ${longueurPoteauxSuppFormate})`;
+      if (!desc.includes("poteaux supplémentaire") && !desc.includes("poteau supplémentaire")) {
+        desc = desc + "\n" + lineText;
+      } else {
+        desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteaux\s*supplémentaires/gi, lineText);
+        desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteau\s*supplémentaire/gi, lineText);
+      }
     }
   }
   return desc;

@@ -103,6 +103,7 @@ interface WizardState {
   coefficient: number;
   hauteurPoteaux: number;
   poteauxSupp: number;
+  longueurPoteauxSupp: number;
 }
 
 function ConfigurateurWizard({ onApply, onClose }: {
@@ -120,6 +121,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
     coefficient: modeles[0]?.margeDefaut || 1.4,
     hauteurPoteaux: 2500,
     poteauxSupp: 0,
+    longueurPoteauxSupp: 2500,
   });
   const [calcError, setCalcError] = useState<string | null>(null);
   const [resultat, setResultat] = useState<ResultatCalcul | null>(null);
@@ -151,13 +153,14 @@ function ConfigurateurWizard({ onApply, onClose }: {
         state.couleurId,
         state.coefficient,
         state.hauteurPoteaux,
-        state.poteauxSupp
+        state.poteauxSupp,
+        state.longueurPoteauxSupp
       );
       setResultat(r); setCalcError(null);
     } catch (e) {
       setCalcError((e as Error).message); setResultat(null);
     }
-  }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, step]);
+  }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp, step]);
 
   // Poteaux calculés en live
   const poteauxCalc = modele ? calculerPoteaux(modele.reglesPoteau, state.largeur) : 0;
@@ -191,6 +194,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
       typeDim: modele.typeDim,
       hauteurPoteauxMm: state.hauteurPoteaux,
       poteauxSupp: state.poteauxSupp,
+      longueurPoteauxSuppMm: state.longueurPoteauxSupp,
     });
 
     onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image });
@@ -347,36 +351,53 @@ function ConfigurateurWizard({ onApply, onClose }: {
               <div className="grid grid-cols-2 gap-6 mb-4">
                 <div>
                   <label className="form-label">Hauteur des poteaux (mm)</label>
-                  {isOrisSolid ? (
-                    <select
-                      value={state.hauteurPoteaux}
-                      onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
-                      className="form-input font-mono text-lg text-center h-11"
-                    >
-                      <option value={2500}>2500 mm (2,50 m - Standard)</option>
-                      <option value={3000}>3000 mm (3,00 m)</option>
-                      <option value={3500}>3500 mm (3,50 m)</option>
-                      <option value={5000}>5000 mm (5,00 m)</option>
-                      <option value={6000}>6000 mm (6,00 m)</option>
-                    </select>
-                  ) : (
-                    <input type="number" min={100} step={10} value={state.hauteurPoteaux}
-                      onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
-                      className="form-input font-mono text-lg text-center"/>
-                  )}
+                  <input type="number" min={100} step={10} value={state.hauteurPoteaux}
+                    onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
+                    className="form-input font-mono text-lg text-center"/>
                   <p className="text-[11px] text-muted-foreground mt-1">
                     {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatMM(state.hauteurPoteaux)} (Standard : 2,50m)`}
                   </p>
                 </div>
-                <div>
-                  <label className="form-label">Poteaux supplémentaires (Qté)</label>
-                  <input type="number" min={0} step={1} value={state.poteauxSupp}
-                    onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
-                    className="form-input font-mono text-lg text-center"/>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    → Option poteaux supp. chiffrée en ml
-                  </p>
-                </div>
+                {isOrisSolid ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="form-label">Poteaux supp. (Longueur)</label>
+                      <select
+                        value={state.longueurPoteauxSupp}
+                        onChange={(e)=>setState({...state,longueurPoteauxSupp:parseInt(e.target.value)||2500})}
+                        className="form-input font-mono text-[14px] text-center h-11"
+                      >
+                        <option value={2500}>2500 mm (2,50 m)</option>
+                        <option value={3000}>3000 mm (3,00 m)</option>
+                        <option value={3500}>3500 mm (3,50 m)</option>
+                        <option value={5000}>5000 mm (5,00 m)</option>
+                        <option value={6000}>6000 mm (6,00 m)</option>
+                      </select>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        → Option poteaux supp.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="form-label">Poteaux supp. (Qté)</label>
+                      <input type="number" min={0} step={1} value={state.poteauxSupp}
+                        onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
+                        className="form-input font-mono text-lg text-center"/>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        → Chiffrée en ml
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="form-label">Poteaux supplémentaires (Qté)</label>
+                    <input type="number" min={0} step={1} value={state.poteauxSupp}
+                      onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
+                      className="form-input font-mono text-lg text-center"/>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      → Option poteaux supp. chiffrée en ml
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Poteaux calculés automatiquement */}
@@ -481,7 +502,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
                     {state.poteauxSupp>0 && (
                       <div className="flex justify-between text-[11px]">
                         <span className="text-muted-foreground font-semibold text-accent">Poteaux supplémentaires</span>
-                        <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux</span>
+                        <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux {isOrisSolid ? `(h: ${formatMM(state.longueurPoteauxSupp)})` : ""}</span>
                       </div>
                     )}
                     {isOrisSolid && (
@@ -522,6 +543,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
                           typeDim: modele.typeDim,
                           hauteurPoteauxMm: state.hauteurPoteaux,
                           poteauxSupp: state.poteauxSupp,
+                          longueurPoteauxSuppMm: state.longueurPoteauxSupp,
                         });
                       })()}
                     </div>
