@@ -165,10 +165,10 @@ Poteaux: {{poteaux}} (hauteur {{hauteur_poteaux}})`;
 
     const desc = genererDescription(template, ctx);
     expect(desc).toContain("Pergola Design sur mesure");
-    expect(desc).toContain("Largeur 4,25m x Profondeur 2,90m");
+    expect(desc).toContain("Largeur 4250 mm x Profondeur 2900 mm");
     expect(desc).toContain("Toiture: Polycarbonate transparent");
     expect(desc).toContain("Couleur: RAL 7016");
-    expect(desc).toContain("Poteaux: 3 (hauteur 2,80m)");
+    expect(desc).toContain("Poteaux: 3 (hauteur 2800 mm)");
   });
 
   it("should apply fallback auto-injection of post height if missing from template", () => {
@@ -185,7 +185,7 @@ Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} po
       hauteurPoteauxMm: 2600,
     };
     const desc = genererDescription(template, ctx);
-    expect(desc).toContain("Dimensions : Largeur 4,00m × Profondeur 3,00m — 2 poteaux (hauteur 2,60m)");
+    expect(desc).toContain("Dimensions : Largeur 4000 mm × Profondeur 3000 mm — 2 poteaux (hauteur 2600 mm)");
   });
 });
 
@@ -262,9 +262,9 @@ describe("formatting helpers", () => {
     expect(formatMM(4250)).toBe("4,25 m");
   });
 
-  it("should format dimensions for quote description without spaces", () => {
-    expect(formatDimDevis(3000)).toBe("3,00m");
-    expect(formatDimDevis(4250)).toBe("4,25m");
+  it("should format dimensions for quote description in mm", () => {
+    expect(formatDimDevis(3000)).toBe("3000 mm");
+    expect(formatDimDevis(4250)).toBe("4250 mm");
   });
 
   it("should format coefficient", () => {
@@ -442,7 +442,7 @@ describe("Option pricing modes (ml and m2)", () => {
       sectionPoteaux: model.sectionPoteaux,
     });
     expect(desc).toContain("section 150x150 mm");
-    expect(desc).toContain("2 poteaux supplémentaires (section 150x150 mm, hauteur 3,00m)");
+    expect(desc).toContain("2 poteaux supplémentaires (section 150x150 mm, hauteur 3000 mm)");
   });
 });
 

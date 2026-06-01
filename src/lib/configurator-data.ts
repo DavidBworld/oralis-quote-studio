@@ -421,9 +421,9 @@ export function genererDescription(
   const largeurFormate = formatDimDevis(ctx.largeurMm);
   const dim2Formate    = formatDimDevis(ctx.profondeurMm);
   const dim2Label      = ctx.typeDim === "largeur_hauteur" ? "Hauteur" : "Profondeur";
-  const hauteurPoteauxFormate = ctx.hauteurPoteauxMm ? formatDimDevis(ctx.hauteurPoteauxMm) : "2,50m";
+  const hauteurPoteauxFormate = ctx.hauteurPoteauxMm ? formatDimDevis(ctx.hauteurPoteauxMm) : "2500 mm";
   const poteauxSuppText = String(ctx.poteauxSupp || 0);
-  const longueurPoteauxSuppFormate = ctx.longueurPoteauxSuppMm ? formatDimDevis(ctx.longueurPoteauxSuppMm) : "2,50m";
+  const longueurPoteauxSuppFormate = ctx.longueurPoteauxSuppMm ? formatDimDevis(ctx.longueurPoteauxSuppMm) : "2500 mm";
   const optionsSuppText = ctx.optionsSupp && ctx.optionsSupp.length > 0 ? ctx.optionsSupp.join(", ") : "";
 
   let resultTemplate = template || "";
@@ -569,9 +569,9 @@ export function formatMM(mm: number): string {
   return `${(mm / 1000).toFixed(2).replace(".", ",")} m`;
 }
 
-/** Affiche en mètres pour le devis (ex: "3,06m") — sans espace */
+/** Affiche en millimètres pour le devis (ex: "3060 mm") */
 export function formatDimDevis(mm: number): string {
-  return `${(mm / 1000).toFixed(2).replace(".", ",")}m`;
+  return `${mm} mm`;
 }
 
 export function formatCoef(coef: number): string {
