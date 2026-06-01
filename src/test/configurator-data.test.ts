@@ -554,21 +554,24 @@ describe("ModeleCoulissant calculations & description", () => {
   it("should calculate sliding panel pricing correctly", () => {
     const model = blankModeleCoulissant();
     const standardClairId = model.tarifsPanneau[0].id; // Verre clair standard (145)
+    const colorId = model.couleurs[0].id; // First color (0 surcharge)
     
     // Test basic calculation: 3 panels * 145 = 435, margin 1.45 = 630.75
-    const result = calculerPrixCoulissant(model, 3, standardClairId, [], 1.45);
+    const result = calculerPrixCoulissant(model, 3, standardClairId, [], colorId, 1.45);
     expect(result.nombreVantaux).toBe(3);
     expect(result.prixPanneau).toBe(145);
     expect(result.prixAchatBaseHT).toBe(435);
     expect(result.surchargesHT).toBe(0);
+    expect(result.surchargeCouleurHT).toBe(0);
     expect(result.prixAchatTotalHT).toBe(435);
     expect(result.prixVenteHT).toBe(630.75);
 
     // Test with options: Serrure (+120)
     const serrureId = model.options[0].id;
-    const resultWithOptions = calculerPrixCoulissant(model, 3, standardClairId, [serrureId], 1.45);
+    const resultWithOptions = calculerPrixCoulissant(model, 3, standardClairId, [serrureId], colorId, 1.45);
     expect(resultWithOptions.prixAchatBaseHT).toBe(435);
     expect(resultWithOptions.surchargesHT).toBe(120);
+    expect(resultWithOptions.surchargeCouleurHT).toBe(0);
     expect(resultWithOptions.prixAchatTotalHT).toBe(555);
     expect(resultWithOptions.prixVenteHT).toBe(804.75);
 
@@ -580,11 +583,25 @@ describe("ModeleCoulissant calculations & description", () => {
         { id: "opt_custom", nom: "Option custom %", surchargeHT: 0, surchargePct: 10 }
       ]
     };
-    const resultWithPct = calculerPrixCoulissant(modelWithPct, 4, standardClairId, ["opt_custom"], 1.45);
+    const resultWithPct = calculerPrixCoulissant(modelWithPct, 4, standardClairId, ["opt_custom"], colorId, 1.45);
     // Base = 4 * 145 = 580. Surcharge = 10% of 580 = 58. Total = 638.
     expect(resultWithPct.prixAchatBaseHT).toBe(580);
     expect(resultWithPct.surchargesHT).toBe(58);
     expect(resultWithPct.prixAchatTotalHT).toBe(638);
+
+    // Test with color surcharge: add color with 50€ surcharge
+    const modelWithColorSurcharge = {
+      ...model,
+      couleurs: [
+        ...model.couleurs,
+        { id: "color_custom", nom: "Couleur custom", surchargeHT: 50, surchargePct: 5 }
+      ]
+    };
+    const resultWithColor = calculerPrixCoulissant(modelWithColorSurcharge, 3, standardClairId, [], "color_custom", 1.45);
+    // Base = 3 * 145 = 435. Color Surcharge = 50 + 5% of 435 = 50 + 21.75 = 71.75. Total = 506.75
+    expect(resultWithColor.prixAchatBaseHT).toBe(435);
+    expect(resultWithColor.surchargeCouleurHT).toBe(71.75);
+    expect(resultWithColor.prixAchatTotalHT).toBe(506.75);
   });
 
   it("should generate description for sliding panel correctly", () => {

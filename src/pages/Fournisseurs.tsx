@@ -1370,7 +1370,7 @@ function ModeleCoulissantEditorModal({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<ModeleCoulissant>(modele);
-  const [tab, setTab] = useState<"tarifs" | "options" | "description">("tarifs");
+  const [tab, setTab] = useState<"tarifs" | "couleurs" | "options" | "description">("tarifs");
 
   const handleSave = () => {
     if (!draft.nom.trim()) {
@@ -1387,6 +1387,7 @@ function ModeleCoulissantEditorModal({
 
   const TABS = [
     { key: "tarifs" as const, label: "Tarifs par panneau" },
+    { key: "couleurs" as const, label: "Couleurs" },
     { key: "options" as const, label: "Options" },
     { key: "description" as const, label: "Description devis" },
   ];
@@ -1577,6 +1578,14 @@ function ModeleCoulissantEditorModal({
             <TarifsPanneauList
               tarifs={draft.tarifsPanneau}
               onChange={(t) => setDraft({ ...draft, tarifsPanneau: t })}
+            />
+          )}
+
+          {tab === "couleurs" && (
+            <OptionsList
+              label="Couleurs / Finitions"
+              options={draft.couleurs || []}
+              onChange={(c) => setDraft({ ...draft, couleurs: c })}
             />
           )}
 
@@ -1971,6 +1980,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         nom: `${m.nom} (copie)`,
         tarifsPanneau: m.tarifsPanneau.map((t) => ({ ...t, id: uid() })),
         options: m.options.map((o) => ({ ...o, id: uid() })),
+        couleurs: (m.couleurs || []).map((c) => ({ ...c, id: uid() })),
       };
     } else {
       duplicated = {

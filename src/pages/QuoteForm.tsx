@@ -193,7 +193,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           coefficient: mc.margeDefaut,
           vantaux: mc.vantauxMin,
           tarifPanneauId: mc.tarifsPanneau[0]?.id || "",
-          couleurCoulissant: "Anthracite RAL 7016",
+          couleurId: mc.couleurs?.[0]?.id || "",
           optionsCoulissantIds: [],
           largeurVerre: 90,
           hauteurVerre: 200,
@@ -246,13 +246,14 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         state.vantaux || 3,
         state.tarifPanneauId || "",
         state.optionsCoulissantIds || [],
+        state.couleurId || "",
         state.coefficient
       );
       setResultatCoulissant(r);
     } catch {
       setResultatCoulissant(null);
     }
-  }, [modele, state.vantaux, state.tarifPanneauId, state.optionsCoulissantIds, state.coefficient, step]);
+  }, [modele, state.vantaux, state.tarifPanneauId, state.optionsCoulissantIds, state.couleurId, state.coefficient, step]);
 
   // Poteaux calculés en live (pergolas uniquement)
   const poteauxCalc = (modele && modele.typeModele !== "coulissant")
@@ -286,11 +287,14 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       const abac = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === state.hauteurVerre);
       const encastrementStr = abac ? `${abac.encastrementMin} - ${abac.encastrementMax}` : "";
 
+      const couleurOpt = mc.couleurs?.find((c) => c.id === state.couleurId);
+      const couleurNom = couleurOpt ? couleurOpt.nom : "—";
+
       const designation = `Parois coulissantes ${mc.nom} — ${state.vantaux} vantaux`;
       const description = genererDescriptionCoulissant(mc, {
         vantaux: state.vantaux || 3,
         tarifPanneau: tarif?.label || "—",
-        couleur: state.couleurCoulissant || "—",
+        couleur: couleurNom,
         options: opts,
         largeurVerre: state.largeurVerre,
         hauteurVerre: state.hauteurVerre,
@@ -913,13 +917,29 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
                       Couleur structure
                     </label>
-                    <input
-                      type="text"
-                      value={state.couleurCoulissant || ""}
-                      onChange={(e) => setState({ ...state, couleurCoulissant: e.target.value })}
-                      placeholder="ex: Anthracite RAL 7016, Blanc RAL 9016..."
-                      className="form-input w-full"
-                    />
+                    <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                      {(mc.couleurs || []).map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setState({ ...state, couleurId: c.id })}
+                          className={`w-full text-left px-3 py-2 rounded border transition-all text-[13px] ${
+                            state.couleurId === c.id
+                              ? "border-accent bg-accent/5 font-semibold text-accent"
+                              : "border-border hover:border-accent/40 bg-card"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{c.nom}</span>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {c.surchargeHT > 0 && `+${formatEUR(c.surchargeHT)}`}
+                              {c.surchargePct > 0 && `+${c.surchargePct}%`}
+                              {c.surchargeHT === 0 && c.surchargePct === 0 && "standard"}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
@@ -985,6 +1005,12 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       <span className="font-mono text-[hsl(40_80%_45%)] font-semibold">+{formatEUR(resultatCoulissant.surchargesHT)}</span>
                     </div>
                   )}
+                  {resultatCoulissant.surchargeCouleurHT && resultatCoulissant.surchargeCouleurHT > 0 ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Surcharge couleur</span>
+                      <span className="font-mono text-[hsl(40_80%_45%)] font-semibold">+{formatEUR(resultatCoulissant.surchargeCouleurHT)}</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between border-t border-border pt-2 font-medium">
                     <span className="text-muted-foreground">Prix achat total HT</span>
                     <span className="font-mono font-semibold">{formatEUR(resultatCoulissant.prixAchatTotalHT)}</span>

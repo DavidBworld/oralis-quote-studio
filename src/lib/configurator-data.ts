@@ -71,6 +71,7 @@ export interface ModeleCoulissant {
   vantauxMax: number;     // 6
   tarifsPanneau: TarifPanneau[];  // Remplace la grille 2D
   options: OptionConfigurable[];  // Serrure, poignée supp, etc.
+  couleurs: OptionConfigurable[]; // Couleurs / Finitions
   templateDescription: string;
   image?: string;                 // image optionnelle du modèle
 }
@@ -108,7 +109,18 @@ function migrateModeles(modeles: AnyModele[]): AnyModele[] {
   let migrated = false;
   const fixed = modeles.map((m) => {
     if (m.typeModele === "coulissant") {
-      return m;
+      let copy = { ...m } as ModeleCoulissant;
+      if (!copy.couleurs || copy.couleurs.length === 0) {
+        copy.couleurs = [
+          { id: uid(), nom: "RAL 9016 Blanc", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "RAL 7016 Anthracite FST", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "RAL 9007 Gris métallique FST", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "RAL 9005 Noir FST", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "DB703 Gris pailleté", surchargeHT: 0, surchargePct: 0 },
+        ];
+        migrated = true;
+      }
+      return copy;
     }
     let copy = { ...m } as ModelePergola;
     if (!copy.typeModele) {
@@ -682,6 +694,13 @@ export function blankModeleCoulissant(): ModeleCoulissant {
       { id: uid(), nom: "Poignée supplémentaire", surchargeHT: 9, surchargePct: 0 },
       { id: uid(), nom: "Joint brosse supplémentaire", surchargeHT: 9, surchargePct: 0 },
     ],
+    couleurs: [
+      { id: uid(), nom: "RAL 9016 Blanc", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 7016 Anthracite FST", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 9007 Gris métallique FST", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 9005 Noir FST", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "DB703 Gris pailleté", surchargeHT: 0, surchargePct: 0 },
+    ],
     templateDescription:
 `Parois coulissantes aluminium {{nom}} sur mesure
 Configuration : {{vantaux}} vantaux coulissants (verre {{largeur_verre}} × {{hauteur_verre}} cm)
@@ -699,6 +718,7 @@ export interface ResultatCoulissant {
   prixPanneau: number;
   prixAchatBaseHT: number;   // N × prixPanneau
   surchargesHT: number;      // total options sélectionnées
+  surchargeCouleurHT?: number; // surcharge couleur
   prixAchatTotalHT: number;
   coefficient: number;
   prixVenteHT: number;
@@ -709,6 +729,7 @@ export function calculerPrixCoulissant(
   nombreVantaux: number,
   tarifPanneauId: string,
   optionsSelectionnees: string[],  // ids des options choisies
+  couleurId: string,               // id de la couleur choisie
   coefficient: number
 ): ResultatCoulissant {
   const tarif = modele.tarifsPanneau.find(t => t.id === tarifPanneauId);
@@ -720,7 +741,12 @@ export function calculerPrixCoulissant(
     .filter(o => optionsSelectionnees.includes(o.id))
     .reduce((sum, o) => sum + o.surchargeHT + (prixBase * o.surchargePct / 100), 0);
   
-  const prixTotal = prixBase + surcharges;
+  const selectedColor = modele.couleurs?.find(c => c.id === couleurId);
+  const surchargeCouleur = selectedColor 
+    ? (selectedColor.surchargeHT + (prixBase * selectedColor.surchargePct / 100))
+    : 0;
+
+  const prixTotal = prixBase + surcharges + surchargeCouleur;
   const prixVente = Math.round(prixTotal * coefficient * 100) / 100;
   
   return {
@@ -728,6 +754,7 @@ export function calculerPrixCoulissant(
     prixPanneau: tarif.prixHT,
     prixAchatBaseHT: prixBase,
     surchargesHT: surcharges,
+    surchargeCouleurHT: surchargeCouleur,
     prixAchatTotalHT: prixTotal,
     coefficient,
     prixVenteHT: prixVente,
