@@ -302,6 +302,48 @@ export default function QuotePreview() {
   // Numero for display (OR2026xxx format from devis number)
   const devisNumeroDisplay = quote.numero.replace("ORALIS-", "ORA").replace(/-/g, "");
 
+  // Fonction d'estimation de la hauteur d'une ligne de produit pour la pagination
+  function estimerHauteurLigne(line: any): number {
+    let height = 40; // Hauteur minimale (désignation, prix...)
+    if (line.description) {
+      const linesFromBreaks = line.description.split("\n").length;
+      const linesFromLength = Math.ceil(line.description.length / 55);
+      height += Math.max(linesFromBreaks, linesFromLength) * 15;
+    }
+    if (line.options && line.options.length > 0) {
+      height += line.options.length * 18;
+    }
+    if (line.image) {
+      height = Math.max(height, 80);
+    }
+    return height + 20; // marge/padding entre les lignes
+  }
+
+  const pagesProduits: any[][] = [];
+  let currentPage: any[] = [];
+  let currentHeight = 0;
+  const MAX_PAGE_HEIGHT = 580; // pixels maximum par page de produits
+
+  quote.lignes.forEach((line) => {
+    const lineHt = estimerHauteurLigne(line);
+    if (currentPage.length > 0 && currentHeight + lineHt > MAX_PAGE_HEIGHT) {
+      pagesProduits.push(currentPage);
+      currentPage = [line];
+      currentHeight = lineHt;
+    } else {
+      currentPage.push(line);
+      currentHeight += lineHt;
+    }
+  });
+  if (currentPage.length > 0) {
+    pagesProduits.push(currentPage);
+  }
+  if (pagesProduits.length === 0) {
+    pagesProduits.push([]);
+  }
+
+  const totalPages = 3 + pagesProduits.length;
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] print-wrapper">
 
@@ -439,84 +481,86 @@ export default function QuotePreview() {
 
         {/* Page number */}
         <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-          1 sur 4
+          1 sur {totalPages}
         </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════
           PAGES PRODUITS (une ligne = un bloc auto-paginated)
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
+      {pagesProduits.map((lignesPage, pIdx) => (
+        <div key={pIdx} className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
 
-        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} />
+          <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} />
 
-        <ProductTable>
-          {quote.lignes.map((line, i) => (
-            <React.Fragment key={line.id}>
-              <tr style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
-                <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
-                  {line.image ? (
-                    <img
-                      src={line.image}
-                      alt={line.designation || "Visuel"}
-                      style={{
-                        width: 80,
-                        height: 60,
-                        objectFit: "cover",
+          <ProductTable>
+            {lignesPage.map((line) => (
+              <React.Fragment key={line.id}>
+                <tr style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
+                  <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
+                    {line.image ? (
+                      <img
+                        src={line.image}
+                        alt={line.designation || "Visuel"}
+                        style={{
+                          width: 80,
+                          height: 60,
+                          objectFit: "cover",
+                          borderRadius: 4,
+                          border: "1px solid #eee"
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 80, height: 60,
+                        background: "#f9f9f9",
                         borderRadius: 4,
-                        border: "1px solid #eee"
-                      }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: 80, height: 60,
-                      background: "#f9f9f9",
-                      borderRadius: 4,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 9, color: "#ccc",
-                      border: "1px dashed #eee"
-                    }}>
-                      —
-                    </div>
-                  )}
-                </td>
-                <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
-                  <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{line.designation || "—"}</div>
-                  {line.description && (
-                    <div style={{ fontSize: 10, color: "#666", marginBottom: 6, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                      {line.description}
-                    </div>
-                  )}
-                  {line.options && line.options.length > 0 && (
-                    <ul style={{ margin: "4px 0 0 0", padding: "0 0 0 16px", fontSize: 10, color: "#444", lineHeight: 1.6 }}>
-                      {line.options.map(opt => (
-                        <li key={opt.id}>{opt.designation} — {formatEUR(opt.prixHT)}</li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
-                <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 500 }}>
-                  {line.quantite}
-                </td>
-                <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontFamily: "DM Mono, monospace" }}>
-                  {formatEUR(line.prixUnitaireHT)}
-                </td>
-                <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 700, fontFamily: "DM Mono, monospace" }}>
-                  {formatEUR(lineMontantHT(line))}
-                </td>
-                <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee" }}>
-                  {line.tva}%
-                </td>
-              </tr>
-            </React.Fragment>
-          ))}
-        </ProductTable>
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 9, color: "#ccc",
+                        border: "1px dashed #eee"
+                      }}>
+                        —
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
+                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{line.designation || "—"}</div>
+                    {line.description && (
+                      <div style={{ fontSize: 10, color: "#666", marginBottom: 6, lineHeight: 1.5, whiteSpace: "pre-line" }}>
+                        {line.description}
+                      </div>
+                    )}
+                    {line.options && line.options.length > 0 && (
+                      <ul style={{ margin: "4px 0 0 0", padding: "0 0 0 16px", fontSize: 10, color: "#444", lineHeight: 1.6 }}>
+                        {line.options.map(opt => (
+                          <li key={opt.id}>{opt.designation} — {formatEUR(opt.prixHT)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                  <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 500 }}>
+                    {line.quantite}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontFamily: "DM Mono, monospace" }}>
+                    {formatEUR(line.prixUnitaireHT)}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 700, fontFamily: "DM Mono, monospace" }}>
+                    {formatEUR(lineMontantHT(line))}
+                  </td>
+                  <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee" }}>
+                    {line.tva}%
+                  </td>
+                </tr>
+              </React.Fragment>
+            ))}
+          </ProductTable>
 
-        <PageFooter c={c} />
-        <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-          2 sur 4
+          <PageFooter c={c} />
+          <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
+            {2 + pIdx} sur {totalPages}
+          </div>
         </div>
-      </div>
+      ))}
 
       {/* ══════════════════════════════════════════════════════
           PAGE RÉCAPITULATIF — TOTAUX + CONDITIONS + SIGNATURE
@@ -642,7 +686,7 @@ export default function QuotePreview() {
 
         <PageFooter c={c} />
         <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-          3 sur 4
+          {2 + pagesProduits.length} sur {totalPages}
         </div>
       </div>
 
@@ -701,7 +745,7 @@ export default function QuotePreview() {
           </div>
         </div>
         <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-          4 sur 4
+          {3 + pagesProduits.length} sur {totalPages}
         </div>
       </div>
 
