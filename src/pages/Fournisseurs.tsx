@@ -7,7 +7,7 @@ import {
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
 import {
-  loadModeles, saveModeles, blankModele, blankOption,
+  loadModeles, saveModeles, blankModele, blankModeleScreen, getLabelsModele, blankOption,
   parseExcelGrid, validateGrille, formatMM, formatCoef,
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
   type ModelePergola, type OptionConfigurable, type GrilleTarif, type ReglePoteau,
@@ -1294,6 +1294,14 @@ function ModeleEditorModal({
   const [draft, setDraft] = useState<ModelePergola>(modele);
   const [tab, setTab] = useState<"grille" | "options" | "poteaux" | "description">("grille");
 
+  const labels = getLabelsModele(draft.typeModele);
+
+  useEffect(() => {
+    if (tab === "poteaux" && !labels.showPoteaux) {
+      setTab("grille");
+    }
+  }, [labels.showPoteaux, tab]);
+
   const handleSave = () => {
     if (!draft.nom.trim()) {
       toast.error("Donnez un nom au modèle");
@@ -1310,8 +1318,8 @@ function ModeleEditorModal({
 
   const TABS = [
     { key: "grille" as const, label: "Grille de tarifs" },
-    { key: "options" as const, label: "Toitures & Couleurs" },
-    { key: "poteaux" as const, label: "Poteaux" },
+    { key: "options" as const, label: `${labels.toituresLabel} & Couleurs` },
+    ...(labels.showPoteaux ? [{ key: "poteaux" as const, label: "Poteaux" }] : []),
     { key: "description" as const, label: "Description devis" },
   ];
 
@@ -1337,9 +1345,20 @@ function ModeleEditorModal({
             <div className="flex-1 space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="col-span-2">
-                  <label className="form-label">
-                    Nom catalogue ORALIS * <span className="text-[10px] text-muted-foreground font-normal">(visible client)</span>
-                  </label>
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="form-label !mb-0">
+                      Nom catalogue ORALIS * <span className="text-[10px] text-muted-foreground font-normal">(visible client)</span>
+                    </label>
+                    {draft.typeModele === "screen" || draft.typeModele === "volet" ? (
+                      <span className="text-[9px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                        SCREEN / VOLET
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                        PERGOLA
+                      </span>
+                    )}
+                  </div>
                   <input
                     value={draft.nom}
                     onChange={(e) => setDraft({ ...draft, nom: e.target.value })}
@@ -1481,7 +1500,7 @@ function ModeleEditorModal({
           {tab === "options" && (
             <div>
               <OptionsList
-                label="Toitures / Couvertures"
+                label={labels.toituresLabel}
                 options={draft.toitures}
                 onChange={(opts) => setDraft({ ...draft, toitures: opts })}
               />
@@ -1592,9 +1611,14 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
             Matrices de prix Largeur × Profondeur/Hauteur — descriptions et règles de poteaux
           </p>
         </div>
-        <button onClick={() => setEditingModele(blankModele())} className="btn-gold flex items-center gap-2">
-          <Plus size={15} /> Nouveau modèle
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setEditingModele(blankModele())} className="btn-gold flex items-center gap-2">
+            <Plus size={15} /> Nouveau modèle pergola
+          </button>
+          <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
+            <Plus size={15} /> Nouveau modèle screen/volet
+          </button>
+        </div>
       </div>
 
       {modeles.length === 0 ? (
@@ -1604,9 +1628,14 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           <p className="text-[13px] text-muted-foreground mb-4">
             Créez votre premier modèle avec sa grille de prix pour accélérer le chiffrage.
           </p>
-          <button onClick={() => setEditingModele(blankModele())} className="btn-gold inline-flex items-center gap-2">
-            <Plus size={15} /> Créer un modèle
-          </button>
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => setEditingModele(blankModele())} className="btn-gold inline-flex items-center gap-2">
+              <Plus size={15} /> Créer un modèle pergola
+            </button>
+            <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
+              <Plus size={15} /> Créer un modèle screen/volet
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -1633,11 +1662,11 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                       <span className="font-mono">{formatCoef(m.margeDefaut)}</span>
                       {" · "}
                       <span>
-                        {m.grille.largeurs.length} largeurs × {m.grille.profondeurs.length} profondeurs
+                        {m.grille.largeurs.length} largeurs × {m.grille.profondeurs.length} {m.typeModele === "screen" || m.typeModele === "volet" ? "hauteurs" : "profondeurs"}
                       </span>
                       {" · "}
                       <span>
-                        {m.toitures.length} toiture{m.toitures.length !== 1 ? "s" : ""}
+                        {m.toitures.length} {m.typeModele === "screen" || m.typeModele === "volet" ? "toile" : "toiture"}{m.toitures.length !== 1 ? "s" : ""}
                       </span>
                       {" · "}
                       <span>

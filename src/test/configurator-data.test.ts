@@ -9,6 +9,8 @@ import {
   formatMM,
   formatDimDevis,
   formatCoef,
+  blankModeleScreen,
+  getLabelsModele,
   type GrilleTarif,
   type ModelePergola,
 } from "../lib/configurator-data";
@@ -443,3 +445,39 @@ describe("Option pricing modes (ml and m2)", () => {
     expect(desc).toContain("2 poteaux supplémentaires (section 150x150 mm, hauteur 3,00m)");
   });
 });
+
+describe("Screen models and model labels", () => {
+  it("should create a screen model with correct default properties", () => {
+    const screen = blankModeleScreen();
+    expect(screen.typeModele).toBe("screen");
+    expect(screen.typeDim).toBe("largeur_hauteur");
+    expect(screen.margeDefaut).toBe(1.5);
+    expect(screen.reglesPoteau).toEqual([]);
+    expect(screen.toitures.length).toBe(8);
+    expect(screen.couleurs.length).toBe(5);
+    expect(screen.templateDescription).toContain("Screen ZIP motorisé Somfy");
+  });
+
+  it("should return correct UI labels based on model type", () => {
+    const screenLabels = getLabelsModele("screen");
+    expect(screenLabels.toituresLabel).toBe("Couleur de la toile");
+    expect(screenLabels.dim2Label).toBe("Hauteur");
+    expect(screenLabels.showPoteaux).toBe(false);
+
+    const voletLabels = getLabelsModele("volet");
+    expect(voletLabels.toituresLabel).toBe("Couleur de la toile");
+    expect(voletLabels.dim2Label).toBe("Hauteur");
+    expect(voletLabels.showPoteaux).toBe(false);
+
+    const pergolaLabels = getLabelsModele("pergola");
+    expect(pergolaLabels.toituresLabel).toBe("Toitures / Couvertures");
+    expect(pergolaLabels.dim2Label).toBe("Profondeur");
+    expect(pergolaLabels.showPoteaux).toBe(true);
+
+    const undefinedLabels = getLabelsModele();
+    expect(undefinedLabels.toituresLabel).toBe("Toitures / Couvertures");
+    expect(undefinedLabels.dim2Label).toBe("Profondeur");
+    expect(undefinedLabels.showPoteaux).toBe(true);
+  });
+});
+

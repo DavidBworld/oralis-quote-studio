@@ -11,7 +11,7 @@ import {
 import { loadSettings, getEnabledTVARates, getLegalMention } from "@/lib/settings-data";
 import {
   loadModeles, calculerPrix, calculerPoteaux, genererDescription,
-  formatMM, formatCoef, formatDimDevis,
+  formatMM, formatCoef, formatDimDevis, getLabelsModele,
   type ModelePergola, type ResultatCalcul,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -104,6 +104,7 @@ interface WizardState {
   hauteurPoteaux: number;
   poteauxSupp: number;
   longueurPoteauxSupp: number;
+  moteur?: string;
 }
 
 function ConfigurateurWizard({ initialState, onApply, onClose }: {
@@ -118,6 +119,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     if (initialState) {
       const modelExists = modeles.some((m) => m.id === initialState.modeleId);
       if (modelExists) {
+        const found = modeles.find((m) => m.id === initialState.modeleId);
         return {
           ...initialState,
           largeur: initialState.largeur || 4000,
@@ -125,6 +127,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           hauteurPoteaux: initialState.hauteurPoteaux || 2500,
           poteauxSupp: initialState.poteauxSupp || 0,
           longueurPoteauxSupp: initialState.longueurPoteauxSupp || 2500,
+          moteur: initialState.moteur !== undefined ? initialState.moteur : ((found?.typeModele === "screen" || found?.typeModele === "volet") ? "Moteur Somfy" : ""),
         };
       }
     }
@@ -139,6 +142,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       hauteurPoteaux: 2500,
       poteauxSupp: 0,
       longueurPoteauxSupp: 2500,
+      moteur: (defaultModele?.typeModele === "screen" || defaultModele?.typeModele === "volet") ? "Moteur Somfy" : "",
     };
   });
 
@@ -161,6 +165,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         toitureId: modele.toitures[0]?.id || "",
         couleurId: modele.couleurs[0]?.id || "",
         coefficient: modele.margeDefaut,
+        moteur: (modele.typeModele === "screen" || modele.typeModele === "volet") ? "Moteur Somfy" : "",
       }));
     }
   }, [state.modeleId]);
@@ -188,7 +193,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
   // Poteaux calculés en live
   const poteauxCalc = modele ? calculerPoteaux(modele.reglesPoteau, state.largeur, state.profondeur) : 0;
-  const dim2Label = modele?.typeDim === "largeur_hauteur" ? "Hauteur" : "Profondeur";
+  const labels = getLabelsModele(modele?.typeModele);
+  const dim2Label = labels.dim2Label;
 
   const canNext = () => {
     if (step === 1) return !!modele;
@@ -309,7 +315,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
               <h3 className="font-semibold text-[14px] mb-4">Options — <span className="text-accent">{modele.nom}</span></h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Toiture / Couverture</label>
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">{labels.toituresLabel}</label>
                   <div className="space-y-1.5">
                     {modele.toitures.map((t)=>(
                       <button key={t.id} onClick={()=>setState({...state,toitureId:t.id})}
@@ -344,6 +350,18 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     ))}
                   </div>
                 </div>
+                {(modele.typeModele === "screen" || modele.typeModele === "volet") && (
+                  <div className="md:col-span-2 pt-4 border-t border-border">
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5 block">Motorisation</label>
+                    <input
+                      type="text"
+                      value={state.moteur ?? "Moteur Somfy"}
+                      onChange={(e) => setState({ ...state, moteur: e.target.value })}
+                      className="form-input w-full"
+                      placeholder="Ex: Moteur Somfy"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -373,60 +391,62 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6 mb-4">
-                <div>
-                  <label className="form-label">Hauteur des poteaux (mm)</label>
-                  <input type="number" min={100} step={10} value={state.hauteurPoteaux}
-                    onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
-                    className="form-input font-mono text-lg text-center"/>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatMM(state.hauteurPoteaux)} (Standard : 2,50m)`}
-                  </p>
-                </div>
-                {isOrisSolid ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="form-label">Poteaux supp. (Longueur)</label>
-                      <select
-                        value={state.longueurPoteauxSupp}
-                        onChange={(e)=>setState({...state,longueurPoteauxSupp:parseInt(e.target.value)||2500})}
-                        className="form-input font-mono text-[14px] text-center h-11"
-                      >
-                        <option value={2500}>2500 mm (2,50 m)</option>
-                        <option value={3000}>3000 mm (3,00 m)</option>
-                        <option value={3500}>3500 mm (3,50 m)</option>
-                        <option value={5000}>5000 mm (5,00 m)</option>
-                        <option value={6000}>6000 mm (6,00 m)</option>
-                      </select>
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        → Option poteaux supp.
-                      </p>
+              {labels.showPoteaux && (
+                <div className="grid grid-cols-2 gap-6 mb-4">
+                  <div>
+                    <label className="form-label">Hauteur des poteaux (mm)</label>
+                    <input type="number" min={100} step={10} value={state.hauteurPoteaux}
+                      onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
+                      className="form-input font-mono text-lg text-center"/>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatMM(state.hauteurPoteaux)} (Standard : 2,50m)`}
+                    </p>
+                  </div>
+                  {isOrisSolid ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="form-label">Poteaux supp. (Longueur)</label>
+                        <select
+                          value={state.longueurPoteauxSupp}
+                          onChange={(e)=>setState({...state,longueurPoteauxSupp:parseInt(e.target.value)||2500})}
+                          className="form-input font-mono text-[14px] text-center h-11"
+                        >
+                          <option value={2500}>2500 mm (2,50 m)</option>
+                          <option value={3000}>3000 mm (3,00 m)</option>
+                          <option value={3500}>3500 mm (3,50 m)</option>
+                          <option value={5000}>5000 mm (5,00 m)</option>
+                          <option value={6000}>6000 mm (6,00 m)</option>
+                        </select>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          → Option poteaux supp.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="form-label">Poteaux supp. (Qté)</label>
+                        <input type="number" min={0} step={1} value={state.poteauxSupp}
+                          onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
+                          className="form-input font-mono text-lg text-center"/>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          → Chiffrée en ml
+                        </p>
+                      </div>
                     </div>
+                  ) : (
                     <div>
-                      <label className="form-label">Poteaux supp. (Qté)</label>
+                      <label className="form-label">Poteaux supplémentaires (Qté)</label>
                       <input type="number" min={0} step={1} value={state.poteauxSupp}
                         onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
                         className="form-input font-mono text-lg text-center"/>
                       <p className="text-[11px] text-muted-foreground mt-1">
-                        → Chiffrée en ml
+                        → Option poteaux supp. chiffrée en ml
                       </p>
                     </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="form-label">Poteaux supplémentaires (Qté)</label>
-                    <input type="number" min={0} step={1} value={state.poteauxSupp}
-                      onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
-                      className="form-input font-mono text-lg text-center"/>
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      → Option poteaux supp. chiffrée en ml
-                    </p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Poteaux calculés automatiquement */}
-              {modele.reglesPoteau.length > 0 && poteauxCalc > 0 && (
+              {labels.showPoteaux && modele.reglesPoteau.length > 0 && poteauxCalc > 0 && (
                 <div className="flex items-center gap-3 bg-accent/5 border border-accent/20 rounded-lg px-4 py-2.5 mb-3">
                   <Users size={15} className="text-accent shrink-0"/>
                   <div>
@@ -485,7 +505,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         : "";
                       return (
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Surcharge toiture{detail}</span>
+                          <span className="text-muted-foreground">Surcharge {labels.toituresLabel.toLowerCase()}{detail}</span>
                           <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargeToitureHT)}</span>
                         </div>
                       );
@@ -504,7 +524,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         </div>
                       );
                     })()}
-                    {resultat.surchargePoteauxAchatHT !== undefined && resultat.surchargePoteauxAchatHT > 0 && (
+                    {labels.showPoteaux && resultat.surchargePoteauxAchatHT !== undefined && resultat.surchargePoteauxAchatHT > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Surcharge poteaux (32€/ml HT)</span>
                         <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargePoteauxAchatHT)}</span>
@@ -518,29 +538,33 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       <span className="text-muted-foreground">Coefficient</span>
                       <span className="font-mono text-muted-foreground">{formatCoef(resultat.coefficient)}</span>
                     </div>
-                    {modele.reglesPoteau.length>0 && (
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-muted-foreground">Poteaux structurels</span>
-                        <span className="font-mono font-semibold">{resultat.nombrePoteaux} poteaux</span>
-                      </div>
-                    )}
-                    {state.poteauxSupp>0 && (
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-muted-foreground font-semibold text-accent">Poteaux supplémentaires</span>
-                        <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux {isOrisSolid ? `(h: ${formatMM(state.longueurPoteauxSupp)})` : ""}</span>
-                      </div>
-                    )}
-                    {isOrisSolid && (
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-muted-foreground">Section poteaux</span>
-                        <span className="font-mono">136×136 mm</span>
-                      </div>
-                    )}
-                    {state.hauteurPoteaux!==2500 && (
-                      <div className="flex justify-between text-[11px]">
-                        <span className="text-muted-foreground">Hauteur configurée</span>
-                        <span className="font-mono">{formatMM(state.hauteurPoteaux)}</span>
-                      </div>
+                    {labels.showPoteaux && (
+                      <>
+                        {modele.reglesPoteau.length>0 && (
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-muted-foreground">Poteaux structurels</span>
+                            <span className="font-mono font-semibold">{resultat.nombrePoteaux} poteaux</span>
+                          </div>
+                        )}
+                        {state.poteauxSupp>0 && (
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-muted-foreground font-semibold text-accent">Poteaux supplémentaires</span>
+                            <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux {isOrisSolid ? `(h: ${formatMM(state.longueurPoteauxSupp)})` : ""}</span>
+                          </div>
+                        )}
+                        {isOrisSolid && (
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-muted-foreground">Section poteaux</span>
+                            <span className="font-mono">136×136 mm</span>
+                          </div>
+                        )}
+                        {state.hauteurPoteaux!==2500 && (
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-muted-foreground">Hauteur configurée</span>
+                            <span className="font-mono">{formatMM(state.hauteurPoteaux)}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 

@@ -31,9 +31,10 @@ export interface ReglePoteau {
   nombrePoteaux: number;
 }
 
-/** Modèle de pergola configurable */
+/** Modèle de pergola ou screen configurable */
 export interface ModelePergola {
   id: string;
+  typeModele?: "pergola" | "screen" | "volet" | "paroi";
   nom: string;                    // nom catalogue ORALIS — visible client
   nomFournisseur: string;         // nom MB Aluminium — usage interne uniquement
   fournisseurId: string;
@@ -78,11 +79,16 @@ const STORAGE_KEY = "oralis_modeles_pergola";
 function migrateModeles(modeles: ModelePergola[]): ModelePergola[] {
   let migrated = false;
   const fixed = modeles.map((m) => {
+    let copy = { ...m };
+    if (!copy.typeModele) {
+      copy.typeModele = "pergola";
+      migrated = true;
+    }
     const maxLarg = Math.max(...(m.grille?.largeurs ?? [0]));
     if (maxLarg > 0 && maxLarg < 2000) {
       migrated = true;
-      return {
-        ...m,
+      copy = {
+        ...copy,
         grille: {
           ...m.grille,
           largeurs:    m.grille.largeurs.map((v) => Math.round(v * 10)),
@@ -95,7 +101,7 @@ function migrateModeles(modeles: ModelePergola[]): ModelePergola[] {
         ),
       };
     }
-    return m;
+    return copy;
   });
   if (migrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(fixed));
   return fixed;
@@ -155,6 +161,7 @@ export const VARIABLES_DISPONIBLES = [
 export function blankModele(): ModelePergola {
   return {
     id: uid(),
+    typeModele: "pergola",
     nom: "",
     nomFournisseur: "",
     fournisseurId: "",
@@ -182,6 +189,70 @@ export function blankModele(): ModelePergola {
     image: "",
     sectionPoteaux: "",
     tarifPoteauSuppHT: 0,
+  };
+}
+
+export function blankModeleScreen(): ModelePergola {
+  return {
+    id: uid(),
+    typeModele: "screen",
+    nom: "",
+    nomFournisseur: "",
+    fournisseurId: "",
+    fournisseurNom: "",
+    typeDim: "largeur_hauteur",
+    margeDefaut: 1.5,
+    grille: blankGrille(),
+    toitures: [
+      { id: uid(), nom: "Blanc 92-2044",      surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Alu 92-2048",        surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Beige 92-2135",      surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Anthracite 92-2047", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Shea 92-50843",      surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Boulder 92-2171",    surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Taupe 92-50850",     surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Noir 92-51176",      surchargeHT: 0, surchargePct: 0 },
+    ],
+    couleurs: [
+      { id: uid(), nom: "RAL 9016 Blanc",      surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 9007 Gris Métal", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "DB703 Gris Ardoise",  surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 7016 Anthracite", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 9005 Noir",       surchargeHT: 0, surchargePct: 0 },
+    ],
+    reglesPoteau: [],
+    templateDescription: `Screen ZIP motorisé Somfy sur mesure
+Dimensions : Largeur {{largeur}} × Hauteur {{hauteur}}
+Toile : {{toiture}} (Soltis Perform 92 — Serge Ferrari)
+Couleur structure : {{couleur}}
+Motorisation : Moteur Somfy — commande électrique
+Fermeture éclair YKK — tension constante
+Résistante à l'eau, à la saleté et aux UV
+Fabrication entièrement sur mesure`,
+    image: "",
+    sectionPoteaux: "",
+    tarifPoteauSuppHT: 0,
+  };
+}
+
+export interface LabelsModele {
+  toituresLabel: string;
+  dim2Label: string;
+  showPoteaux: boolean;
+}
+
+export function getLabelsModele(type?: ModelePergola["typeModele"]): LabelsModele {
+  if (type === "screen" || type === "volet") {
+    return {
+      toituresLabel: "Couleur de la toile",
+      dim2Label: "Hauteur",
+      showPoteaux: false,
+    };
+  }
+  return {
+    toituresLabel: "Toitures / Couvertures",
+    dim2Label: "Profondeur",
+    showPoteaux: true,
   };
 }
 
