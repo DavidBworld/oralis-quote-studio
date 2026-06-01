@@ -1292,12 +1292,15 @@ function ModeleEditorModal({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<ModelePergola>(modele);
-  const [tab, setTab] = useState<"grille" | "options" | "poteaux" | "description">("grille");
+  const [tab, setTab] = useState<"grille" | "options" | "poteaux" | "options_supp" | "description">("grille");
 
   const labels = getLabelsModele(draft.typeModele);
 
   useEffect(() => {
     if (tab === "poteaux" && !labels.showPoteaux) {
+      setTab("grille");
+    }
+    if (tab === "options_supp" && labels.showPoteaux) {
       setTab("grille");
     }
   }, [labels.showPoteaux, tab]);
@@ -1319,6 +1322,7 @@ function ModeleEditorModal({
   const TABS = [
     { key: "grille" as const, label: "Grille de tarifs" },
     { key: "options" as const, label: `${labels.toituresLabel} & Couleurs` },
+    ...(!labels.showPoteaux ? [{ key: "options_supp" as const, label: "Option Supplémentaire" }] : []),
     ...(labels.showPoteaux ? [{ key: "poteaux" as const, label: "Poteaux" }] : []),
     { key: "description" as const, label: "Description devis" },
   ];
@@ -1521,6 +1525,13 @@ function ModeleEditorModal({
               onChangeTarif={(t) => setDraft({ ...draft, tarifPoteauSuppHT: t })}
             />
           )}
+          {tab === "options_supp" && (
+            <OptionsList
+              label="Options supplémentaires"
+              options={draft.optionsSupp || []}
+              onChange={(opts) => setDraft({ ...draft, optionsSupp: opts })}
+            />
+          )}
           {tab === "description" && (
             <TemplateEditor
               value={draft.templateDescription}
@@ -1595,6 +1606,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
       },
       toitures: m.toitures.map((t) => ({ ...t, id: uid() })),
       couleurs: m.couleurs.map((c) => ({ ...c, id: uid() })),
+      optionsSupp: (m.optionsSupp || []).map((o) => ({ ...o, id: uid() })),
       reglesPoteau: m.reglesPoteau.map((r) => ({ ...r })),
     };
     save([...modeles, duplicated]);

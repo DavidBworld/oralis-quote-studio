@@ -479,5 +479,59 @@ describe("Screen models and model labels", () => {
     expect(undefinedLabels.dim2Label).toBe("Profondeur");
     expect(undefinedLabels.showPoteaux).toBe(true);
   });
+
+  it("should calculate correctly with additional options on screens", () => {
+    const model: ModelePergola = {
+      id: "screen-with-options",
+      nom: "ZIP Screen",
+      nomFournisseur: "ZIP",
+      fournisseurId: "f1",
+      fournisseurNom: "MB",
+      typeModele: "screen",
+      typeDim: "largeur_hauteur",
+      margeDefaut: 1.5,
+      grille: {
+        largeurs: [3000],
+        profondeurs: [2000],
+        prixAchatHT: [[1000]],
+      },
+      toitures: [],
+      couleurs: [],
+      optionsSupp: [
+        { id: "opt_capteur", nom: "Capteur vent Somfy", surchargeHT: 120, surchargePct: 0 },
+        { id: "opt_laquage", nom: "Coloris RAL spécifique", surchargeHT: 0, surchargePct: 10 },
+      ],
+      reglesPoteau: [],
+      templateDescription: "{{nom}} sur mesure\nOptions : {{options_supp}}",
+    };
+
+    // Case 1: No extra options selected
+    const result1 = calculerPrix(model, 3000, 2000, "", "", 1.5, 2500, 0, 2500, []);
+    expect(result1.prixAchatTotalHT).toBe(1000);
+    expect(result1.surchargeOptionsSuppHT).toBe(0);
+
+    // Case 2: Somfy wind sensor selected (surcharge: 120)
+    const result2 = calculerPrix(model, 3000, 2000, "", "", 1.5, 2500, 0, 2500, ["opt_capteur"]);
+    expect(result2.prixAchatTotalHT).toBe(1120);
+    expect(result2.surchargeOptionsSuppHT).toBe(120);
+
+    // Case 3: Both options selected (sensor: 120, specific color: 10% of 1000 = 100, total = 220)
+    const result3 = calculerPrix(model, 3000, 2000, "", "", 1.5, 2500, 0, 2500, ["opt_capteur", "opt_laquage"]);
+    expect(result3.prixAchatTotalHT).toBe(1220);
+    expect(result3.surchargeOptionsSuppHT).toBe(220);
+
+    // Case 4: Description interpolation check
+    const desc = genererDescription(model.templateDescription, {
+      nom: model.nom,
+      largeurMm: 3000,
+      profondeurMm: 2000,
+      toiture: "—",
+      couleur: "—",
+      poteaux: 0,
+      typeDim: "largeur_hauteur",
+      optionsSupp: ["Capteur vent Somfy", "Coloris RAL spécifique"],
+    });
+    expect(desc).toContain("Options : Capteur vent Somfy, Coloris RAL spécifique");
+  });
 });
 

@@ -105,6 +105,7 @@ interface WizardState {
   poteauxSupp: number;
   longueurPoteauxSupp: number;
   moteur?: string;
+  optionsSuppIds?: string[];
 }
 
 function ConfigurateurWizard({ initialState, onApply, onClose }: {
@@ -128,6 +129,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           poteauxSupp: initialState.poteauxSupp || 0,
           longueurPoteauxSupp: initialState.longueurPoteauxSupp || 2500,
           moteur: initialState.moteur !== undefined ? initialState.moteur : ((found?.typeModele === "screen" || found?.typeModele === "volet") ? "Moteur Somfy" : ""),
+          optionsSuppIds: initialState.optionsSuppIds || [],
         };
       }
     }
@@ -143,6 +145,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       poteauxSupp: 0,
       longueurPoteauxSupp: 2500,
       moteur: (defaultModele?.typeModele === "screen" || defaultModele?.typeModele === "volet") ? "Moteur Somfy" : "",
+      optionsSuppIds: [],
     };
   });
 
@@ -166,6 +169,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         couleurId: modele.couleurs[0]?.id || "",
         coefficient: modele.margeDefaut,
         moteur: (modele.typeModele === "screen" || modele.typeModele === "volet") ? "Moteur Somfy" : "",
+        optionsSuppIds: [],
       }));
     }
   }, [state.modeleId]);
@@ -183,13 +187,14 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         state.coefficient,
         state.hauteurPoteaux,
         state.poteauxSupp,
-        state.longueurPoteauxSupp
+        state.longueurPoteauxSupp,
+        state.optionsSuppIds || []
       );
       setResultat(r); setCalcError(null);
     } catch (e) {
       setCalcError((e as Error).message); setResultat(null);
     }
-  }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp, step]);
+  }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp, state.optionsSuppIds, step]);
 
   // Poteaux calculés en live
   const poteauxCalc = modele ? calculerPoteaux(modele.reglesPoteau, state.largeur, state.profondeur) : 0;
@@ -207,6 +212,9 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     if (!modele || !resultat) return;
     const toiture = modele.toitures.find((t) => t.id === state.toitureId);
     const couleur = modele.couleurs.find((c) => c.id === state.couleurId);
+    const optsSupp = (state.optionsSuppIds || [])
+      .map((id) => modele.optionsSupp?.find((o) => o.id === id)?.nom)
+      .filter(Boolean) as string[];
 
     // Désignation
     const largeurM = formatDimDevis(state.largeur);
@@ -226,6 +234,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       poteauxSupp: state.poteauxSupp,
       longueurPoteauxSuppMm: state.longueurPoteauxSupp,
       sectionPoteaux: modele.sectionPoteaux,
+      moteur: state.moteur,
+      optionsSupp: optsSupp,
     });
 
     onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image }, state);
@@ -360,6 +370,49 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       className="form-input w-full"
                       placeholder="Ex: Moteur Somfy"
                     />
+                  </div>
+                )}
+                {modele.optionsSupp && modele.optionsSupp.length > 0 && (
+                  <div className="md:col-span-2 pt-4 border-t border-border">
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                      Options supplémentaires
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {modele.optionsSupp.map((opt) => {
+                        const selected = (state.optionsSuppIds || []).includes(opt.id);
+                        return (
+                          <label
+                            key={opt.id}
+                            className={`flex items-center justify-between p-2.5 rounded border cursor-pointer transition-all text-[13px] ${
+                              selected
+                                ? "border-accent bg-accent/5 font-medium text-accent"
+                                : "border-border hover:border-accent/40"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) => {
+                                  const current = state.optionsSuppIds || [];
+                                  const next = e.target.checked
+                                    ? [...current, opt.id]
+                                    : current.filter((id) => id !== opt.id);
+                                  setState({ ...state, optionsSuppIds: next });
+                                }}
+                                className="rounded border-gray-300 text-accent focus:ring-accent"
+                              />
+                              <span>{opt.nom}</span>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {opt.surchargeHT > 0 && `+${formatEUR(opt.surchargeHT)}`}
+                              {opt.surchargePct > 0 && `+${opt.surchargePct}%`}
+                              {opt.surchargeHT === 0 && opt.surchargePct === 0 && "inclus"}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -530,6 +583,12 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargePoteauxAchatHT)}</span>
                       </div>
                     )}
+                    {resultat.surchargeOptionsSuppHT !== undefined && resultat.surchargeOptionsSuppHT > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Options supplémentaires</span>
+                        <span className="font-mono text-[hsl(40_80%_45%)]">+{formatEUR(resultat.surchargeOptionsSuppHT)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between border-t border-border pt-2">
                       <span className="text-muted-foreground font-medium">Prix achat total HT</span>
                       <span className="font-mono font-semibold">{formatEUR(resultat.prixAchatTotalHT)}</span>
@@ -566,6 +625,22 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         )}
                       </>
                     )}
+                    {state.optionsSuppIds && state.optionsSuppIds.length > 0 && (
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-muted-foreground font-semibold text-accent">Options supplémentaires</span>
+                        <span className="font-mono font-semibold text-accent text-right max-w-[240px] truncate" title={
+                          (state.optionsSuppIds || [])
+                            .map((id) => modele.optionsSupp?.find((o) => o.id === id)?.nom)
+                            .filter(Boolean)
+                            .join(", ")
+                        }>
+                          {(state.optionsSuppIds || [])
+                            .map((id) => modele.optionsSupp?.find((o) => o.id === id)?.nom)
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-accent/10 border border-accent/30 rounded-lg px-4 py-3 flex items-center justify-between">
@@ -582,6 +657,9 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       {(() => {
                         const t = modele.toitures.find((x)=>x.id===state.toitureId);
                         const c = modele.couleurs.find((x)=>x.id===state.couleurId);
+                        const optsSupp = (state.optionsSuppIds || [])
+                          .map((id) => modele.optionsSupp?.find((o) => o.id === id)?.nom)
+                          .filter(Boolean) as string[];
                         return genererDescription(modele.templateDescription, {
                           nom: modele.nom,
                           largeurMm: state.largeur,
@@ -594,6 +672,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                           poteauxSupp: state.poteauxSupp,
                           longueurPoteauxSuppMm: state.longueurPoteauxSupp,
                           sectionPoteaux: modele.sectionPoteaux,
+                          moteur: state.moteur,
+                          optionsSupp: optsSupp,
                         });
                       })()}
                     </div>

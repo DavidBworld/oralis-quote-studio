@@ -44,6 +44,7 @@ export interface ModelePergola {
   grille: GrilleTarif;
   toitures: OptionConfigurable[];
   couleurs: OptionConfigurable[];
+  optionsSupp?: OptionConfigurable[]; // options supplémentaires pour screens/volets
   reglesPoteau: ReglePoteau[];    // calcul automatique nb poteaux
   templateDescription: string;   // template avec {{variables}} pour le devis
   image?: string;                 // image optionnelle du modèle
@@ -57,6 +58,7 @@ export interface ResultatCalcul {
   surchargeToitureHT: number;
   surchargeCouleurHT: number;
   surchargePoteauxAchatHT?: number; // Surcharge poteaux pour ORIS SOLID
+  surchargeOptionsSuppHT?: number;  // Surcharge options supplémentaires
   prixAchatTotalHT: number;
   coefficient: number;
   prixVenteHT: number;
@@ -82,6 +84,10 @@ function migrateModeles(modeles: ModelePergola[]): ModelePergola[] {
     let copy = { ...m };
     if (!copy.typeModele) {
       copy.typeModele = "pergola";
+      migrated = true;
+    }
+    if (!copy.optionsSupp) {
+      copy.optionsSupp = [];
       migrated = true;
     }
     const maxLarg = Math.max(...(m.grille?.largeurs ?? [0]));
@@ -156,6 +162,7 @@ export const VARIABLES_DISPONIBLES = [
   "{{poteaux_supp}}",
   "{{longueur_poteaux_supp}}",
   "{{moteur}}",
+  "{{options_supp}}",
 ];
 
 export function blankModele(): ModelePergola {
@@ -186,6 +193,7 @@ export function blankModele(): ModelePergola {
       { largeurMinMm: 9061,  largeurMaxMm: 12060, nombrePoteaux: 4 },
     ],
     templateDescription: TEMPLATE_DEFAUT,
+    optionsSupp: [],
     image: "",
     sectionPoteaux: "",
     tarifPoteauSuppHT: 0,
@@ -220,6 +228,7 @@ export function blankModeleScreen(): ModelePergola {
       { id: uid(), nom: "RAL 7016 Anthracite", surchargeHT: 0, surchargePct: 0 },
       { id: uid(), nom: "RAL 9005 Noir",       surchargeHT: 0, surchargePct: 0 },
     ],
+    optionsSupp: [],
     reglesPoteau: [],
     templateDescription: `Screen ZIP motorisé Somfy sur mesure
 Dimensions : Largeur {{largeur}} × Hauteur {{hauteur}}
@@ -310,7 +319,8 @@ export function calculerPrix(
   coefficient: number,
   hauteurPoteaux: number = 2500,
   poteauxSupp: number = 0,
-  longueurPoteauxSupp: number = 2500
+  longueurPoteauxSupp: number = 2500,
+  optionsSuppIds: string[] = []
 ): ResultatCalcul {
   const { prix, largeurGrille, profondeurGrille } = determinerPrixBase(
     modele.grille, largeur, profondeur
@@ -350,7 +360,18 @@ export function calculerPrix(
     }
   }
 
-  const prixAchatTotalHT = prix + surchargeToitureHT + surchargeCouleurHT + surchargePoteauxAchatHT;
+  // Options supplémentaires (screens/volets)
+  let surchargeOptionsSuppHT = 0;
+  if (modele.optionsSupp && optionsSuppIds.length > 0) {
+    optionsSuppIds.forEach((id) => {
+      const opt = modele.optionsSupp?.find((o) => o.id === id);
+      if (opt) {
+        surchargeOptionsSuppHT += calcOptionSurcharge(opt);
+      }
+    });
+  }
+
+  const prixAchatTotalHT = prix + surchargeToitureHT + surchargeCouleurHT + surchargePoteauxAchatHT + surchargeOptionsSuppHT;
   const prixVenteHT = Math.round(prixAchatTotalHT * coefficient * 100) / 100;
 
   return {
@@ -358,6 +379,7 @@ export function calculerPrix(
     surchargeToitureHT,
     surchargeCouleurHT,
     surchargePoteauxAchatHT,
+    surchargeOptionsSuppHT,
     prixAchatTotalHT,
     coefficient,
     prixVenteHT,
@@ -385,6 +407,7 @@ export interface ContexteDescription {
   poteauxSupp?: number;
   longueurPoteauxSuppMm?: number;
   sectionPoteaux?: string;
+  optionsSupp?: string[];
 }
 
 /**
@@ -401,6 +424,7 @@ export function genererDescription(
   const hauteurPoteauxFormate = ctx.hauteurPoteauxMm ? formatDimDevis(ctx.hauteurPoteauxMm) : "2,50m";
   const poteauxSuppText = String(ctx.poteauxSupp || 0);
   const longueurPoteauxSuppFormate = ctx.longueurPoteauxSuppMm ? formatDimDevis(ctx.longueurPoteauxSuppMm) : "2,50m";
+  const optionsSuppText = ctx.optionsSupp && ctx.optionsSupp.length > 0 ? ctx.optionsSupp.join(", ") : "";
 
   let resultTemplate = template || "";
   if (resultTemplate.trim() && !resultTemplate.includes("{{hauteur_poteaux}}")) {
@@ -426,6 +450,7 @@ export function genererDescription(
     .replace(/\{\{poteaux_supp\}\}/g, poteauxSuppText)
     .replace(/\{\{longueur_poteaux_supp\}\}/g, longueurPoteauxSuppFormate)
     .replace(/\{\{moteur\}\}/g,     ctx.moteur ?? "")
+    .replace(/\{\{options_supp\}\}/g, optionsSuppText)
     .trim();
 
   let section = ctx.sectionPoteaux;
@@ -452,6 +477,11 @@ export function genererDescription(
       desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteau\s*supplémentaire/gi, lineText);
     }
   }
+
+  if (optionsSuppText && !resultTemplate.includes("{{options_supp}}")) {
+    desc = desc + "\nOptions : " + optionsSuppText;
+  }
+
   return desc;
 }
 
