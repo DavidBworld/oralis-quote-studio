@@ -1934,6 +1934,16 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
     setModeles(list);
   };
 
+  const handleMove = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= modeles.length) return;
+    const newModeles = [...modeles];
+    const temp = newModeles[index];
+    newModeles[index] = newModeles[targetIndex];
+    newModeles[targetIndex] = temp;
+    save(newModeles);
+  };
+
   const handleSaveModele = (m: AnyModele) => {
     const idx = modeles.findIndex((x) => x.id === m.id);
     if (idx >= 0) save(modeles.map((x) => (x.id === m.id ? m : x)));
@@ -2027,10 +2037,32 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {modeles.map((m) => {
+          {modeles.map((m, index) => {
             const isCoulissant = m.typeModele === "coulissant";
             return (
               <div key={m.id} className="bg-card border border-border rounded-lg p-4 shadow-[var(--shadow-card)] flex gap-4 items-center">
+                {/* Boutons de tri (Monter / Descendre) */}
+                <div className="flex flex-col shrink-0 gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => handleMove(index, -1)}
+                    disabled={index === 0}
+                    className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    title="Monter le modèle"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMove(index, 1)}
+                    disabled={index === modeles.length - 1}
+                    className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:pointer-events-none transition-colors"
+                    title="Descendre le modèle"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
+
                 {m.image && (
                   <div className="w-16 h-16 rounded border border-border overflow-hidden shrink-0 bg-muted/20">
                     <img src={m.image} alt={m.nom} className="w-full h-full object-cover" />
