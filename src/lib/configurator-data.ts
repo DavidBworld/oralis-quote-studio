@@ -52,6 +52,32 @@ export interface ModelePergola {
   tarifPoteauSuppHT?: number;     // prix d'achat par ml pour poteaux supp
 }
 
+export interface TarifPanneau {
+  id: string;
+  label: string;      // "Verre clair standard", "Verre teinté sur mesure"...
+  prixHT: number;     // Prix d'achat HT par panneau (ex: 145)
+  description: string; // Contenu inclus dans ce tarif
+}
+
+export interface ModeleCoulissant {
+  id: string;
+  typeModele: "coulissant";
+  nom: string;            // Nom catalogue ORALIS (visible client)
+  nomFournisseur: string; // "PAROIS COULISSANTES MB"
+  fournisseurId: string;
+  fournisseurNom: string;
+  margeDefaut: number;
+  vantauxMin: number;     // 2
+  vantauxMax: number;     // 6
+  tarifsPanneau: TarifPanneau[];  // Remplace la grille 2D
+  options: OptionConfigurable[];  // Serrure, poignée supp, etc.
+  templateDescription: string;
+  image?: string;                 // image optionnelle du modèle
+}
+
+export type AnyModele = ModelePergola | ModeleCoulissant;
+
+
 /** Résultat de calcul complet */
 export interface ResultatCalcul {
   prixAchatBaseHT: number;
@@ -78,10 +104,13 @@ const STORAGE_KEY = "oralis_modeles_pergola";
  * Migration auto : corrige les modèles enregistrés en cm (valeurs < 2000) → mm ×10.
  * S'exécute silencieusement au premier chargement après import cm.
  */
-function migrateModeles(modeles: ModelePergola[]): ModelePergola[] {
+function migrateModeles(modeles: AnyModele[]): AnyModele[] {
   let migrated = false;
   const fixed = modeles.map((m) => {
-    let copy = { ...m };
+    if (m.typeModele === "coulissant") {
+      return m;
+    }
+    let copy = { ...m } as ModelePergola;
     if (!copy.typeModele) {
       copy.typeModele = "pergola";
       migrated = true;
@@ -90,17 +119,17 @@ function migrateModeles(modeles: ModelePergola[]): ModelePergola[] {
       copy.optionsSupp = [];
       migrated = true;
     }
-    const maxLarg = Math.max(...(m.grille?.largeurs ?? [0]));
+    const maxLarg = Math.max(...(copy.grille?.largeurs ?? [0]));
     if (maxLarg > 0 && maxLarg < 2000) {
       migrated = true;
       copy = {
         ...copy,
         grille: {
-          ...m.grille,
-          largeurs:    m.grille.largeurs.map((v) => Math.round(v * 10)),
-          profondeurs: m.grille.profondeurs.map((v) => Math.round(v * 10)),
+          ...copy.grille,
+          largeurs:    copy.grille.largeurs.map((v) => Math.round(v * 10)),
+          profondeurs: copy.grille.profondeurs.map((v) => Math.round(v * 10)),
         },
-        reglesPoteau: (m.reglesPoteau ?? []).map((r) =>
+        reglesPoteau: (copy.reglesPoteau ?? []).map((r) =>
           r.largeurMaxMm < 2000
             ? { ...r, largeurMinMm: r.largeurMinMm * 10, largeurMaxMm: r.largeurMaxMm * 10 }
             : r
@@ -113,12 +142,12 @@ function migrateModeles(modeles: ModelePergola[]): ModelePergola[] {
   return fixed;
 }
 
-export function loadModeles(): ModelePergola[] {
+export function loadModeles(): AnyModele[] {
   try { return migrateModeles(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")); }
   catch { return []; }
 }
 
-export function saveModeles(modeles: ModelePergola[]): void {
+export function saveModeles(modeles: AnyModele[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(modeles));
 }
 
@@ -586,4 +615,128 @@ export function cmToMm(cm: number): number {
 /** Convertit mm → cm */
 export function mmToCm(mm: number): number {
   return mm / 10;
+}
+
+export function blankModeleCoulissant(): ModeleCoulissant {
+  return {
+    id: uid(),
+    typeModele: "coulissant",
+    nom: "",
+    nomFournisseur: "PAROIS COULISSANTES MB",
+    fournisseurId: "",
+    fournisseurNom: "",
+    margeDefaut: 1.45,
+    vantauxMin: 2,
+    vantauxMax: 6,
+    tarifsPanneau: [
+      {
+        id: uid(),
+        label: "Verre clair standard",
+        prixHT: 145,
+        description: "Panneau + rail sup/inf + profils U + roulettes + joint brosse + 1 poignée"
+      },
+      {
+        id: uid(),
+        label: "Verre teinté standard",
+        prixHT: 173,
+        description: "Panneau teinté + rail sup/inf + profils U + roulettes + joint brosse + 1 poignée"
+      },
+      {
+        id: uid(),
+        label: "Verre clair sur mesure",
+        prixHT: 236,
+        description: "Panneau sur mesure + rail sup/inf + profils U + roulettes + joint brosse + 1 poignée"
+      },
+      {
+        id: uid(),
+        label: "Verre teinté sur mesure",
+        prixHT: 264,
+        description: "Panneau teinté sur mesure + rail sup/inf + profils U + roulettes + joint brosse + 1 poignée"
+      },
+    ],
+    options: [
+      { id: uid(), nom: "Serrure + éléments d'entraînement", surchargeHT: 120, surchargePct: 0 },
+      { id: uid(), nom: "Poignée supplémentaire", surchargeHT: 9, surchargePct: 0 },
+      { id: uid(), nom: "Joint brosse supplémentaire", surchargeHT: 9, surchargePct: 0 },
+    ],
+    templateDescription:
+`Parois coulissantes aluminium {{nom}} sur mesure
+Configuration : {{vantaux}} vantaux coulissants
+Verre : {{tarif_panneau}}
+Couleur structure : {{couleur}}
+{{options_texte}}
+Verre trempé 10 mm — Joints brosses — Profils aluminium thermolaqués
+Poignée incluse — Livraison départ usine`,
+  };
+}
+
+export interface ResultatCoulissant {
+  nombreVantaux: number;
+  prixPanneau: number;
+  prixAchatBaseHT: number;   // N × prixPanneau
+  surchargesHT: number;      // total options sélectionnées
+  prixAchatTotalHT: number;
+  coefficient: number;
+  prixVenteHT: number;
+}
+
+export function calculerPrixCoulissant(
+  modele: ModeleCoulissant,
+  nombreVantaux: number,
+  tarifPanneauId: string,
+  optionsSelectionnees: string[],  // ids des options choisies
+  coefficient: number
+): ResultatCoulissant {
+  const tarif = modele.tarifsPanneau.find(t => t.id === tarifPanneauId);
+  if (!tarif) throw new Error("Tarif panneau introuvable");
+  
+  const prixBase = nombreVantaux * tarif.prixHT;
+  
+  const surcharges = modele.options
+    .filter(o => optionsSelectionnees.includes(o.id))
+    .reduce((sum, o) => sum + o.surchargeHT + (prixBase * o.surchargePct / 100), 0);
+  
+  const prixTotal = prixBase + surcharges;
+  const prixVente = Math.round(prixTotal * coefficient * 100) / 100;
+  
+  return {
+    nombreVantaux,
+    prixPanneau: tarif.prixHT,
+    prixAchatBaseHT: prixBase,
+    surchargesHT: surcharges,
+    prixAchatTotalHT: prixTotal,
+    coefficient,
+    prixVenteHT: prixVente,
+  };
+}
+
+export function genererDescriptionCoulissant(
+  modele: ModeleCoulissant,
+  ctx: {
+    vantaux: number;
+    tarifPanneau: string;
+    couleur: string;
+    options: string[];
+  }
+): string {
+  const optionsText = ctx.options.length > 0
+    ? ctx.options.map(o => `${o} incluse`).join("\n")
+    : "";
+
+  let desc = (modele.templateDescription || "")
+    .replace(/\{\{nom\}\}/g, modele.nom)
+    .replace(/\{\{vantaux\}\}/g, String(ctx.vantaux))
+    .replace(/\{\{tarif_panneau\}\}/g, ctx.tarifPanneau)
+    .replace(/\{\{couleur\}\}/g, ctx.couleur)
+    .replace(/\{\{options_texte\}\}/g, optionsText)
+    .trim();
+
+  if (optionsText && !modele.templateDescription.includes("{{options_texte}}")) {
+    desc += "\n" + optionsText;
+  }
+  
+  // Remove empty line if options_texte is empty or clean up excess newlines
+  desc = desc.replace(/\n\n+/g, "\n");
+  
+  return desc;
 }

@@ -10,9 +10,13 @@ import {
   formatDimDevis,
   formatCoef,
   blankModeleScreen,
+  blankModeleCoulissant,
+  calculerPrixCoulissant,
+  genererDescriptionCoulissant,
   getLabelsModele,
   type GrilleTarif,
   type ModelePergola,
+  type ModeleCoulissant,
 } from "../lib/configurator-data";
 
 describe("calculerPoteaux", () => {
@@ -532,6 +536,72 @@ describe("Screen models and model labels", () => {
       optionsSupp: ["Capteur vent Somfy", "Coloris RAL spécifique"],
     });
     expect(desc).toContain("Options : Capteur vent Somfy, Coloris RAL spécifique");
+  });
+});
+
+describe("ModeleCoulissant calculations & description", () => {
+  it("should generate a blank sliding panel model with default properties", () => {
+    const model = blankModeleCoulissant();
+    expect(model.typeModele).toBe("coulissant");
+    expect(model.vantauxMin).toBe(2);
+    expect(model.vantauxMax).toBe(6);
+    expect(model.tarifsPanneau.length).toBe(4);
+    expect(model.options.length).toBe(3);
+    expect(model.templateDescription).toContain("{{tarif_panneau}}");
+  });
+
+  it("should calculate sliding panel pricing correctly", () => {
+    const model = blankModeleCoulissant();
+    const standardClairId = model.tarifsPanneau[0].id; // Verre clair standard (145)
+    
+    // Test basic calculation: 3 panels * 145 = 435, margin 1.45 = 630.75
+    const result = calculerPrixCoulissant(model, 3, standardClairId, [], 1.45);
+    expect(result.nombreVantaux).toBe(3);
+    expect(result.prixPanneau).toBe(145);
+    expect(result.prixAchatBaseHT).toBe(435);
+    expect(result.surchargesHT).toBe(0);
+    expect(result.prixAchatTotalHT).toBe(435);
+    expect(result.prixVenteHT).toBe(630.75);
+
+    // Test with options: Serrure (+120)
+    const serrureId = model.options[0].id;
+    const resultWithOptions = calculerPrixCoulissant(model, 3, standardClairId, [serrureId], 1.45);
+    expect(resultWithOptions.prixAchatBaseHT).toBe(435);
+    expect(resultWithOptions.surchargesHT).toBe(120);
+    expect(resultWithOptions.prixAchatTotalHT).toBe(555);
+    expect(resultWithOptions.prixVenteHT).toBe(804.75);
+
+    // Test with percentage options: add custom 10% option
+    const modelWithPct = {
+      ...model,
+      options: [
+        ...model.options,
+        { id: "opt_custom", nom: "Option custom %", surchargeHT: 0, surchargePct: 10 }
+      ]
+    };
+    const resultWithPct = calculerPrixCoulissant(modelWithPct, 4, standardClairId, ["opt_custom"], 1.45);
+    // Base = 4 * 145 = 580. Surcharge = 10% of 580 = 58. Total = 638.
+    expect(resultWithPct.prixAchatBaseHT).toBe(580);
+    expect(resultWithPct.surchargesHT).toBe(58);
+    expect(resultWithPct.prixAchatTotalHT).toBe(638);
+  });
+
+  it("should generate description for sliding panel correctly", () => {
+    const model = blankModeleCoulissant();
+    model.nom = "ORALIS";
+    
+    const desc = genererDescriptionCoulissant(model, {
+      vantaux: 3,
+      tarifPanneau: "Verre clair standard",
+      couleur: "Anthracite RAL 7016",
+      options: ["Serrure + éléments d'entraînement"],
+    });
+
+    expect(desc).toContain("Parois coulissantes aluminium ORALIS sur mesure");
+    expect(desc).toContain("Configuration : 3 vantaux coulissants");
+    expect(desc).toContain("Verre : Verre clair standard");
+    expect(desc).toContain("Couleur structure : Anthracite RAL 7016");
+    expect(desc).toContain("Serrure + éléments d'entraînement incluse");
   });
 });
 

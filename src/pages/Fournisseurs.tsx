@@ -7,10 +7,10 @@ import {
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
 import {
-  loadModeles, saveModeles, blankModele, blankModeleScreen, getLabelsModele, blankOption,
+  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, getLabelsModele, blankOption,
   parseExcelGrid, validateGrille, formatMM, formatCoef,
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
-  type ModelePergola, type OptionConfigurable, type GrilleTarif, type ReglePoteau,
+  type ModelePergola, type ModeleCoulissant, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
@@ -1278,6 +1278,365 @@ function GrilleEditor({ grille, onChange }: { grille: GrilleTarif; onChange: (g:
   );
 }
 
+// ── TarifsPanneauList ─────────────────────────────────────────────────────────
+
+function TarifsPanneauList({
+  tarifs,
+  onChange,
+}: {
+  tarifs: TarifPanneau[];
+  onChange: (tarifs: TarifPanneau[]) => void;
+}) {
+  const add = () => onChange([...tarifs, { id: uid(), label: "", prixHT: 0, description: "" }]);
+  const update = (id: string, patch: Partial<TarifPanneau>) =>
+    onChange(tarifs.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const remove = (id: string) => onChange(tarifs.filter((t) => t.id !== id));
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground font-body">
+          Tarifs par panneau
+        </label>
+        <button
+          type="button"
+          onClick={add}
+          className="flex items-center gap-1 text-[11px] text-accent hover:text-accent/80 font-medium transition-colors"
+        >
+          <Plus size={12} /> Ajouter un tarif
+        </button>
+      </div>
+      {tarifs.length === 0 && <p className="text-[12px] text-muted-foreground italic font-body">Aucun tarif défini.</p>}
+      <div className="space-y-3">
+        {tarifs.map((tarif) => (
+          <div key={tarif.id} className="bg-muted/30 border border-border/50 rounded-lg p-3 space-y-2 font-body">
+            <div className="flex items-center gap-3">
+              <input
+                value={tarif.label}
+                onChange={(e) => update(tarif.id, { label: e.target.value })}
+                placeholder="Libellé (ex: Verre clair standard)"
+                className="form-input !h-8 !text-[12px] flex-1"
+              />
+              <div className="w-36 shrink-0 flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  value={tarif.prixHT || ""}
+                  onChange={(e) => update(tarif.id, { prixHT: parseFloat(e.target.value) || 0 })}
+                  placeholder="Prix d'achat HT"
+                  className="form-input !h-8 !text-[12px] font-mono w-full"
+                />
+                <span className="text-xs text-muted-foreground">€</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => remove(tarif.id)}
+                className="p-1.5 text-destructive hover:bg-destructive/10 transition-colors rounded"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+              <input
+                value={tarif.description}
+                onChange={(e) => update(tarif.id, { description: e.target.value })}
+                placeholder="Description du contenu inclus (ex: Panneau + rail sup/inf + roulettes...)"
+                className="form-input !h-8 !text-[12px] w-full"
+              />
+              <div className="text-[11px] text-muted-foreground font-mono text-right flex items-center justify-end gap-1">
+                <span>Exemple :</span>
+                <strong>2 panneaux × {tarif.prixHT}€ = {2 * tarif.prixHT}€ HT</strong>
+                <span>(pour 2 vantaux)</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── ModeleCoulissantEditorModal ──────────────────────────────────────────────
+
+function ModeleCoulissantEditorModal({
+  modele,
+  fournisseurs,
+  onSave,
+  onClose,
+}: {
+  modele: ModeleCoulissant;
+  fournisseurs: Fournisseur[];
+  onSave: (m: ModeleCoulissant) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<ModeleCoulissant>(modele);
+  const [tab, setTab] = useState<"tarifs" | "options" | "description">("tarifs");
+
+  const handleSave = () => {
+    if (!draft.nom.trim()) {
+      toast.error("Donnez un nom au modèle");
+      return;
+    }
+    if (draft.tarifsPanneau.length === 0) {
+      toast.error("Définissez au moins un tarif par panneau");
+      return;
+    }
+    onSave(draft);
+    toast.success("Modèle enregistré");
+  };
+
+  const TABS = [
+    { key: "tarifs" as const, label: "Tarifs par panneau" },
+    { key: "options" as const, label: "Options" },
+    { key: "description" as const, label: "Description devis" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-8 px-4">
+      <div className="bg-card border border-border rounded-xl shadow-elevated w-full max-w-4xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h2 className="font-display text-[18px] font-semibold">
+              {modele.nom ? `Modifier : ${modele.nom}` : "Nouveau modèle coulissant"}
+            </h2>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Configuration des parois coulissantes, tarifs et options</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded hover:bg-muted transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Infos générales */}
+        <div className="px-6 py-4 border-b border-border bg-muted/20">
+          <div className="flex flex-col md:flex-row gap-5">
+            {/* Infos textuelles (gauche) */}
+            <div className="flex-1 space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="col-span-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="form-label !mb-0">
+                      Nom catalogue ORALIS * <span className="text-[10px] text-muted-foreground font-normal">(visible client)</span>
+                    </label>
+                    <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                      COULISSANT
+                    </span>
+                  </div>
+                  <input
+                    value={draft.nom}
+                    onChange={(e) => setDraft({ ...draft, nom: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: PAROI COULISSANTE MB..."
+                  />
+                </div>
+                <div>
+                  <label className="form-label">
+                    Nom fournisseur <span className="text-[10px] text-muted-foreground font-normal">(interne)</span>
+                  </label>
+                  <input
+                    value={draft.nomFournisseur}
+                    onChange={(e) => setDraft({ ...draft, nomFournisseur: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: PAROIS COULISSANTES MB"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Marge par défaut — {formatCoef(draft.margeDefaut)}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.05}
+                    value={draft.margeDefaut}
+                    onChange={(e) => setDraft({ ...draft, margeDefaut: parseFloat(e.target.value) || 1.45 })}
+                    className="form-input w-full font-mono"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="form-label">Fournisseur</label>
+                  <select
+                    value={draft.fournisseurId}
+                    onChange={(e) => {
+                      const f = fournisseurs.find((x) => x.id === e.target.value);
+                      setDraft({ ...draft, fournisseurId: e.target.value, fournisseurNom: f?.societe || f?.nom || "" });
+                    }}
+                    className="form-input w-full"
+                  >
+                    <option value="">— Non lié —</option>
+                    {fournisseurs.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.societe || f.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Vantaux Minimum</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={draft.vantauxMin}
+                    onChange={(e) => setDraft({ ...draft, vantauxMin: parseInt(e.target.value) || 2 })}
+                    className="form-input w-full font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Vantaux Maximum</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={draft.vantauxMax}
+                    onChange={(e) => setDraft({ ...draft, vantauxMax: parseInt(e.target.value) || 6 })}
+                    className="form-input w-full font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Photo / Image (droite) */}
+            <div className="w-full md:w-44 shrink-0 flex flex-col justify-between">
+              <label className="form-label">Photo du modèle</label>
+              <div className="relative group flex items-center justify-center border border-border rounded-lg h-[88px] bg-card overflow-hidden hover:border-accent/50 transition-colors">
+                {draft.image ? (
+                  <>
+                    <img src={draft.image} alt={draft.nom || "Modèle"} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                      <label className="p-1.5 text-white hover:text-accent rounded cursor-pointer transition-colors bg-black/40 hover:bg-black/60">
+                        <Upload size={14} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              try {
+                                setDraft({ ...draft, image: await processImageFile(f) });
+                              } catch {}
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setDraft({ ...draft, image: "" })}
+                        className="p-1.5 text-white hover:text-destructive rounded transition-colors bg-black/40 hover:bg-black/60"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-1 w-full h-full cursor-pointer text-xs font-semibold text-muted-foreground hover:text-accent transition-colors">
+                    <Camera size={18} />
+                    <span>Ajouter photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          try {
+                            setDraft({ ...draft, image: await processImageFile(f) });
+                          } catch {}
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sélecteur d'onglets */}
+        <div className="flex border-b border-border bg-muted/10 px-6 gap-2">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-all ${
+                tab === t.key
+                  ? "border-accent text-accent"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Contenu onglet */}
+        <div className="px-6 py-5 min-h-[300px]">
+          {tab === "tarifs" && (
+            <TarifsPanneauList
+              tarifs={draft.tarifsPanneau}
+              onChange={(t) => setDraft({ ...draft, tarifsPanneau: t })}
+            />
+          )}
+
+          {tab === "options" && (
+            <OptionsList
+              label="Options configurables (Serrure, poignées...)"
+              options={draft.options}
+              onChange={(o) => setDraft({ ...draft, options: o })}
+            />
+          )}
+
+          {tab === "description" && (
+            <div className="space-y-4">
+              <div>
+                <label className="form-label">Template de description pour le devis</label>
+                <textarea
+                  value={draft.templateDescription}
+                  onChange={(e) => setDraft({ ...draft, templateDescription: e.target.value })}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed resize-none"
+                  rows={8}
+                  placeholder="Gabarit de description du produit..."
+                />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
+                  Variables disponibles :
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {["{{nom}}", "{{vantaux}}", "{{tarif_panneau}}", "{{couleur}}", "{{options_texte}}"].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setDraft({ ...draft, templateDescription: draft.templateDescription + " " + v });
+                      }}
+                      className="px-2 py-1 bg-muted hover:bg-muted-foreground/15 border border-border text-muted-foreground text-[10px] font-mono rounded transition-colors"
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/10 rounded-b-xl">
+          <button onClick={onClose} className="btn-ghost border border-border">
+            Annuler
+          </button>
+          <button onClick={handleSave} className="btn-gold flex items-center gap-2">
+            <Save size={15} /> Enregistrer le modèle
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ModeleEditorModal ──────────────────────────────────────────────────────────
 
 function ModeleEditorModal({
@@ -1556,8 +1915,8 @@ function ModeleEditorModal({
 // ── GrilleTarifsTab ────────────────────────────────────────────────────────────
 
 function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
-  const [modeles, setModeles] = useState<ModelePergola[]>([]);
-  const [editingModele, setEditingModele] = useState<ModelePergola | null>(null);
+  const [modeles, setModeles] = useState<AnyModele[]>([]);
+  const [editingModele, setEditingModele] = useState<AnyModele | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     isOpen: boolean;
     message: string;
@@ -1570,12 +1929,12 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
 
   useEffect(() => setModeles(loadModeles()), []);
 
-  const save = (list: ModelePergola[]) => {
+  const save = (list: AnyModele[]) => {
     saveModeles(list);
     setModeles(list);
   };
 
-  const handleSaveModele = (m: ModelePergola) => {
+  const handleSaveModele = (m: AnyModele) => {
     const idx = modeles.findIndex((x) => x.id === m.id);
     if (idx >= 0) save(modeles.map((x) => (x.id === m.id ? m : x)));
     else save([...modeles, m]);
@@ -1585,7 +1944,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
   const handleDelete = (id: string) => {
     setConfirmDelete({
       isOpen: true,
-      message: "Voulez-vous vraiment supprimer ce modèle et sa grille de tarifs ?",
+      message: "Voulez-vous vraiment supprimer ce modèle et ses tarifs ?",
       onConfirm: () => {
         save(modeles.filter((m) => m.id !== id));
         toast.success("Modèle supprimé");
@@ -1593,22 +1952,33 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
     });
   };
 
-  const handleDuplicate = (m: ModelePergola) => {
-    const duplicated: ModelePergola = {
-      ...m,
-      id: uid(),
-      nom: `${m.nom} (copie)`,
-      grille: {
-        ...m.grille,
-        largeurs: [...m.grille.largeurs],
-        profondeurs: [...m.grille.profondeurs],
-        prixAchatHT: m.grille.prixAchatHT.map((row) => [...row]),
-      },
-      toitures: m.toitures.map((t) => ({ ...t, id: uid() })),
-      couleurs: m.couleurs.map((c) => ({ ...c, id: uid() })),
-      optionsSupp: (m.optionsSupp || []).map((o) => ({ ...o, id: uid() })),
-      reglesPoteau: m.reglesPoteau.map((r) => ({ ...r })),
-    };
+  const handleDuplicate = (m: AnyModele) => {
+    let duplicated: AnyModele;
+    if (m.typeModele === "coulissant") {
+      duplicated = {
+        ...m,
+        id: uid(),
+        nom: `${m.nom} (copie)`,
+        tarifsPanneau: m.tarifsPanneau.map((t) => ({ ...t, id: uid() })),
+        options: m.options.map((o) => ({ ...o, id: uid() })),
+      };
+    } else {
+      duplicated = {
+        ...m,
+        id: uid(),
+        nom: `${m.nom} (copie)`,
+        grille: {
+          ...m.grille,
+          largeurs: [...m.grille.largeurs],
+          profondeurs: [...m.grille.profondeurs],
+          prixAchatHT: m.grille.prixAchatHT.map((row) => [...row]),
+        },
+        toitures: m.toitures.map((t) => ({ ...t, id: uid() })),
+        couleurs: m.couleurs.map((c) => ({ ...c, id: uid() })),
+        optionsSupp: (m.optionsSupp || []).map((o) => ({ ...o, id: uid() })),
+        reglesPoteau: m.reglesPoteau.map((r) => ({ ...r })),
+      } as ModelePergola;
+    }
     save([...modeles, duplicated]);
     setEditingModele(duplicated);
     toast.success("Modèle dupliqué ! Modifiez-le ci-dessous.");
@@ -1620,7 +1990,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         <div>
           <h2 className="font-display text-[18px] font-semibold">Grilles de tarifs</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5">
-            Matrices de prix Largeur × Profondeur/Hauteur — descriptions et règles de poteaux
+            Matrices de prix et tarifs unitaires par vantail — descriptions et configurations
           </p>
         </div>
         <div className="flex gap-2">
@@ -1629,6 +1999,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           </button>
           <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle screen/volet
+          </button>
+          <button onClick={() => setEditingModele(blankModeleCoulissant())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
+            <Plus size={15} /> Nouveau modèle coulissant
           </button>
         </div>
       </div>
@@ -1647,92 +2020,158 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
             <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle screen/volet
             </button>
+            <button onClick={() => setEditingModele(blankModeleCoulissant())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
+              <Plus size={15} /> Créer un modèle coulissant
+            </button>
           </div>
         </div>
       ) : (
         <div className="space-y-3">
-          {modeles.map((m) => (
-            <div key={m.id} className="bg-card border border-border rounded-lg p-4 shadow-[var(--shadow-card)] flex gap-4 items-center">
-              {m.image && (
-                <div className="w-16 h-16 rounded border border-border overflow-hidden shrink-0 bg-muted/20">
-                  <img src={m.image} alt={m.nom} className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium text-[14px]">{m.nom}</div>
-                      {m.nomFournisseur && (
-                        <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
-                          {m.nomFournisseur}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[12px] text-muted-foreground mt-0.5">
-                      {m.fournisseurNom && <span>{m.fournisseurNom} · </span>}
-                      <span className="font-mono">{formatCoef(m.margeDefaut)}</span>
-                      {" · "}
-                      <span>
-                        {m.grille.largeurs.length} largeurs × {m.grille.profondeurs.length} {m.typeModele === "screen" || m.typeModele === "volet" ? "hauteurs" : "profondeurs"}
-                      </span>
-                      {" · "}
-                      <span>
-                        {m.toitures.length} {m.typeModele === "screen" || m.typeModele === "volet" ? "toile" : "toiture"}{m.toitures.length !== 1 ? "s" : ""}
-                      </span>
-                      {" · "}
-                      <span>
-                        {m.couleurs.length} couleur{m.couleurs.length !== 1 ? "s" : ""}
-                      </span>
-                      {m.reglesPoteau.length > 0 && (
-                        <span>
-                          {" "}
-                          · {m.reglesPoteau.length} règle{m.reglesPoteau.length !== 1 ? "s" : ""} poteaux
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-1 mt-2 flex-wrap">
-                      {m.grille.largeurs.slice(0, 8).map((l, i) => (
-                        <span key={i} className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-mono">
-                          {(l / 1000).toFixed(2).replace(".", ",")}m
-                        </span>
-                      ))}
-                      {m.grille.largeurs.length > 8 && (
-                        <span className="text-[10px] text-muted-foreground">+{m.grille.largeurs.length - 8}</span>
-                      )}
-                    </div>
+          {modeles.map((m) => {
+            const isCoulissant = m.typeModele === "coulissant";
+            return (
+              <div key={m.id} className="bg-card border border-border rounded-lg p-4 shadow-[var(--shadow-card)] flex gap-4 items-center">
+                {m.image && (
+                  <div className="w-16 h-16 rounded border border-border overflow-hidden shrink-0 bg-muted/20">
+                    <img src={m.image} alt={m.nom} className="w-full h-full object-cover" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleDuplicate(m)}
-                      className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
-                    >
-                      <Copy size={13} /> Dupliquer
-                    </button>
-                    <button
-                      onClick={() => setEditingModele(m)}
-                      className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
-                    >
-                      <Pencil size={13} /> Modifier
-                    </button>
-                    <button onClick={() => handleDelete(m.id)} className="p-2 rounded hover:bg-destructive/10 transition-colors">
-                      <Trash2 size={14} className="text-destructive/70" />
-                    </button>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-[14px]">{m.nom || <span className="text-muted-foreground italic">Sans nom</span>}</div>
+                        {m.nomFournisseur && (
+                          <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
+                            {m.nomFournisseur}
+                          </span>
+                        )}
+                        {isCoulissant ? (
+                          <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                            COULISSANT
+                          </span>
+                        ) : m.typeModele === "screen" || m.typeModele === "volet" ? (
+                          <span className="text-[9px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                            SCREEN / VOLET
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                            PERGOLA
+                          </span>
+                        )}
+                      </div>
+
+                      {isCoulissant ? (
+                        (() => {
+                          const mc = m as ModeleCoulissant;
+                          return (
+                            <>
+                              <div className="text-[12px] text-muted-foreground mt-0.5">
+                                {mc.fournisseurNom && <span>{mc.fournisseurNom} · </span>}
+                                <span className="font-mono">{formatCoef(mc.margeDefaut)}</span>
+                                {" · "}
+                                <span>{mc.tarifsPanneau.length} tarif{mc.tarifsPanneau.length !== 1 ? "s" : ""}</span>
+                                {" · "}
+                                <span>vantaux {mc.vantauxMin}-{mc.vantauxMax}</span>
+                                {" · "}
+                                <span>{mc.options.length} option{mc.options.length !== 1 ? "s" : ""}</span>
+                              </div>
+                              <div className="flex gap-1 mt-2 flex-wrap">
+                                {mc.tarifsPanneau.slice(0, 4).map((t, i) => (
+                                  <span key={i} className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-mono">
+                                    {t.label} ({t.prixHT}€)
+                                  </span>
+                                ))}
+                                {mc.tarifsPanneau.length > 4 && (
+                                  <span className="text-[10px] text-muted-foreground">+{mc.tarifsPanneau.length - 4}</span>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()
+                      ) : (
+                        (() => {
+                          const mp = m as ModelePergola;
+                          return (
+                            <>
+                              <div className="text-[12px] text-muted-foreground mt-0.5">
+                                {mp.fournisseurNom && <span>{mp.fournisseurNom} · </span>}
+                                <span className="font-mono">{formatCoef(mp.margeDefaut)}</span>
+                                {" · "}
+                                <span>
+                                  {mp.grille.largeurs.length} largeurs × {mp.grille.profondeurs.length} {mp.typeModele === "screen" || mp.typeModele === "volet" ? "hauteurs" : "profondeurs"}
+                                </span>
+                                {" · "}
+                                <span>
+                                  {mp.toitures.length} {mp.typeModele === "screen" || mp.typeModele === "volet" ? "toile" : "toiture"}{mp.toitures.length !== 1 ? "s" : ""}
+                                </span>
+                                {" · "}
+                                <span>
+                                  {mp.couleurs.length} couleur{mp.couleurs.length !== 1 ? "s" : ""}
+                                </span>
+                                {mp.reglesPoteau.length > 0 && (
+                                  <span>
+                                    {" "}
+                                    · {mp.reglesPoteau.length} règle{mp.reglesPoteau.length !== 1 ? "s" : ""} poteaux
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex gap-1 mt-2 flex-wrap">
+                                {mp.grille.largeurs.slice(0, 8).map((l, i) => (
+                                  <span key={i} className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-mono">
+                                    {(l / 1000).toFixed(2).replace(".", ",")}m
+                                  </span>
+                                ))}
+                                {mp.grille.largeurs.length > 8 && (
+                                  <span className="text-[10px] text-muted-foreground">+{mp.grille.largeurs.length - 8}</span>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDuplicate(m)}
+                        className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
+                      >
+                        <Copy size={13} /> Dupliquer
+                      </button>
+                      <button
+                        onClick={() => setEditingModele(m)}
+                        className="btn-ghost !h-8 !text-[12px] flex items-center gap-1 border border-border"
+                      >
+                        <Pencil size={13} /> Modifier
+                      </button>
+                      <button onClick={() => handleDelete(m.id)} className="p-2 rounded hover:bg-destructive/10 transition-colors">
+                        <Trash2 size={14} className="text-destructive/70" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {editingModele && (
-        <ModeleEditorModal
-          modele={editingModele}
-          fournisseurs={fournisseurs}
-          onSave={handleSaveModele}
-          onClose={() => setEditingModele(null)}
-        />
+        editingModele.typeModele === "coulissant" ? (
+          <ModeleCoulissantEditorModal
+            modele={editingModele as ModeleCoulissant}
+            fournisseurs={fournisseurs}
+            onSave={handleSaveModele}
+            onClose={() => setEditingModele(null)}
+          />
+        ) : (
+          <ModeleEditorModal
+            modele={editingModele as ModelePergola}
+            fournisseurs={fournisseurs}
+            onSave={handleSaveModele}
+            onClose={() => setEditingModele(null)}
+          />
+        )
       )}
       <ConfirmModal
         isOpen={confirmDelete.isOpen}

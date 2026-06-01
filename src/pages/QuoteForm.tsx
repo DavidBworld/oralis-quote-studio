@@ -12,7 +12,8 @@ import { loadSettings, getEnabledTVARates, getLegalMention } from "@/lib/setting
 import {
   loadModeles, calculerPrix, calculerPoteaux, genererDescription,
   formatMM, formatCoef, formatDimDevis, getLabelsModele,
-  type ModelePergola, type ResultatCalcul,
+  calculerPrixCoulissant, genererDescriptionCoulissant,
+  type ModelePergola, type ResultatCalcul, type ModeleCoulissant, type ResultatCoulissant, type AnyModele,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
@@ -130,14 +131,18 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           longueurPoteauxSupp: initialState.longueurPoteauxSupp || 2500,
           moteur: initialState.moteur !== undefined ? initialState.moteur : ((found?.typeModele === "screen" || found?.typeModele === "volet") ? "Moteur Somfy" : ""),
           optionsSuppIds: initialState.optionsSuppIds || [],
+          vantaux: initialState.vantaux || (found?.typeModele === "coulissant" ? (found as ModeleCoulissant).vantauxMin : 3),
+          tarifPanneauId: initialState.tarifPanneauId || (found?.typeModele === "coulissant" ? (found as ModeleCoulissant).tarifsPanneau[0]?.id : ""),
+          couleurCoulissant: initialState.couleurCoulissant || "Anthracite RAL 7016",
+          optionsCoulissantIds: initialState.optionsCoulissantIds || [],
         };
       }
     }
     const defaultModele = modeles[0];
     return {
       modeleId: defaultModele?.id || "",
-      toitureId: defaultModele?.toitures[0]?.id || "",
-      couleurId: defaultModele?.couleurs[0]?.id || "",
+      toitureId: defaultModele?.toitures?.[0]?.id || "",
+      couleurId: defaultModele?.couleurs?.[0]?.id || "",
       largeur: 4000,
       profondeur: 3000,
       coefficient: defaultModele?.margeDefaut || 1.4,
@@ -146,40 +151,60 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       longueurPoteauxSupp: 2500,
       moteur: (defaultModele?.typeModele === "screen" || defaultModele?.typeModele === "volet") ? "Moteur Somfy" : "",
       optionsSuppIds: [],
+      vantaux: defaultModele?.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).vantauxMin : 3,
+      tarifPanneauId: defaultModele?.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).tarifsPanneau[0]?.id : "",
+      couleurCoulissant: "Anthracite RAL 7016",
+      optionsCoulissantIds: [],
     };
   });
 
   const isFirstRender = useRef(true);
   const [calcError, setCalcError] = useState<string | null>(null);
   const [resultat, setResultat] = useState<ResultatCalcul | null>(null);
+  const [resultatCoulissant, setResultatCoulissant] = useState<ResultatCoulissant | null>(null);
 
   const modele = modeles.find((m) => m.id === state.modeleId);
-  const isOrisSolid = modele ? modele.nom.toLowerCase().includes("oris solid") : false;
+  const isOrisSolid = (modele && modele.typeModele !== "coulissant") ? (modele as ModelePergola).nom.toLowerCase().includes("oris solid") : false;
 
-  // Auto-sélection toiture/couleur quand le modèle change
+  // Auto-sélection quand le modèle change
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
     if (modele) {
-      setState((s) => ({
-        ...s,
-        toitureId: modele.toitures[0]?.id || "",
-        couleurId: modele.couleurs[0]?.id || "",
-        coefficient: modele.margeDefaut,
-        moteur: (modele.typeModele === "screen" || modele.typeModele === "volet") ? "Moteur Somfy" : "",
-        optionsSuppIds: [],
-      }));
+      if (modele.typeModele === "coulissant") {
+        const mc = modele as ModeleCoulissant;
+        setState((s) => ({
+          ...s,
+          coefficient: mc.margeDefaut,
+          vantaux: mc.vantauxMin,
+          tarifPanneauId: mc.tarifsPanneau[0]?.id || "",
+          couleurCoulissant: "Anthracite RAL 7016",
+          optionsCoulissantIds: [],
+        }));
+      } else {
+        const mp = modele as ModelePergola;
+        setState((s) => ({
+          ...s,
+          toitureId: mp.toitures[0]?.id || "",
+          couleurId: mp.couleurs[0]?.id || "",
+          coefficient: mp.margeDefaut,
+          moteur: (mp.typeModele === "screen" || mp.typeModele === "volet") ? "Moteur Somfy" : "",
+          optionsSuppIds: [],
+        }));
+      }
     }
   }, [state.modeleId]);
 
-  // Recalcul live dès l'étape 3
+  // Recalcul live pour pergolas/screens
   useEffect(() => {
-    if (step < 3 || !modele || !state.toitureId || !state.couleurId) return;
+    if (step < 3 || !modele || modele.typeModele === "coulissant") return;
+    const mp = modele as ModelePergola;
+    if (!state.toitureId || !state.couleurId) return;
     try {
       const r = calculerPrix(
-        modele,
+        mp,
         state.largeur,
         state.profondeur,
         state.toitureId,
@@ -196,47 +221,93 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     }
   }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp, state.optionsSuppIds, step]);
 
-  // Poteaux calculés en live
-  const poteauxCalc = modele ? calculerPoteaux(modele.reglesPoteau, state.largeur, state.profondeur) : 0;
+  // Recalcul live pour parois coulissantes
+  useEffect(() => {
+    if (!modele || modele.typeModele !== "coulissant") return;
+    const mc = modele as ModeleCoulissant;
+    try {
+      const r = calculerPrixCoulissant(
+        mc,
+        state.vantaux || 3,
+        state.tarifPanneauId || "",
+        state.optionsCoulissantIds || [],
+        state.coefficient
+      );
+      setResultatCoulissant(r);
+    } catch {
+      setResultatCoulissant(null);
+    }
+  }, [modele, state.vantaux, state.tarifPanneauId, state.optionsCoulissantIds, state.coefficient, step]);
+
+  // Poteaux calculés en live (pergolas uniquement)
+  const poteauxCalc = (modele && modele.typeModele !== "coulissant")
+    ? calculerPoteaux((modele as ModelePergola).reglesPoteau, state.largeur, state.profondeur)
+    : 0;
+
   const labels = getLabelsModele(modele?.typeModele);
   const dim2Label = labels.dim2Label;
 
   const canNext = () => {
     if (step === 1) return !!modele;
+    if (modele?.typeModele === "coulissant") {
+      if (step === 2) return !!state.tarifPanneauId;
+      return false;
+    }
     if (step === 2) return !!state.toitureId && !!state.couleurId;
     if (step === 3) return !calcError && !!resultat;
     return false;
   };
 
   const handleApply = () => {
-    if (!modele || !resultat) return;
-    const toiture = modele.toitures.find((t) => t.id === state.toitureId);
-    const couleur = modele.couleurs.find((c) => c.id === state.couleurId);
-    const optsSupp = (state.optionsSuppIds || [])
-      .map((id) => modele.optionsSupp?.find((o) => o.id === id)?.nom)
-      .filter(Boolean) as string[];
+    if (!modele) return;
+    if (modele.typeModele === "coulissant") {
+      if (!resultatCoulissant) return;
+      const mc = modele as ModeleCoulissant;
+      const tarif = mc.tarifsPanneau.find((t) => t.id === state.tarifPanneauId);
+      const opts = mc.options
+        .filter((o) => (state.optionsCoulissantIds || []).includes(o.id))
+        .map((o) => o.nom);
 
-    // Désignation
-    const designation = modele.nom;
+      const designation = `Parois coulissantes ${mc.nom} — ${state.vantaux} vantaux`;
+      const description = genererDescriptionCoulissant(mc, {
+        vantaux: state.vantaux || 3,
+        tarifPanneau: tarif?.label || "—",
+        couleur: state.couleurCoulissant || "—",
+        options: opts,
+      });
 
-    // Description auto depuis template
-    const description = genererDescription(modele.templateDescription, {
-      nom: modele.nom,
-      largeurMm: state.largeur,
-      profondeurMm: state.profondeur,
-      toiture: toiture?.nom || "—",
-      couleur: couleur?.nom || "—",
-      poteaux: resultat.nombrePoteaux,
-      typeDim: modele.typeDim,
-      hauteurPoteauxMm: state.hauteurPoteaux,
-      poteauxSupp: state.poteauxSupp,
-      longueurPoteauxSuppMm: state.longueurPoteauxSupp,
-      sectionPoteaux: modele.sectionPoteaux,
-      moteur: state.moteur,
-      optionsSupp: optsSupp,
-    });
+      onApply({ designation, description, prixVenteHT: resultatCoulissant.prixVenteHT, prixAchatHT: resultatCoulissant.prixAchatTotalHT, image: mc.image }, state);
+    } else {
+      if (!resultat) return;
+      const mp = modele as ModelePergola;
+      const toiture = mp.toitures.find((t) => t.id === state.toitureId);
+      const couleur = mp.couleurs.find((c) => c.id === state.couleurId);
+      const optsSupp = (state.optionsSuppIds || [])
+        .map((id) => mp.optionsSupp?.find((o) => o.id === id)?.nom)
+        .filter(Boolean) as string[];
 
-    onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image }, state);
+      // Désignation
+      const designation = mp.nom;
+
+      // Description auto depuis template
+      const description = genererDescription(mp.templateDescription, {
+        nom: mp.nom,
+        largeurMm: state.largeur,
+        profondeurMm: state.profondeur,
+        toiture: toiture?.nom || "—",
+        couleur: couleur?.nom || "—",
+        poteaux: resultat.nombrePoteaux,
+        typeDim: mp.typeDim,
+        hauteurPoteauxMm: state.hauteurPoteaux,
+        poteauxSupp: state.poteauxSupp,
+        longueurPoteauxSuppMm: state.longueurPoteauxSupp,
+        sectionPoteaux: mp.sectionPoteaux,
+        moteur: state.moteur,
+        optionsSupp: optsSupp,
+      });
+
+      onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: mp.image }, state);
+    }
   };
 
   const STEPS = [
@@ -304,7 +375,11 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                           <div className="text-[11px] text-muted-foreground mt-0.5">
                             {m.nomFournisseur && <span className="font-mono mr-2 text-muted-foreground/60">{m.nomFournisseur}</span>}
                             {m.fournisseurNom && <span>{m.fournisseurNom} · </span>}
-                            <span>{m.grille.largeurs.length}L × {m.grille.profondeurs.length}P · </span>
+                            {m.typeModele === "coulissant" ? (
+                              <span>{(m as ModeleCoulissant).tarifsPanneau.length} tarifs · vantaux {(m as ModeleCoulissant).vantauxMin}-{(m as ModeleCoulissant).vantauxMax} · </span>
+                            ) : (
+                              <span>{(m as ModelePergola).grille.largeurs.length}L × {(m as ModelePergola).grille.profondeurs.length}P · </span>
+                            )}
                             <span className="font-mono">{formatCoef(m.margeDefaut)}</span>
                           </div>
                         </div>
@@ -318,7 +393,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           )}
 
           {/* Étape 2 — Options */}
-          {step===2 && modele && (
+          {step===2 && modele && modele.typeModele !== "coulissant" && (
             <div>
               <h3 className="font-semibold text-[14px] mb-4">Options — <span className="text-accent">{modele.nom}</span></h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -418,7 +493,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           )}
 
           {/* Étape 3 — Dimensions */}
-          {step===3 && modele && (
+          {step===3 && modele && modele.typeModele !== "coulissant" && (
             <div>
               <h3 className="font-semibold text-[14px] mb-4">Dimensions (mm)</h3>
               <div className="grid grid-cols-2 gap-6 mb-4">
@@ -526,7 +601,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           )}
 
           {/* Étape 4 — Prix */}
-          {step===4 && modele && (
+          {step===4 && modele && modele.typeModele !== "coulissant" && (
             <div>
               <h3 className="font-semibold text-[14px] mb-4">Calculateur de prix</h3>
               <div className="mb-4">
@@ -680,6 +755,204 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
               ) : null}
             </div>
           )}
+
+          {/* Étape 2 — Configuration (uniquement pour coulissant) */}
+          {step === 2 && modele && modele.typeModele === "coulissant" && (() => {
+            const mc = modele as ModeleCoulissant;
+            const buttons = [];
+            for (let v = mc.vantauxMin; v <= mc.vantauxMax; v++) {
+              buttons.push(
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setState({ ...state, vantaux: v })}
+                  className={`px-4 py-2 text-sm font-semibold rounded border transition-all ${
+                    state.vantaux === v
+                      ? "bg-accent text-accent-foreground border-accent shadow-sm"
+                      : "border-border text-muted-foreground hover:border-accent/40"
+                  }`}
+                >
+                  {v} vantaux
+                </button>
+              );
+            }
+
+            return (
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                    Nombre de vantaux
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {buttons}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                    Type de verre
+                  </label>
+                  <div className="space-y-2">
+                    {mc.tarifsPanneau.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setState({ ...state, tarifPanneauId: t.id })}
+                        className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
+                          state.tarifPanneauId === t.id
+                            ? "border-accent bg-accent/5 shadow-sm"
+                            : "border-border hover:border-accent/40 hover:bg-muted/30"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-semibold text-sm">{t.label}</span>
+                          <span className="font-mono text-accent text-xs font-bold">{t.prixHT} € / panneau</span>
+                        </div>
+                        {t.description && (
+                          <p className="text-xs text-muted-foreground leading-relaxed">{t.description}</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                      Couleur structure
+                    </label>
+                    <input
+                      type="text"
+                      value={state.couleurCoulissant || ""}
+                      onChange={(e) => setState({ ...state, couleurCoulissant: e.target.value })}
+                      placeholder="ex: Anthracite RAL 7016, Blanc RAL 9016..."
+                      className="form-input w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                      Options
+                    </label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {mc.options.map((opt) => {
+                        const selected = (state.optionsCoulissantIds || []).includes(opt.id);
+                        return (
+                          <label
+                            key={opt.id}
+                            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all text-sm ${
+                              selected
+                                ? "border-accent bg-accent/5 font-medium text-accent"
+                                : "border-border hover:border-accent/40"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) => {
+                                  const current = state.optionsCoulissantIds || [];
+                                  const next = e.target.checked
+                                    ? [...current, opt.id]
+                                    : current.filter((id) => id !== opt.id);
+                                  setState({ ...state, optionsCoulissantIds: next });
+                                }}
+                                className="rounded border-gray-300 text-accent focus:ring-accent"
+                              />
+                              <span>{opt.nom}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground font-mono font-bold">
+                              {opt.surchargeHT > 0 && `+${formatEUR(opt.surchargeHT)}`}
+                              {opt.surchargePct > 0 && `+${opt.surchargePct}%`}
+                              {opt.surchargeHT === 0 && opt.surchargePct === 0 && "inclus"}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Étape 3 — Prix (uniquement pour coulissant) */}
+          {step === 3 && modele && modele.typeModele === "coulissant" && resultatCoulissant && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold text-[14px] mb-4">Détail du chiffrage</h3>
+                <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2.5 text-[13px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Panneaux (Base d'achat)</span>
+                    <span className="font-mono">
+                      {state.vantaux} × {resultatCoulissant.prixPanneau}€ = <span className="font-semibold">{formatEUR(resultatCoulissant.prixAchatBaseHT)}</span>
+                    </span>
+                  </div>
+                  {resultatCoulissant.surchargesHT > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Surcharges options</span>
+                      <span className="font-mono text-[hsl(40_80%_45%)] font-semibold">+{formatEUR(resultatCoulissant.surchargesHT)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-border pt-2 font-medium">
+                    <span className="text-muted-foreground">Prix achat total HT</span>
+                    <span className="font-mono font-semibold">{formatEUR(resultatCoulissant.prixAchatTotalHT)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Marge appliquée</span>
+                    <span className="font-mono">{formatCoef(resultatCoulissant.coefficient)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="form-label">Coefficient de marge — {formatCoef(state.coefficient)}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.05}
+                    value={state.coefficient}
+                    onChange={(e) => setState({ ...state, coefficient: parseFloat(e.target.value) || 1.0 })}
+                    className="form-input w-40 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-between">
+                <div>
+                  <h3 className="font-semibold text-[14px] mb-4">Prix de vente final</h3>
+                  <div className="bg-accent/10 border border-accent/30 rounded-lg px-5 py-4 flex flex-col items-center justify-center text-center">
+                    <span className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Prix de vente HT conseillé</span>
+                    <span className="font-display text-3xl font-bold text-accent font-mono">{formatEUR(resultatCoulissant.prixVenteHT)}</span>
+                    <span className="text-[10px] text-muted-foreground mt-1.5 italic">
+                      (achat : {formatEUR(resultatCoulissant.prixAchatTotalHT)} × marge {state.coefficient.toFixed(2)})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Preview de la désignation et de la description */}
+                <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
+                  <div className="font-semibold text-foreground text-[12px] mb-1">
+                    Parois coulissantes {modele.nom} — {state.vantaux} vantaux
+                  </div>
+                  <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
+                    {(() => {
+                      const mc = modele as ModeleCoulissant;
+                      const tarif = mc.tarifsPanneau.find(t => t.id === state.tarifPanneauId);
+                      const opts = mc.options
+                        .filter(o => (state.optionsCoulissantIds || []).includes(o.id))
+                        .map(o => o.nom);
+                      return genererDescriptionCoulissant(mc, {
+                        vantaux: state.vantaux || 3,
+                        tarifPanneau: tarif?.label || "—",
+                        couleur: state.couleurCoulissant || "—",
+                        options: opts,
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -687,13 +960,13 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           <button onClick={()=>step>1?setStep((step-1) as WizardStep):onClose()} className="btn-ghost border border-border flex items-center gap-1.5 text-[13px]">
             <ArrowLeft size={14}/> {step===1?"Annuler":"Retour"}
           </button>
-          {step<4 ? (
+          {step < (modele?.typeModele === "coulissant" ? 3 : 4) ? (
             <button onClick={()=>setStep((step+1) as WizardStep)} disabled={!canNext()}
               className="btn-gold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
               Suivant <ArrowRight size={14}/>
             </button>
           ) : (
-            <button onClick={handleApply} disabled={!resultat||!!calcError}
+            <button onClick={handleApply} disabled={modele?.typeModele === "coulissant" ? !resultatCoulissant : (!resultat||!!calcError)}
               className="btn-gold flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
               <CheckCircle2 size={15}/> Appliquer au devis
             </button>
