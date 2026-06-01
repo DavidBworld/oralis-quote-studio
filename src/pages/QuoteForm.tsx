@@ -250,7 +250,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card border border-border rounded-xl shadow-elevated w-full max-w-2xl">
+      <div className="bg-card border border-border rounded-xl shadow-elevated w-full max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -283,7 +283,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         </div>
 
         {/* Corps */}
-        <div className="px-6 py-5 min-h-[260px]">
+        <div className="px-6 py-5 min-h-[260px] flex-1 overflow-y-auto">
 
           {/* Étape 1 — Choix du modèle */}
           {step===1 && (
