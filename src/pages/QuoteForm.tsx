@@ -106,23 +106,43 @@ interface WizardState {
   longueurPoteauxSupp: number;
 }
 
-function ConfigurateurWizard({ onApply, onClose }: {
-  onApply: (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string }) => void;
+function ConfigurateurWizard({ initialState, onApply, onClose }: {
+  initialState?: WizardState;
+  onApply: (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string }, state: WizardState) => void;
   onClose: () => void;
 }) {
   const modeles = loadModeles();
-  const [step, setStep] = useState<WizardStep>(1);
-  const [state, setState] = useState<WizardState>({
-    modeleId: modeles[0]?.id || "",
-    toitureId: "",
-    couleurId: "",
-    largeur: 4000,
-    profondeur: 3000,
-    coefficient: modeles[0]?.margeDefaut || 1.4,
-    hauteurPoteaux: 2500,
-    poteauxSupp: 0,
-    longueurPoteauxSupp: 2500,
+  const [step, setStep] = useState<WizardStep>(initialState ? 4 : 1);
+  
+  const [state, setState] = useState<WizardState>(() => {
+    if (initialState) {
+      const modelExists = modeles.some((m) => m.id === initialState.modeleId);
+      if (modelExists) {
+        return {
+          ...initialState,
+          largeur: initialState.largeur || 4000,
+          profondeur: initialState.profondeur || 3000,
+          hauteurPoteaux: initialState.hauteurPoteaux || 2500,
+          poteauxSupp: initialState.poteauxSupp || 0,
+          longueurPoteauxSupp: initialState.longueurPoteauxSupp || 2500,
+        };
+      }
+    }
+    const defaultModele = modeles[0];
+    return {
+      modeleId: defaultModele?.id || "",
+      toitureId: defaultModele?.toitures[0]?.id || "",
+      couleurId: defaultModele?.couleurs[0]?.id || "",
+      largeur: 4000,
+      profondeur: 3000,
+      coefficient: defaultModele?.margeDefaut || 1.4,
+      hauteurPoteaux: 2500,
+      poteauxSupp: 0,
+      longueurPoteauxSupp: 2500,
+    };
   });
+
+  const isFirstRender = useRef(true);
   const [calcError, setCalcError] = useState<string | null>(null);
   const [resultat, setResultat] = useState<ResultatCalcul | null>(null);
 
@@ -131,6 +151,10 @@ function ConfigurateurWizard({ onApply, onClose }: {
 
   // Auto-sélection toiture/couleur quand le modèle change
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (modele) {
       setState((s) => ({
         ...s,
@@ -198,7 +222,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
       sectionPoteaux: modele.sectionPoteaux,
     });
 
-    onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image });
+    onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: modele.image }, state);
   };
 
   const STEPS = [
@@ -594,7 +618,10 @@ function QuoteLineRow({
 }) {
   const [showWizard, setShowWizard] = useState(false);
 
-  const handleWizardApply = (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string }) => {
+  const handleWizardApply = (
+    data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string },
+    wizardState: any
+  ) => {
     onUpdate({
       designation: data.designation,
       description: data.description,
@@ -602,7 +629,8 @@ function QuoteLineRow({
       prixOriginalHT: data.prixVenteHT,
       prixAchatHT: data.prixAchatHT,
       categorie: "Pergola bioclimatique",
-      image: data.image
+      image: data.image,
+      configuratorState: wizardState
     });
     setShowWizard(false);
   };
@@ -811,7 +839,7 @@ function QuoteLineRow({
         </button>
       </div>
 
-      {showWizard && <ConfigurateurWizard onApply={handleWizardApply} onClose={()=>setShowWizard(false)}/>}
+      {showWizard && <ConfigurateurWizard initialState={line.configuratorState} onApply={handleWizardApply} onClose={()=>setShowWizard(false)}/>}
     </>
   );
 }

@@ -19,6 +19,7 @@ export interface QuoteLine {
   categorie?: string;
   prixOriginalHT?: number;
   unite?: string;
+  configuratorState?: any;
 }
 
 export interface QuoteClient {
