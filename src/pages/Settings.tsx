@@ -41,7 +41,80 @@ export default function Settings() {
     { key: "entreprise" as const, label: "Entreprise" },
     { key: "tarifs" as const, label: "Tarifs" },
     { key: "bibliotheque" as const, label: "Bibliothèque" },
+    { key: "sauvegarde" as const, label: "Sauvegarde & Restauration" },
   ];
+
+  const handleExportData = () => {
+    const keys = [
+      "oralis_quotes",
+      "oralis_clients",
+      "oralis_settings",
+      "oralis_fournisseurs",
+      "oralis_modeles_pergola",
+      "oralis_commandes",
+      "oralis_factures",
+      "oralis_devis_favoris"
+    ];
+    const data: Record<string, any> = {};
+    keys.forEach((k) => {
+      const val = localStorage.getItem(k);
+      data[k] = val ? JSON.parse(val) : null;
+    });
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+    const downloadAnchor = document.createElement("a");
+    downloadAnchor.setAttribute("href", dataStr);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    downloadAnchor.setAttribute("download", `oralis_sauvegarde_${dateStr}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    toast.success("Sauvegarde téléchargée avec succès");
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        const keys = [
+          "oralis_quotes",
+          "oralis_clients",
+          "oralis_settings",
+          "oralis_fournisseurs",
+          "oralis_modeles_pergola",
+          "oralis_commandes",
+          "oralis_factures",
+          "oralis_devis_favoris"
+        ];
+        const hasKeys = keys.some((k) => parsed.hasOwnProperty(k));
+        if (!hasKeys) {
+          toast.error("Le fichier sélectionné ne semble pas être une sauvegarde ORALIS valide.");
+          return;
+        }
+
+        setConfirmDelete({
+          isOpen: true,
+          message: "Attention : cette action va écraser TOUTES vos données actuelles (devis, clients, modèles, configurations, etc.) avec celles du fichier de sauvegarde. Cette action est irréversible. Voulez-vous continuer ?",
+          onConfirm: () => {
+            keys.forEach((k) => {
+              if (parsed[k] !== undefined && parsed[k] !== null) {
+                localStorage.setItem(k, JSON.stringify(parsed[k]));
+              }
+            });
+            toast.success("Restauration réussie ! Rechargement de la page...");
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          },
+        });
+      } catch (err) {
+        toast.error("Format de fichier invalide.");
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
@@ -88,13 +161,21 @@ export default function Settings() {
           setConfirmDelete={setConfirmDelete}
         />
       )}
+      {activeTab === "sauvegarde" && (
+        <SauvegardeTab
+          handleExport={handleExportData}
+          handleImport={handleImportData}
+        />
+      )}
 
       {/* Save */}
-      <div className="mt-8">
-        <button onClick={handleSave} className="btn-gold">
-          Enregistrer les paramètres
-        </button>
-      </div>
+      {activeTab !== "sauvegarde" && (
+        <div className="mt-8">
+          <button onClick={handleSave} className="btn-gold">
+            Enregistrer les paramètres
+          </button>
+        </div>
+      )}
       <ConfirmModal
         isOpen={confirmDelete.isOpen}
         message={confirmDelete.message}
@@ -959,6 +1040,82 @@ function BibliothequeTab({
           )
         )}
       </section>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// TAB 4 — SAUVEGARDE & RESTAURATION
+// ══════════════════════════════════════════════
+
+function SauvegardeTab({
+  handleExport,
+  handleImport,
+}: {
+  handleExport: () => void;
+  handleImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+        <h3 className="font-semibold text-lg mb-2 text-foreground">Sauvegarde & Restauration des données</h3>
+        <p className="text-sm text-muted-foreground mb-6 leading-relaxed font-body">
+          L'application ORALIS fonctionne localement dans votre navigateur web. Pour transférer vos données 
+          (devis, clients, factures, grilles de tarifs et modèles de pergolas) vers un autre ordinateur ou une autre session, 
+          vous pouvez exporter un fichier de sauvegarde, puis l'importer sur votre nouvel appareil.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-border">
+          {/* Section Exporter */}
+          <div className="space-y-3 flex flex-col justify-between">
+            <div>
+              <h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-accent/15 text-accent flex items-center justify-center text-xs font-mono font-bold">1</span>
+                Exporter vos données
+              </h4>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed font-body">
+                Générez et téléchargez un fichier de sauvegarde contenant l'ensemble de votre travail actuel. 
+                Conservez précieusement ce fichier pour pouvoir le restaurer.
+              </p>
+            </div>
+            <div className="pt-4">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-accent-foreground font-semibold text-[13px] rounded transition-colors"
+              >
+                <Download size={14} /> Exporter la sauvegarde
+              </button>
+            </div>
+          </div>
+
+          {/* Section Importer */}
+          <div className="space-y-3 border-t md:border-t-0 md:border-l border-border pt-6 md:pt-0 md:pl-6 flex flex-col justify-between">
+            <div>
+              <h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-destructive/15 text-destructive flex items-center justify-center text-xs font-mono font-bold">2</span>
+                Importer une sauvegarde
+              </h4>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed font-body">
+                Sélectionnez un fichier de sauvegarde précédemment exporté pour restaurer l'intégralité de vos données. 
+                <span className="text-destructive font-semibold"> Attention : cette action écrasera irréversiblement toutes vos données actuelles.</span>
+              </p>
+            </div>
+            <div className="pt-4">
+              <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-muted hover:bg-muted-hover border border-border text-foreground font-semibold text-[13px] rounded cursor-pointer transition-colors">
+                <Upload size={14} />
+                <span>Choisir un fichier de sauvegarde</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImport}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
