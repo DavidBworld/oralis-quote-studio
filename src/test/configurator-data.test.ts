@@ -20,17 +20,33 @@ describe("calculerPoteaux", () => {
     { largeurMinMm: 6001, largeurMaxMm: 10000, nombrePoteaux: 4 },
   ];
 
-  it("should match rules within range", () => {
-    expect(calculerPoteaux(regles, 3000)).toBe(2);
-    expect(calculerPoteaux(regles, 4000)).toBe(2);
-    expect(calculerPoteaux(regles, 4001)).toBe(3);
-    expect(calculerPoteaux(regles, 5500)).toBe(3);
-    expect(calculerPoteaux(regles, 6000)).toBe(3);
-    expect(calculerPoteaux(regles, 8000)).toBe(4);
+  it("should match rules within range without depth", () => {
+    expect(calculerPoteaux(regles, 3000, 2000)).toBe(2);
+    expect(calculerPoteaux(regles, 4000, 4000)).toBe(2);
+    expect(calculerPoteaux(regles, 4001, 3500)).toBe(3);
+    expect(calculerPoteaux(regles, 5500, 5000)).toBe(3);
+    expect(calculerPoteaux(regles, 6000, 1000)).toBe(3);
+    expect(calculerPoteaux(regles, 8000, 3000)).toBe(4);
   });
 
   it("should return 2 by default if no rule matches", () => {
-    expect(calculerPoteaux(regles, 12000)).toBe(2);
+    expect(calculerPoteaux(regles, 12000, 2000)).toBe(2);
+  });
+
+  it("should handle optional depth range constraints correctly", () => {
+    const reglesAvecProfondeur = [
+      // Si largeur 0-6000 et profondeur 0-3000 -> 2 poteaux
+      { largeurMinMm: 0, largeurMaxMm: 6000, profondeurMinMm: 0, profondeurMaxMm: 3000, nombrePoteaux: 2 },
+      // Si largeur 0-6000 et profondeur 3001-6000 -> 4 poteaux
+      { largeurMinMm: 0, largeurMaxMm: 6000, profondeurMinMm: 3001, profondeurMaxMm: 6000, nombrePoteaux: 4 },
+      // Règle générale largeur 6001-10000 (sans contrainte profondeur) -> 6 poteaux
+      { largeurMinMm: 6001, largeurMaxMm: 10000, nombrePoteaux: 6 },
+    ];
+
+    expect(calculerPoteaux(reglesAvecProfondeur, 4000, 2500)).toBe(2);
+    expect(calculerPoteaux(reglesAvecProfondeur, 4000, 4000)).toBe(4);
+    expect(calculerPoteaux(reglesAvecProfondeur, 8000, 2000)).toBe(6);
+    expect(calculerPoteaux(reglesAvecProfondeur, 8000, 5000)).toBe(6);
   });
 });
 

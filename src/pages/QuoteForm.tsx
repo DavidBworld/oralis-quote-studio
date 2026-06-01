@@ -163,7 +163,7 @@ function ConfigurateurWizard({ onApply, onClose }: {
   }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp, step]);
 
   // Poteaux calculés en live
-  const poteauxCalc = modele ? calculerPoteaux(modele.reglesPoteau, state.largeur) : 0;
+  const poteauxCalc = modele ? calculerPoteaux(modele.reglesPoteau, state.largeur, state.profondeur) : 0;
   const dim2Label = modele?.typeDim === "largeur_hauteur" ? "Hauteur" : "Profondeur";
 
   const canNext = () => {

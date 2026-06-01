@@ -22,10 +22,12 @@ export interface OptionConfigurable {
   modeCalcul?: "forfait" | "ml" | "m2";
 }
 
-/** Règle de calcul automatique du nombre de poteaux selon largeur */
+/** Règle de calcul automatique du nombre de poteaux selon largeur & profondeur */
 export interface ReglePoteau {
   largeurMinMm: number;
   largeurMaxMm: number;
+  profondeurMinMm?: number;
+  profondeurMaxMm?: number;
   nombrePoteaux: number;
 }
 
@@ -186,12 +188,20 @@ export function blankModele(): ModelePergola {
 // ── Calcul poteaux ────────────────────────────────────────────────────────────
 
 /**
- * Calcule le nombre de poteaux en fonction de la largeur et des règles définies.
+ * Calcule le nombre de poteaux en fonction de la largeur, de la profondeur et des règles définies.
  * Retourne 2 par défaut si aucune règle ne correspond.
  */
-export function calculerPoteaux(regles: ReglePoteau[], largeurMm: number): number {
+export function calculerPoteaux(
+  regles: ReglePoteau[],
+  largeurMm: number,
+  profondeurMm: number = 0
+): number {
   const regle = regles.find(
-    (r) => largeurMm >= r.largeurMinMm && largeurMm <= r.largeurMaxMm
+    (r) =>
+      largeurMm >= r.largeurMinMm &&
+      largeurMm <= r.largeurMaxMm &&
+      (r.profondeurMinMm === undefined || profondeurMm >= r.profondeurMinMm) &&
+      (r.profondeurMaxMm === undefined || profondeurMm <= r.profondeurMaxMm)
   );
   return regle?.nombrePoteaux ?? 2;
 }
@@ -254,7 +264,7 @@ export function calculerPrix(
 
   const surchargeToitureHT = calcOptionSurcharge(toiture);
   const surchargeCouleurHT = calcOptionSurcharge(couleur);
-  const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur);
+  const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur, profondeur);
 
   // Calcule automatique surcharge poteaux (section/tarif configurable, achat par ml)
   // S'applique UNIQUEMENT aux poteaux supplémentaires avec leur propre longueur configurée

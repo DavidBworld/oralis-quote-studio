@@ -768,9 +768,33 @@ function ReglesPoteauxEditor({
       },
     ]);
   };
-  const update = (i: number, patch: Partial<ReglePoteau>) =>
-    onChange(regles.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  const update = (i: number, patch: Partial<ReglePoteau>) => {
+    const updated = regles.map((r, idx) => {
+      if (idx !== i) return r;
+      const copy = { ...r, ...patch };
+      if (patch.profondeurMinMm === undefined && patch.hasOwnProperty("profondeurMinMm")) {
+        delete copy.profondeurMinMm;
+      }
+      if (patch.profondeurMaxMm === undefined && patch.hasOwnProperty("profondeurMaxMm")) {
+        delete copy.profondeurMaxMm;
+      }
+      return copy;
+    });
+    onChange(updated);
+  };
+
   const remove = (i: number) => onChange(regles.filter((_, idx) => idx !== i));
+
+  const move = (i: number, direction: number) => {
+    const target = i + direction;
+    if (target < 0 || target >= regles.length) return;
+    const copy = [...regles];
+    const temp = copy[i];
+    copy[i] = copy[target];
+    copy[target] = temp;
+    onChange(copy);
+  };
 
   return (
     <div className="space-y-6">
@@ -821,7 +845,7 @@ function ReglesPoteauxEditor({
               Règles poteaux (pour le calcul automatique du nombre de poteaux)
             </label>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Le nombre de poteaux est calculé automatiquement selon la largeur saisie.
+              Le nombre de poteaux est calculé automatiquement selon la largeur (et optionnellement la profondeur) saisie.
             </p>
           </div>
           <button
@@ -838,15 +862,38 @@ function ReglesPoteauxEditor({
         )}
         <div className="space-y-2">
           {regles.map((r, i) => (
-            <div key={i} className="flex items-center gap-2 bg-card border border-border rounded p-2 text-[12px]">
-              <span className="text-muted-foreground w-20 shrink-0 text-[11px]">Largeur de</span>
+            <div key={i} className="flex flex-wrap items-center gap-2 bg-card border border-border rounded p-2 text-[12px]">
+              {/* Boutons de déplacement */}
+              <div className="flex flex-col -space-y-1">
+                <button
+                  type="button"
+                  disabled={i === 0}
+                  onClick={() => move(i, -1)}
+                  className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-muted-foreground"
+                  title="Monter la règle"
+                >
+                  <ChevronUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  disabled={i === regles.length - 1}
+                  onClick={() => move(i, 1)}
+                  className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-muted-foreground"
+                  title="Descendre la règle"
+                >
+                  <ChevronDown size={14} />
+                </button>
+              </div>
+
+              {/* Largeur */}
+              <span className="text-muted-foreground text-[11px] shrink-0">Largeur de</span>
               <input
                 type="number"
                 min={0}
                 step={10}
                 value={r.largeurMinMm}
                 onChange={(e) => update(i, { largeurMinMm: parseInt(e.target.value) || 0 })}
-                className="form-input !h-7 !text-[12px] w-24 text-right font-mono"
+                className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
                 title="Largeur min (mm)"
               />
               <span className="text-muted-foreground text-[11px] shrink-0">mm à</span>
@@ -856,24 +903,74 @@ function ReglesPoteauxEditor({
                 step={10}
                 value={r.largeurMaxMm}
                 onChange={(e) => update(i, { largeurMaxMm: parseInt(e.target.value) || 0 })}
-                className="form-input !h-7 !text-[12px] w-24 text-right font-mono"
+                className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
                 title="Largeur max (mm)"
               />
-              <span className="text-muted-foreground text-[11px] shrink-0">mm →</span>
+              <span className="text-muted-foreground text-[11px] shrink-0">mm</span>
+
+              {/* Contrainte de profondeur optionnelle */}
+              {r.profondeurMinMm !== undefined || r.profondeurMaxMm !== undefined ? (
+                <div className="flex items-center gap-1 bg-accent/5 border border-accent/20 rounded px-1.5 py-0.5">
+                  <span className="text-muted-foreground text-[11px] shrink-0">Prof. de</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={10}
+                    value={r.profondeurMinMm ?? 0}
+                    onChange={(e) => update(i, { profondeurMinMm: parseInt(e.target.value) || 0 })}
+                    className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
+                    title="Profondeur min (mm)"
+                  />
+                  <span className="text-muted-foreground text-[11px] shrink-0">à</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={10}
+                    value={r.profondeurMaxMm ?? 99999}
+                    onChange={(e) => update(i, { profondeurMaxMm: parseInt(e.target.value) || 0 })}
+                    className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
+                    title="Profondeur max (mm)"
+                  />
+                  <span className="text-muted-foreground text-[11px] shrink-0">mm</span>
+                  <button
+                    type="button"
+                    onClick={() => update(i, { profondeurMinMm: undefined, profondeurMaxMm: undefined })}
+                    className="p-1 rounded hover:bg-destructive/10 text-destructive/70 transition-colors ml-0.5"
+                    title="Supprimer la contrainte de profondeur"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => update(i, { profondeurMinMm: 0, profondeurMaxMm: 4000 })}
+                  className="text-[10px] bg-accent/10 hover:bg-accent/20 text-accent font-medium px-2 py-1 rounded transition-colors ml-1"
+                  title="Ajouter une contrainte sur la profondeur"
+                >
+                  + Profondeur
+                </button>
+              )}
+
+              {/* Rendu final */}
+              <span className="text-muted-foreground text-[11px] shrink-0 ml-auto mr-1">→</span>
               <input
                 type="number"
                 min={1}
                 max={20}
                 value={r.nombrePoteaux}
                 onChange={(e) => update(i, { nombrePoteaux: parseInt(e.target.value) || 2 })}
-                className="form-input !h-7 !text-[12px] w-16 text-center font-mono font-bold"
+                className="form-input !h-7 !text-[12px] w-12 text-center font-mono font-bold"
                 title="Nombre de poteaux"
               />
               <span className="text-muted-foreground text-[11px] shrink-0">poteau{r.nombrePoteaux > 1 ? "x" : ""}</span>
+              
               {regles.length > 1 && (
                 <button
+                  type="button"
                   onClick={() => remove(i)}
-                  className="p-1 rounded hover:bg-destructive/10 transition-colors ml-auto"
+                  className="p-1 rounded hover:bg-destructive/10 transition-colors ml-1"
+                  title="Supprimer la règle"
                 >
                   <X size={12} className="text-destructive/70" />
                 </button>
