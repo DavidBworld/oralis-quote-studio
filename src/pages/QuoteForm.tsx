@@ -133,7 +133,14 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   onClose: () => void;
 }) {
   const modeles = loadModeles();
-  const [step, setStep] = useState<WizardStep>(initialState ? 4 : 1);
+  const [step, setStep] = useState<WizardStep>(() => {
+    if (!initialState) return 1;
+    const found = modeles.find((m) => m.id === initialState.modeleId);
+    if (found?.typeModele === "coulissant" || found?.typeModele === "paroi_fixe" || found?.typeModele === "paroi_avec_grille") {
+      return 3;
+    }
+    return 4;
+  });
   
   const [state, setState] = useState<WizardState>(() => {
     if (initialState) {
@@ -483,7 +490,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     }
   };
 
-  const STEPS = (modele?.typeModele === "coulissant" || modele?.typeModele === "paroi_fixe")
+  const STEPS = (modele?.typeModele === "coulissant" || modele?.typeModele === "paroi_fixe" || modele?.typeModele === "paroi_avec_grille")
     ? [
         { n: 1 as WizardStep, label: "Modèle" },
         { n: 2 as WizardStep, label: "Configuration" },
