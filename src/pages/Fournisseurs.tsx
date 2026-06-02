@@ -1035,7 +1035,7 @@ function TemplateEditor({ value, onChange }: { value: string; onChange: (v: stri
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="form-input w-full !h-36 resize-none font-mono !text-[11px] leading-relaxed"
+        className="form-input w-full !h-36 min-h-[144px] resize-y font-mono !text-[11px] leading-relaxed"
         placeholder="Ex: {{nom}} sur mesure&#10;Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})&#10;Couverture : {{toiture}}&#10;Couleur : {{couleur}}"
       />
 
@@ -1604,8 +1604,7 @@ function ModeleCoulissantEditorModal({
                 <textarea
                   value={draft.templateDescription}
                   onChange={(e) => setDraft({ ...draft, templateDescription: e.target.value })}
-                  className="form-input w-full font-mono text-[12px] leading-relaxed resize-none"
-                  rows={8}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed !h-36 min-h-[144px] resize-y"
                   placeholder="Gabarit de description du produit..."
                 />
               </div>
