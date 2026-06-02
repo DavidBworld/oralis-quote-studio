@@ -199,6 +199,23 @@ describe("Paroi avec Grille Model tests", () => {
       expect(result.prixAchatTotalHT).toBe(710); // 600 + 110
       expect(result.prixVenteHT).toBe(1065); // 710 * 1.5
     });
+
+    it("should fallback to the next larger width with price > 0 if price is 0", () => {
+      const typeAlu = model.typesParoi[0];
+      typeAlu.largeurs = [1000, 1500, 2000, 2500, 3000, 3500, 4000, 5000];
+      typeAlu.prixAchatHT = [0, 0, 0, 352, 420, 488, 557, 693];
+
+      const state = {
+        typeParoiId: typeAlu.id,
+        largeurMm: 1200, // closest is 1500 (price 0) -> fallback to 2500 (price 352)
+        couleurId: model.couleurs[0].id,
+      };
+
+      const result = calculerPrixParoiGrille(model, state, 1.5);
+      expect(result.prixAchatBaseHT).toBe(352);
+      expect(result.largeurGrille).toBe(2500);
+      expect(result.prixVenteHT).toBe(528); // 352 * 1.5
+    });
   });
 
   describe("genererDescriptionParoiGrille", () => {

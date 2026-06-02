@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-  Plus, Search, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp,
+  Plus, Search, Pencil, Trash2, ChevronDown, ChevronRight, ChevronUp, ChevronLeft,
   Truck, Save, Grid3X3, ClipboardPaste, AlertCircle, CheckCircle2, X,
   Camera, Upload, Copy,
 } from "lucide-react";
@@ -1972,6 +1972,22 @@ function ModeleParoiGrilleEditorModal({
     setDraft({ ...draft, typesParoi: newTypes });
   };
 
+  const moveColumn = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= curLargeurs.length) return;
+    const newTypes = draft.typesParoi.map((tp) => {
+      const newLargeurs = [...tp.largeurs];
+      const newPrix = [...tp.prixAchatHT];
+      const tempL = newLargeurs[fromIdx];
+      newLargeurs[fromIdx] = newLargeurs[toIdx];
+      newLargeurs[toIdx] = tempL;
+      const tempP = newPrix[fromIdx];
+      newPrix[fromIdx] = newPrix[toIdx];
+      newPrix[toIdx] = tempP;
+      return { ...tp, largeurs: newLargeurs, prixAchatHT: newPrix };
+    });
+    setDraft({ ...draft, typesParoi: newTypes });
+  };
+
   const TABS = [
     { key: "tarifs" as const, label: "Grille de tarifs" },
     { key: "couleurs" as const, label: "Couleurs" },
@@ -2129,10 +2145,21 @@ function ModeleParoiGrilleEditorModal({
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-muted/40 border-b border-border">
-                      <th className="p-3 font-semibold text-muted-foreground w-1/3">Type de paroi</th>
+                      <th className="p-3 font-semibold text-muted-foreground min-w-[280px]">Type de paroi</th>
                       {curLargeurs.map((l, ci) => (
-                        <th key={ci} className="p-3 font-semibold text-muted-foreground text-center font-mono min-w-[110px]">
-                          <div className="flex items-center justify-center gap-1.5">
+                        <th key={ci} className="p-3 font-semibold text-muted-foreground text-center font-mono min-w-[135px]">
+                          <div className="flex items-center justify-center gap-1">
+                            {/* Bouton Déplacer à Gauche */}
+                            {ci > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => moveColumn(ci, ci - 1)}
+                                className="text-muted-foreground hover:text-accent p-0.5"
+                                title="Déplacer vers la gauche"
+                              >
+                                <ChevronLeft size={13} />
+                              </button>
+                            )}
                             <input
                               type="number"
                               min={10}
@@ -2141,15 +2168,26 @@ function ModeleParoiGrilleEditorModal({
                                 const valCm = parseInt(e.target.value) || 0;
                                 updateLargeur(ci, valCm * 10);
                               }}
-                              className="w-16 bg-transparent text-center font-mono font-semibold border-b border-dashed border-border focus:outline-none focus:border-accent text-xs"
+                              className="w-12 bg-transparent text-center font-mono font-semibold border-b border-dashed border-border focus:outline-none focus:border-accent text-xs"
                               title="Modifier la largeur en cm"
                             />
                             <span className="text-[10px] text-muted-foreground font-normal">cm</span>
+                            {/* Bouton Déplacer à Droite */}
+                            {ci < curLargeurs.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => moveColumn(ci, ci + 1)}
+                                className="text-muted-foreground hover:text-accent p-0.5"
+                                title="Déplacer vers la droite"
+                              >
+                                <ChevronRight size={13} />
+                              </button>
+                            )}
                             {curLargeurs.length > 1 && (
                               <button
                                 type="button"
                                 onClick={() => removeLargeur(ci)}
-                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                className="text-muted-foreground hover:text-destructive transition-colors ml-1"
                                 title="Supprimer cette largeur"
                               >
                                 <X size={12} />
@@ -2175,7 +2213,7 @@ function ModeleParoiGrilleEditorModal({
                   <tbody className="divide-y divide-border">
                     {draft.typesParoi.map((tp, idx) => (
                       <tr key={tp.id} className="hover:bg-muted/10">
-                        <td className="p-2.5">
+                        <td className="p-2.5 min-w-[280px]">
                           <input
                             type="text"
                             value={tp.nom}

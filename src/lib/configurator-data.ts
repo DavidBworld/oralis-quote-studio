@@ -1028,29 +1028,40 @@ export function calculerPrixParoiGrille(
   const typeParoi = modele.typesParoi.find((t) => t.id === state.typeParoiId);
   if (!typeParoi) throw new Error("Type de paroi introuvable");
 
-  // Arrondi supérieur sur la largeur
-  const matchingIndices = typeParoi.largeurs
-    .map((w, idx) => ({ w, idx }))
-    .filter((item) => item.w >= state.largeurMm);
+  // 1. Regrouper les largeurs avec leurs index et prix correspondants
+  const items = typeParoi.largeurs.map((w, idx) => ({
+    w,
+    idx,
+    price: typeParoi.prixAchatHT[idx] ?? 0,
+  }));
+
+  // 2. Filtrer pour ne garder que les largeurs >= largeur ciblée ET avec un tarif > 0
+  const validLarger = items
+    .filter((item) => item.w >= state.largeurMm && item.price > 0)
+    .sort((a, b) => a.w - b.w);
 
   let selectedIndex = -1;
   let largeurGrille = 0;
-  if (matchingIndices.length > 0) {
-    matchingIndices.sort((a, b) => a.w - b.w);
-    selectedIndex = matchingIndices[0].idx;
-    largeurGrille = matchingIndices[0].w;
+
+  if (validLarger.length > 0) {
+    // Sélectionner la dimension supérieure la plus proche ayant un tarif > 0
+    selectedIndex = validLarger[0].idx;
+    largeurGrille = validLarger[0].w;
   } else {
-    // Fallback à la largeur max si pas trouvée supérieure
-    let maxIdx = 0;
-    let maxW = typeParoi.largeurs[0] || 0;
-    for (let i = 1; i < typeParoi.largeurs.length; i++) {
-      if (typeParoi.largeurs[i] > maxW) {
-        maxW = typeParoi.largeurs[i];
-        maxIdx = i;
-      }
+    // Si aucune dimension supérieure n'a un tarif > 0, on cherche la plus grande dimension avec un tarif > 0
+    const anyWithPrice = items
+      .filter((item) => item.price > 0)
+      .sort((a, b) => b.w - a.w); // Tri décroissant pour avoir la plus grande largeur
+
+    if (anyWithPrice.length > 0) {
+      selectedIndex = anyWithPrice[0].idx;
+      largeurGrille = anyWithPrice[0].w;
+    } else {
+      // Repli absolu si tous les tarifs sont à 0 ou non renseignés
+      const sortedAll = [...items].sort((a, b) => b.w - a.w);
+      selectedIndex = sortedAll[0]?.idx ?? 0;
+      largeurGrille = sortedAll[0]?.w ?? 0;
     }
-    selectedIndex = maxIdx;
-    largeurGrille = maxW;
   }
 
   const prixAchatBaseHT = typeParoi.prixAchatHT[selectedIndex] || 0;
