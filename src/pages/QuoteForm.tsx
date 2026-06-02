@@ -125,6 +125,11 @@ interface WizardState {
   largeurParoi?: number;
   hauteurParoi?: number;
   prixAchatBaseHT?: number;
+
+  // MB Prime & Pergolas orientation / pose options
+  couleurLamesId?: string;
+  typePose?: string;
+  lamesOrientation?: "parallèles" | "perpendiculaires";
 }
 
 function ConfigurateurWizard({ initialState, onApply, onClose }: {
@@ -168,6 +173,9 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           largeurParoi: initialState.largeurParoi || 100,
           hauteurParoi: initialState.hauteurParoi || 192,
           prixAchatBaseHT: initialState.prixAchatBaseHT || 0,
+          couleurLamesId: initialState.couleurLamesId || found?.couleurs?.[0]?.id || "",
+          typePose: initialState.typePose || "Adossée au mur",
+          lamesOrientation: initialState.lamesOrientation || "parallèles",
         };
       }
     }
@@ -195,6 +203,9 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       largeurParoi: 100,
       hauteurParoi: 192,
       prixAchatBaseHT: 0,
+      couleurLamesId: defaultModele?.couleurs?.[0]?.id || "",
+      typePose: "Adossée au mur",
+      lamesOrientation: "parallèles",
     };
   });
 
@@ -207,6 +218,11 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
   const modele = modeles.find((m) => m.id === state.modeleId);
   const isOrisSolid = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe" && modele.typeModele !== "paroi_avec_grille") ? (modele as ModelePergola).nom.toLowerCase().includes("oris solid") : false;
+  const isPrime = modele && (!!(modele as any).isMBPrime || modele.nom.toLowerCase().includes("prime"));
+  const formatVal = (val: number) => {
+    if (isPrime) return `${val} mm`;
+    return formatMM(val);
+  };
 
   // Auto-sélection quand le modèle change
   useEffect(() => {
@@ -248,8 +264,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           typeParoi: mg.typesParoi?.[0]?.nom || "",
           largeurParoi: 250, // default 250cm
           hauteurParoi: 200, // default height
-        }));
-      } else {
+        }));      } else {
         const mp = modele as ModelePergola;
         setState((s) => ({
           ...s,
@@ -258,6 +273,9 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           coefficient: mp.margeDefaut,
           moteur: (mp.typeModele === "screen" || mp.typeModele === "volet") ? "Moteur Somfy" : "",
           optionsSuppIds: [],
+          couleurLamesId: mp.couleurs[0]?.id || "",
+          typePose: "Adossée au mur",
+          lamesOrientation: "parallèles",
         }));
       }
     }
@@ -268,24 +286,35 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     if (step < 3 || !modele || (modele.typeModele !== "pergola" && modele.typeModele !== "screen" && modele.typeModele !== "volet")) return;
     const mp = modele as ModelePergola;
     if (!state.toitureId || !state.couleurId) return;
+
+    // Swap width and depth if orientation is perpendicular
+    const isPerp = state.lamesOrientation === "perpendiculaires";
+    const widthForCalc = isPerp ? state.profondeur : state.largeur;
+    const depthForCalc = isPerp ? state.largeur : state.profondeur;
+
     try {
       const r = calculerPrix(
         mp,
-        state.largeur,
-        state.profondeur,
+        widthForCalc,
+        depthForCalc,
         state.toitureId,
         state.couleurId,
         state.coefficient,
         state.hauteurPoteaux,
         state.poteauxSupp,
         state.longueurPoteauxSupp,
-        state.optionsSuppIds || []
+        state.optionsSuppIds || [],
+        state.couleurLamesId
       );
       setResultat(r); setCalcError(null);
     } catch (e) {
       setCalcError((e as Error).message); setResultat(null);
     }
-  }, [modele, state.largeur, state.profondeur, state.toitureId, state.couleurId, state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp, state.optionsSuppIds, step]);
+  }, [
+    modele, state.largeur, state.profondeur, state.toitureId, state.couleurId,
+    state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp,
+    state.optionsSuppIds, state.couleurLamesId, state.lamesOrientation, step
+  ]);
 
   // Recalcul live pour parois coulissantes
   useEffect(() => {
@@ -376,7 +405,12 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       }
       return false;
     }
-    if (step === 2) return !!state.toitureId && !!state.couleurId;
+    if (step === 2) {
+      if (modele && isPrime) {
+        return !!state.toitureId && !!state.couleurId && !!state.couleurLamesId && !!state.typePose;
+      }
+      return !!state.toitureId && !!state.couleurId;
+    }
     if (step === 3) return !calcError && !!resultat;
     return false;
   };
@@ -468,7 +502,6 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       const optsSupp = (state.optionsSuppIds || [])
         .map((id) => mp.optionsSupp?.find((o) => o.id === id)?.nom)
         .filter(Boolean) as string[];
-
       const designation = mp.nom;
 
       const description = genererDescription(mp.templateDescription, {
@@ -485,6 +518,11 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         sectionPoteaux: mp.sectionPoteaux,
         moteur: state.moteur,
         optionsSupp: optsSupp,
+        couleurLames: mp.couleurs.find(c => c.id === state.couleurLamesId)?.nom || "—",
+        typePose: state.typePose || "—",
+        lamesOrientation: state.lamesOrientation === "perpendiculaires"
+          ? "Lames perpendiculaires à la façade"
+          : "Lames parallèles à la façade",
       });
 
       onApply({ designation, description, prixVenteHT: resultat.prixVenteHT, prixAchatHT: resultat.prixAchatTotalHT, image: mp.image }, state);
@@ -588,6 +626,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
             <div>
               <h3 className="font-semibold text-[14px] mb-4">Options — <span className="text-accent">{modele.nom}</span></h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Couverture/Toiture */}
                 <div>
                   <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">{labels.toituresLabel}</label>
                   <div className="space-y-1.5">
@@ -606,24 +645,137 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     ))}
                   </div>
                 </div>
-                <div>
-                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Couleur / Finition</label>
-                  <div className="space-y-1.5">
-                    {modele.couleurs.map((c)=>(
-                      <button key={c.id} onClick={()=>setState({...state,couleurId:c.id})}
-                        className={`w-full text-left px-3 py-2 rounded border transition-all text-[13px] ${state.couleurId===c.id?"border-accent bg-accent/5":"border-border hover:border-accent/40"}`}>
-                        <div className="flex items-center justify-between">
-                          <span>{c.nom}</span>
-                          <span className="text-[11px] text-muted-foreground font-mono">
-                            {c.surchargeHT>0&&`+${formatEUR(c.surchargeHT)}`}
-                            {c.surchargePct>0&&`+${c.surchargePct}%`}
-                            {c.surchargeHT===0&&c.surchargePct===0&&"standard"}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+
+                {/* Pose Type (MB Prime) or standard Couleur/Finition */}
+                {isPrime ? (
+                  <>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Type de pose</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {["Adossée au mur", "Autoportante"].map((pose) => (
+                          <button
+                            key={pose}
+                            type="button"
+                            onClick={() => setState({ ...state, typePose: pose })}
+                            className={`px-3 py-2.5 rounded border transition-all text-[13px] text-center font-medium ${
+                              state.typePose === pose ? "border-accent bg-accent/5 text-accent" : "border-border hover:border-accent/40 text-muted-foreground"
+                            }`}
+                          >
+                            {pose}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Orientation des lames</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: "parallèles", nom: "Lames parallèles" },
+                          { id: "perpendiculaires", nom: "Lames perpendiculaires" }
+                        ].map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setState({ ...state, lamesOrientation: opt.id as any })}
+                            className={`px-3 py-2.5 rounded border transition-all text-[13px] text-center font-medium ${
+                              state.lamesOrientation === opt.id ? "border-accent bg-accent/5 text-accent" : "border-border hover:border-accent/40 text-muted-foreground"
+                            }`}
+                          >
+                            {opt.nom}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Couleur / Finition</label>
+                    <div className="space-y-1.5">
+                      {modele.couleurs.map((c)=>(
+                        <button key={c.id} onClick={()=>setState({...state,couleurId:c.id})}
+                          className={`w-full text-left px-3 py-2 rounded border transition-all text-[13px] ${state.couleurId===c.id?"border-accent bg-accent/5":"border-border hover:border-accent/40"}`}>
+                          <div className="flex items-center justify-between">
+                            <span>{c.nom}</span>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {c.surchargeHT>0&&`+${formatEUR(c.surchargeHT)}`}
+                              {c.surchargePct>0&&`+${c.surchargePct}%`}
+                              {c.surchargeHT===0&&c.surchargePct===0&&"standard"}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Orientation choice for standard pergolas */}
+                {!isPrime && modele.typeModele === "pergola" && (
+                  <div className="md:col-span-2 pt-4 border-t border-border">
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Orientation des lames</label>
+                    <div className="grid grid-cols-2 gap-2 max-w-sm">
+                      {[
+                        { id: "parallèles", nom: "Lames parallèles à la façade" },
+                        { id: "perpendiculaires", nom: "Lames perpendiculaires à la façade" }
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setState({ ...state, lamesOrientation: opt.id as any })}
+                          className={`px-3 py-2.5 rounded border transition-all text-[13px] text-center font-medium ${
+                            state.lamesOrientation === opt.id ? "border-accent bg-accent/5 text-accent" : "border-border hover:border-accent/40 text-muted-foreground"
+                          }`}
+                        >
+                          {opt.nom}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* If MB Prime: render structure & slats colors separately */}
+                {isPrime && (
+                  <>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Couleur structure</label>
+                      <div className="space-y-1.5">
+                        {modele.couleurs.map((c)=>(
+                          <button key={c.id} onClick={()=>setState({...state,couleurId:c.id})}
+                            className={`w-full text-left px-3 py-2 rounded border transition-all text-[13px] ${state.couleurId===c.id?"border-accent bg-accent/5 text-foreground":"border-border text-muted-foreground hover:border-accent/40"}`}>
+                            <div className="flex items-center justify-between">
+                              <span>{c.nom}</span>
+                              <span className="text-[11px] text-muted-foreground font-mono">
+                                {c.surchargeHT>0&&`+${formatEUR(c.surchargeHT)}`}
+                                {c.surchargePct>0&&`+${c.surchargePct}%`}
+                                {c.surchargeHT===0&&c.surchargePct===0&&"standard"}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Couleur lames</label>
+                      <div className="space-y-1.5">
+                        {modele.couleurs.map((c)=>(
+                          <button key={c.id} onClick={()=>setState({...state,couleurLamesId:c.id})}
+                            className={`w-full text-left px-3 py-2 rounded border transition-all text-[13px] ${state.couleurLamesId===c.id?"border-accent bg-accent/5 text-foreground":"border-border text-muted-foreground hover:border-accent/40"}`}>
+                            <div className="flex items-center justify-between">
+                              <span>{c.nom}</span>
+                              <span className="text-[11px] text-muted-foreground font-mono">
+                                {c.surchargeHT>0&&`+${formatEUR(c.surchargeHT)}`}
+                                {c.surchargePct>0&&`+${c.surchargePct}%`}
+                                {c.surchargeHT===0&&c.surchargePct===0&&"standard"}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {(modele.typeModele === "screen" || modele.typeModele === "volet") && (
                   <div className="md:col-span-2 pt-4 border-t border-border">
                     <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5 block">Motorisation</label>
@@ -684,112 +836,127 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           )}
 
           {/* Étape 3 — Dimensions */}
-          {step===3 && modele && (modele.typeModele === "pergola" || modele.typeModele === "screen" || modele.typeModele === "volet") && (
-            <div>
-              <h3 className="font-semibold text-[14px] mb-4">Dimensions (mm)</h3>
-              <div className="grid grid-cols-2 gap-6 mb-4">
-                <div>
-                  <label className="form-label">Largeur (mm)</label>
-                  <input type="number" min={100} step={10} value={state.largeur}
-                    onChange={(e)=>setState({...state,largeur:parseInt(e.target.value)||state.largeur})}
-                    className="form-input font-mono text-lg text-center"/>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    → {formatMM(state.largeur)} — Grille : {modele.grille.largeurs.map((l)=>`${(l/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
-                  </p>
-                </div>
-                <div>
-                  <label className="form-label">{dim2Label} (mm)</label>
-                  <input type="number" min={100} step={10} value={state.profondeur}
-                    onChange={(e)=>setState({...state,profondeur:parseInt(e.target.value)||state.profondeur})}
-                    className="form-input font-mono text-lg text-center"/>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    → {formatMM(state.profondeur)} — Grille : {modele.grille.profondeurs.map((p)=>`${(p/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
-                  </p>
-                </div>
-              </div>
-
-              {labels.showPoteaux && (
+          {step===3 && modele && (modele.typeModele === "pergola" || modele.typeModele === "screen" || modele.typeModele === "volet") && (() => {
+            const isPerp = state.lamesOrientation === "perpendiculaires";
+            const gridLargeurs = isPerp ? modele.grille.profondeurs : modele.grille.largeurs;
+            const gridProfondeurs = isPerp ? modele.grille.largeurs : modele.grille.profondeurs;
+            const matchedLargeur = isPerp ? resultat?.profondeurGrille : resultat?.largeurGrille;
+            const matchedProfondeur = isPerp ? resultat?.largeurGrille : resultat?.profondeurGrille;
+            return (
+              <div>
+                <h3 className="font-semibold text-[14px] mb-4">Dimensions (mm)</h3>
                 <div className="grid grid-cols-2 gap-6 mb-4">
                   <div>
-                    <label className="form-label">Hauteur des poteaux (mm)</label>
-                    <input type="number" min={100} step={10} value={state.hauteurPoteaux}
-                      onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
+                    <label className="form-label">Largeur (mm)</label>
+                    <input type="number" min={100} step={10} value={state.largeur}
+                      onChange={(e)=>setState({...state,largeur:parseInt(e.target.value)||state.largeur})}
                       className="form-input font-mono text-lg text-center"/>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatMM(state.hauteurPoteaux)} (Standard : 2,50m)`}
+                      → {formatVal(state.largeur)} — Grille : {gridLargeurs.map((l)=> isPrime ? `${l} mm` : `${(l/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
                     </p>
                   </div>
-                  {isOrisSolid ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="form-label">Poteaux supp. (Longueur)</label>
-                        <select
-                          value={state.longueurPoteauxSupp}
-                          onChange={(e)=>setState({...state,longueurPoteauxSupp:parseInt(e.target.value)||2500})}
-                          className="form-input font-mono text-[14px] text-center h-11"
-                        >
-                          <option value={2500}>2500 mm (2,50 m)</option>
-                          <option value={3000}>3000 mm (3,00 m)</option>
-                          <option value={3500}>3500 mm (3,50 m)</option>
-                          <option value={5000}>5000 mm (5,00 m)</option>
-                          <option value={6000}>6000 mm (6,00 m)</option>
-                        </select>
-                        <p className="text-[11px] text-muted-foreground mt-1">
-                          → Option poteaux supp.
-                        </p>
+                  <div>
+                    <label className="form-label">{dim2Label} (mm)</label>
+                    <input type="number" min={100} step={10} value={state.profondeur}
+                      onChange={(e)=>setState({...state,profondeur:parseInt(e.target.value)||state.profondeur})}
+                      className="form-input font-mono text-lg text-center"/>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      → {formatVal(state.profondeur)} — Grille : {gridProfondeurs.map((p)=> isPrime ? `${p} mm` : `${(p/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
+                    </p>
+                  </div>
+                </div>
+
+                {labels.showPoteaux && (
+                  <div className="grid grid-cols-2 gap-6 mb-4">
+                    <div>
+                      <label className="form-label">Hauteur des poteaux (mm)</label>
+                      <input type="number" min={100} step={10} value={state.hauteurPoteaux}
+                        onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
+                        className="form-input font-mono text-lg text-center"/>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatVal(state.hauteurPoteaux)} (Standard : ${isPrime ? "2500 mm" : "2,50m"})`}
+                      </p>
+                    </div>
+                    {isOrisSolid ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="form-label">Poteaux supp. (Longueur)</label>
+                          <select
+                            value={state.longueurPoteauxSupp}
+                            onChange={(e)=>setState({...state,longueurPoteauxSupp:parseInt(e.target.value)||2500})}
+                            className="form-input font-mono text-[14px] text-center h-11"
+                          >
+                            <option value={2500}>2500 mm (2,50 m)</option>
+                            <option value={3000}>3000 mm (3,00 m)</option>
+                            <option value={3500}>3500 mm (3,50 m)</option>
+                            <option value={5000}>5000 mm (5,00 m)</option>
+                            <option value={6000}>6000 mm (6,00 m)</option>
+                          </select>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            → Option poteaux supp.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="form-label">Poteaux supp. (Qté)</label>
+                          <input type="number" min={0} step={1} value={state.poteauxSupp}
+                            onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
+                            className="form-input font-mono text-lg text-center"/>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            → Chiffrée en ml
+                          </p>
+                        </div>
                       </div>
+                    ) : (
                       <div>
-                        <label className="form-label">Poteaux supp. (Qté)</label>
+                        <label className="form-label">Poteaux supplémentaires (Qté)</label>
                         <input type="number" min={0} step={1} value={state.poteauxSupp}
                           onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
                           className="form-input font-mono text-lg text-center"/>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                          → Chiffrée en ml
+                          → Option poteaux supp. chiffrée en ml
                         </p>
                       </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="form-label">Poteaux supplémentaires (Qté)</label>
-                      <input type="number" min={0} step={1} value={state.poteauxSupp}
-                        onChange={(e)=>setState({...state,poteauxSupp:parseInt(e.target.value)||0})}
-                        className="form-input font-mono text-lg text-center"/>
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        → Option poteaux supp. chiffrée en ml
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Poteaux calculés automatiquement */}
-              {labels.showPoteaux && modele.reglesPoteau.length > 0 && poteauxCalc > 0 && (
-                <div className="flex items-center gap-3 bg-accent/5 border border-accent/20 rounded-lg px-4 py-2.5 mb-3">
-                  <Users size={15} className="text-accent shrink-0"/>
-                  <div>
-                    <span className="text-[13px] font-semibold text-accent">{poteauxCalc} poteaux</span>
-                    <span className="text-[12px] text-muted-foreground ml-2">calculés automatiquement pour {formatMM(state.largeur)} de largeur</span>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
 
-              {calcError ? (
-                <div className="flex items-center gap-2 text-destructive bg-destructive/10 rounded-lg px-4 py-3 text-[13px]">
-                  <AlertCircle size={16} className="shrink-0"/> {calcError}
-                </div>
-              ) : resultat ? (
-                <div className="bg-muted/30 rounded-lg px-4 py-3 text-[12px] text-muted-foreground">
-                  <span className="font-medium text-foreground">Case grille utilisée :</span>{" "}
-                  {formatMM(resultat.largeurGrille)} × {formatMM(resultat.profondeurGrille)}
-                  {(resultat.largeurGrille!==state.largeur||resultat.profondeurGrille!==state.profondeur) && (
-                    <span className="text-[hsl(40_80%_45%)] ml-2">
-                      (arrondi depuis {formatMM(state.largeur)} × {formatMM(state.profondeur)})
-                    </span>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          )}
+                {/* Poteaux calculés automatiquement */}
+                {labels.showPoteaux && modele.reglesPoteau.length > 0 && poteauxCalc > 0 && (
+                  <div className="flex items-center gap-3 bg-accent/5 border border-accent/20 rounded-lg px-4 py-2.5 mb-3">
+                    <Users size={15} className="text-accent shrink-0"/>
+                    <div>
+                      <span className="text-[13px] font-semibold text-accent">{poteauxCalc} poteaux</span>
+                      <span className="text-[12px] text-muted-foreground ml-2">calculés automatiquement pour {formatVal(isPerp ? state.profondeur : state.largeur)} de largeur</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Avertissement orientation perpendiculaire */}
+                {isPerp && (
+                  <div className="flex items-center gap-2 text-[12px] bg-[hsl(40_80%_45%/0.1)] border border-[hsl(40_80%_45%/0.2)] text-[hsl(40_80%_45%)] rounded-lg px-4 py-2.5 mb-3 font-medium">
+                    <AlertCircle size={15} className="shrink-0"/>
+                    <span>Orientation perpendiculaire : la largeur et la profondeur sont inversées pour la recherche de prix dans la grille.</span>
+                  </div>
+                )}
+
+                {calcError ? (
+                  <div className="flex items-center gap-2 text-destructive bg-destructive/10 rounded-lg px-4 py-3 text-[13px]">
+                    <AlertCircle size={16} className="shrink-0"/> {calcError}
+                  </div>
+                ) : resultat ? (
+                  <div className="bg-muted/30 rounded-lg px-4 py-3 text-[12px] text-muted-foreground">
+                    <span className="font-medium text-foreground">Case grille utilisée :</span>{" "}
+                    {formatVal(matchedLargeur || 0)} × {formatVal(matchedProfondeur || 0)}
+                    {((matchedLargeur || 0) !== state.largeur || (matchedProfondeur || 0) !== state.profondeur) && (
+                      <span className="text-[hsl(40_80%_45%)] ml-2">
+                        (arrondi depuis {formatVal(state.largeur)} × {formatVal(state.profondeur)})
+                      </span>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })()}
 
           {/* Étape 4 — Prix */}
           {step===4 && modele && (modele.typeModele === "pergola" || modele.typeModele === "screen" || modele.typeModele === "volet") && (
@@ -810,7 +977,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 <div className="space-y-2">
                   <div className="bg-muted/30 rounded-lg p-4 space-y-2 text-[13px]">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Prix achat base HT ({formatMM(resultat.largeurGrille)} × {formatMM(resultat.profondeurGrille)})</span>
+                      <span className="text-muted-foreground">Prix achat base HT ({formatVal(state.lamesOrientation === "perpendiculaires" ? resultat.profondeurGrille : resultat.largeurGrille)} × {formatVal(state.lamesOrientation === "perpendiculaires" ? resultat.largeurGrille : resultat.profondeurGrille)})</span>
                       <span className="font-mono font-medium">{formatEUR(resultat.prixAchatBaseHT)}</span>
                     </div>
                     {resultat.surchargeToitureHT>0 && (() => {
@@ -872,7 +1039,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         {state.poteauxSupp>0 && (
                           <div className="flex justify-between text-[11px]">
                             <span className="text-muted-foreground font-semibold text-accent">Poteaux supplémentaires</span>
-                            <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux {isOrisSolid ? `(h: ${formatMM(state.longueurPoteauxSupp)})` : ""}</span>
+                            <span className="font-mono font-semibold text-accent">+{state.poteauxSupp} poteaux {isOrisSolid ? `(h: ${formatVal(state.longueurPoteauxSupp)})` : ""}</span>
                           </div>
                         )}
                         {isOrisSolid && (
@@ -884,7 +1051,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         {state.hauteurPoteaux!==2500 && (
                           <div className="flex justify-between text-[11px]">
                             <span className="text-muted-foreground">Hauteur configurée</span>
-                            <span className="font-mono">{formatMM(state.hauteurPoteaux)}</span>
+                            <span className="font-mono">{formatVal(state.hauteurPoteaux)}</span>
                           </div>
                         )}
                       </>

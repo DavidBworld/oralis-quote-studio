@@ -50,6 +50,7 @@ export interface ModelePergola {
   image?: string;                 // image optionnelle du modèle
   sectionPoteaux?: string;        // ex: "136x136 mm"
   tarifPoteauSuppHT?: number;     // prix d'achat par ml pour poteaux supp
+  isMBPrime?: boolean;            // flag optionnel pour identifier le modèle MB PRIME
 }
 
 export interface TarifPanneau {
@@ -138,6 +139,59 @@ const STORAGE_KEY = "oralis_modeles_pergola";
  * Migration auto : corrige les modèles enregistrés en cm (valeurs < 2000) → mm ×10.
  * S'exécute silencieusement au premier chargement après import cm.
  */
+export function blankModeleMBPrime(): ModelePergola {
+  return {
+    id: uid(),
+    typeModele: "pergola",
+    nom: "MB PRIME",
+    nomFournisseur: "PERGOLA BIOCLIMATIQUE MB PRIME",
+    fournisseurId: "mb_partner",
+    fournisseurNom: "MB Aluminium",
+    typeDim: "largeur_profondeur",
+    margeDefaut: 1.4,
+    grille: {
+      largeurs:    [3000, 4000, 5000, 6000],
+      profondeurs: [2000, 2500, 3000, 3500, 4000],
+      prixAchatHT: [
+        [3200, 3800, 4400, 5000],
+        [3500, 4200, 4900, 5600],
+        [3800, 4600, 5400, 6200],
+        [4100, 5000, 5900, 6800],
+        [4400, 5400, 6400, 7400],
+      ],
+    },
+    toitures: [
+      { id: uid(), nom: "Lames aluminium plates", surchargeHT: 0, surchargePct: 0 },
+    ],
+    couleurs: [
+      { id: uid(), nom: "RAL 9016 Blanc", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 7016 Anthracite", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL 9005 Noir", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "RAL Spécifique (sur demande)", surchargeHT: 250, surchargePct: 0 },
+    ],
+    reglesPoteau: [
+      { largeurMinMm: 0,     largeurMaxMm: 6060,  nombrePoteaux: 2 },
+      { largeurMinMm: 6061,  largeurMaxMm: 9060,  nombrePoteaux: 3 },
+      { largeurMinMm: 9061,  largeurMaxMm: 12060, nombrePoteaux: 4 },
+    ],
+    templateDescription: `{{nom}} sur mesure
+Configuration : Pergola {{type_pose}} — {{orientation_lames}}
+Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})
+Couverture : Toit en lames aluminium plates
+Couleur structure : {{couleur}}
+Couleur lames : {{couleur_lames}}
+Motorisation : Piloté par SOMFY avec télécommande (compris)
+Éclairage : Strip LED périphérique dimmable (compris)
+Structure aluminium thermolaquée — résistance aux UV et aux intempéries
+Fabrication entièrement sur mesure`,
+    optionsSupp: [],
+    image: "",
+    sectionPoteaux: "",
+    tarifPoteauSuppHT: 0,
+    isMBPrime: true,
+  };
+}
+
 function migrateModeles(modeles: AnyModele[]): AnyModele[] {
   let migrated = false;
   const fixed = modeles.map((m) => {
@@ -248,6 +302,9 @@ export const VARIABLES_DISPONIBLES = [
   "{{hauteur}}",
   "{{toiture}}",
   "{{couleur}}",
+  "{{couleur_lames}}",
+  "{{type_pose}}",
+  "{{orientation_lames}}",
   "{{poteaux}}",
   "{{hauteur_poteaux}}",
   "{{poteaux_supp}}",
@@ -425,7 +482,8 @@ export function calculerPrix(
   hauteurPoteaux: number = 2500,
   poteauxSupp: number = 0,
   longueurPoteauxSupp: number = 2500,
-  optionsSuppIds: string[] = []
+  optionsSuppIds: string[] = [],
+  couleurLamesId?: string
 ): ResultatCalcul {
   const { prix, largeurGrille, profondeurGrille } = determinerPrixBase(
     modele.grille, largeur, profondeur
@@ -449,7 +507,9 @@ export function calculerPrix(
   };
 
   const surchargeToitureHT = calcOptionSurcharge(toiture);
-  const surchargeCouleurHT = calcOptionSurcharge(couleur);
+  
+  const couleurLames = couleurLamesId ? modele.couleurs.find((c) => c.id === couleurLamesId) : undefined;
+  const surchargeCouleurHT = calcOptionSurcharge(couleur) + (couleurLames ? calcOptionSurcharge(couleurLames) : 0);
   const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur, profondeur);
 
   // Calcule automatique surcharge poteaux (section/tarif configurable, achat par ml)
@@ -513,6 +573,9 @@ export interface ContexteDescription {
   longueurPoteauxSuppMm?: number;
   sectionPoteaux?: string;
   optionsSupp?: string[];
+  couleurLames?: string;
+  typePose?: string;
+  lamesOrientation?: string;
 }
 
 /**
@@ -542,6 +605,30 @@ export function genererDescription(
     }
   }
 
+  if (ctx.couleurLames && !resultTemplate.includes("{{couleur_lames}}")) {
+    if (resultTemplate.includes("Couleur structure : {{couleur}}")) {
+      resultTemplate = resultTemplate.replace("Couleur structure : {{couleur}}", "Couleur structure : {{couleur}}\nCouleur lames : {{couleur_lames}}");
+    } else if (resultTemplate.includes("Couleur : {{couleur}}")) {
+      resultTemplate = resultTemplate.replace("Couleur : {{couleur}}", "Couleur structure : {{couleur}}\nCouleur lames : {{couleur_lames}}");
+    } else if (resultTemplate.includes("{{couleur}}")) {
+      resultTemplate = resultTemplate.replace("{{couleur}}", "{{couleur}} (Lames : {{couleur_lames}})");
+    } else {
+      resultTemplate = resultTemplate + "\nCouleur lames : {{couleur_lames}}";
+    }
+  }
+
+  if (ctx.typePose && !resultTemplate.includes("{{type_pose}}")) {
+    if (resultTemplate.includes("sur mesure")) {
+      resultTemplate = resultTemplate.replace("sur mesure", "sur mesure ({{type_pose}})");
+    } else {
+      resultTemplate = resultTemplate + "\nPose : {{type_pose}}";
+    }
+  }
+
+  if (ctx.lamesOrientation && !resultTemplate.includes("{{orientation_lames}}")) {
+    resultTemplate = resultTemplate + "\nOrientation des lames : {{orientation_lames}}";
+  }
+
   let desc = resultTemplate
     .replace(/\{\{nom\}\}/g,        ctx.nom)
     .replace(/\{\{largeur\}\}/g,    largeurFormate)
@@ -550,6 +637,9 @@ export function genererDescription(
     .replace(/\{\{dim2_label\}\}/g, dim2Label)
     .replace(/\{\{toiture\}\}/g,    ctx.toiture)
     .replace(/\{\{couleur\}\}/g,    ctx.couleur)
+    .replace(/\{\{couleur_lames\}\}/g, ctx.couleurLames || "—")
+    .replace(/\{\{type_pose\}\}/g,   ctx.typePose || "—")
+    .replace(/\{\{orientation_lames\}\}/g, ctx.lamesOrientation || "Lames parallèles à la façade")
     .replace(/\{\{poteaux\}\}/g,    String(ctx.poteaux))
     .replace(/\{\{hauteur_poteaux\}\}/g, hauteurPoteauxFormate)
     .replace(/\{\{poteaux_supp\}\}/g, poteauxSuppText)

@@ -7,7 +7,7 @@ import {
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
 import {
-  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, blankModeleParoiGrille, getLabelsModele, blankOption,
+  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, blankModeleParoiGrille, blankModeleMBPrime, getLabelsModele, blankOption,
   parseExcelGrid, validateGrille, formatMM, formatCoef,
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
   type ModelePergola, type ModeleCoulissant, type ModeleParoiFixe, type ModeleParoiGrille, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
@@ -1060,7 +1060,12 @@ function TemplateEditor({ value, onChange }: { value: string; onChange: (v: stri
 
 // ── GrilleEditor ───────────────────────────────────────────────────────────────
 
-function GrilleEditor({ grille, onChange }: { grille: GrilleTarif; onChange: (g: GrilleTarif) => void }) {
+function GrilleEditor({ grille, onChange, modelName }: { grille: GrilleTarif; onChange: (g: GrilleTarif) => void; modelName?: string }) {
+  const isPrime = modelName?.toLowerCase().includes("prime");
+  const formatVal = (val: number) => {
+    if (isPrime) return `${val} mm`;
+    return formatMM(val);
+  };
   const [tsvInput, setTsvInput] = useState("");
   const [parseStatus, setParseStatus] = useState<"idle" | "ok" | "error">("idle");
   const [parseMsg, setParseMsg] = useState("");
@@ -1201,7 +1206,7 @@ function GrilleEditor({ grille, onChange }: { grille: GrilleTarif; onChange: (g:
                       </button>
                     )}
                   </div>
-                  <div className="text-[9px] text-muted-foreground text-center">{formatMM(l)}</div>
+                  <div className="text-[9px] text-muted-foreground text-center">{formatVal(l)}</div>
                 </th>
               ))}
               <th className="px-2 py-1 border border-dashed border-border text-center">
@@ -1236,7 +1241,7 @@ function GrilleEditor({ grille, onChange }: { grille: GrilleTarif; onChange: (g:
                       </button>
                     )}
                   </div>
-                  <div className="text-[9px] text-muted-foreground text-center">{formatMM(p)}</div>
+                  <div className="text-[9px] text-muted-foreground text-center">{formatVal(p)}</div>
                 </td>
                 {grille.largeurs.map((_, ci) => (
                   <td key={ci} className="px-1 py-0.5 border border-border">
@@ -2551,7 +2556,7 @@ function ModeleEditorModal({
         </div>
 
         <div className="px-6 py-4 max-h-[55vh] overflow-y-auto">
-          {tab === "grille" && <GrilleEditor grille={draft.grille} onChange={(g) => setDraft({ ...draft, grille: g })} />}
+          {tab === "grille" && <GrilleEditor grille={draft.grille} onChange={(g) => setDraft({ ...draft, grille: g })} modelName={draft.nom} />}
           {tab === "options" && (
             <div>
               <OptionsList
@@ -2720,6 +2725,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           <button onClick={() => setEditingModele(blankModele())} className="btn-gold flex items-center gap-2">
             <Plus size={15} /> Nouveau modèle pergola
           </button>
+          <button onClick={() => setEditingModele(blankModeleMBPrime())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
+            <Plus size={15} /> Nouveau modèle MB PRIME
+          </button>
           <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle screen/volet
           </button>
@@ -2742,6 +2750,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           <div className="flex gap-2 justify-center flex-wrap">
             <button onClick={() => setEditingModele(blankModele())} className="btn-gold inline-flex items-center gap-2">
               <Plus size={15} /> Créer un modèle pergola
+            </button>
+            <button onClick={() => setEditingModele(blankModeleMBPrime())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
+              <Plus size={15} /> Créer un modèle MB PRIME
             </button>
             <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle screen/volet
@@ -2910,7 +2921,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                               <div className="flex gap-1 mt-2 flex-wrap">
                                 {mp.grille.largeurs.slice(0, 8).map((l, i) => (
                                   <span key={i} className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-mono">
-                                    {(l / 1000).toFixed(2).replace(".", ",")}m
+                                    {mp.nom.toLowerCase().includes("prime") ? `${l} mm` : `${(l / 1000).toFixed(2).replace(".", ",")}m`}
                                   </span>
                                 ))}
                                 {mp.grille.largeurs.length > 8 && (

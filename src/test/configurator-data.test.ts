@@ -15,6 +15,7 @@ import {
   genererDescriptionCoulissant,
   getLabelsModele,
   ABAQUE_COULISSANT,
+  blankModeleMBPrime,
   type GrilleTarif,
   type ModelePergola,
   type ModeleCoulissant,
@@ -654,4 +655,120 @@ describe("ModeleCoulissant calculations & description", () => {
     expect(abac200?.largeursPermises).toEqual([82, 90, 98, 103]);
   });
 });
+
+describe("MB PRIME model configuration and pricing", () => {
+  it("should generate blank MB PRIME model with default properties", () => {
+    const model = blankModeleMBPrime();
+    expect(model.nom).toBe("MB PRIME");
+    expect(model.isMBPrime).toBe(true);
+    expect(model.typeModele).toBe("pergola");
+    expect(model.fournisseurNom).toBe("MB Aluminium");
+    expect(model.toitures.length).toBe(1);
+    expect(model.toitures[0].nom).toBe("Lames aluminium plates");
+    expect(model.templateDescription).toContain("{{couleur_lames}}");
+    expect(model.templateDescription).toContain("{{type_pose}}");
+  });
+
+  it("should calculate pricing with dual color surcharges correctly", () => {
+    const model = blankModeleMBPrime();
+    
+    const standardToitureId = model.toitures[0].id;
+    const structureColorId = model.couleurs[0].id; // Blanc (0€ surcharge)
+    const specificColorId = model.couleurs.find(c => c.nom.includes("Spécifique"))!.id; // 250€ surcharge
+    
+    // Case 1: Standard color for both structure and slats (surcharge = 0)
+    const result1 = calculerPrix(model, 3000, 2000, standardToitureId, structureColorId, 1.4, 2500, 0, 2500, [], structureColorId);
+    expect(result1.prixAchatBaseHT).toBe(3200);
+    expect(result1.surchargeCouleurHT).toBe(0);
+    expect(result1.prixAchatTotalHT).toBe(3200);
+    expect(result1.prixVenteHT).toBe(4480); // 3200 * 1.4
+
+    // Case 2: Standard color for structure and specific color for slats (surcharge = 250)
+    const result2 = calculerPrix(model, 3000, 2000, standardToitureId, structureColorId, 1.4, 2500, 0, 2500, [], specificColorId);
+    expect(result2.prixAchatBaseHT).toBe(3200);
+    expect(result2.surchargeCouleurHT).toBe(250);
+    expect(result2.prixAchatTotalHT).toBe(3450);
+    expect(result2.prixVenteHT).toBe(4830); // 3450 * 1.4
+
+    // Case 3: Specific color for structure and specific color for slats (surcharge = 250 + 250 = 500)
+    const result3 = calculerPrix(model, 3000, 2000, standardToitureId, specificColorId, 1.4, 2500, 0, 2500, [], specificColorId);
+    expect(result3.prixAchatBaseHT).toBe(3200);
+    expect(result3.surchargeCouleurHT).toBe(500);
+    expect(result3.prixAchatTotalHT).toBe(3700);
+    expect(result3.prixVenteHT).toBe(5180); // 3700 * 1.4
+  });
+
+  it("should generate description for MB PRIME correctly", () => {
+    const model = blankModeleMBPrime();
+    const desc = genererDescription(model.templateDescription, {
+      nom: model.nom,
+      largeurMm: 4000,
+      profondeurMm: 3000,
+      toiture: "Lames aluminium plates",
+      couleur: "RAL 7016 Anthracite",
+      couleurLames: "Blanc RAL 9016",
+      typePose: "Autoportante",
+      poteaux: 2,
+      typeDim: "largeur_profondeur",
+      hauteurPoteauxMm: 2500,
+    });
+
+    expect(desc).toContain("MB PRIME sur mesure");
+    expect(desc).toContain("Configuration : Pergola Autoportante");
+    expect(desc).toContain("Dimensions : Largeur 4000 mm × Profondeur 3000 mm — 2 poteaux (hauteur 2500 mm)");
+    expect(desc).toContain("Couverture : Toit en lames aluminium plates");
+    expect(desc).toContain("Couleur structure : RAL 7016 Anthracite");
+    expect(desc).toContain("Couleur lames : Blanc RAL 9016");
+    expect(desc).toContain("Motorisation : Piloté par SOMFY avec télécommande (compris)");
+    expect(desc).toContain("Éclairage : Strip LED périphérique dimmable (compris)");
+  });
+
+  it("should generate description with correct orientation and compute pricing with swapped dimensions for perpendicular orientation", () => {
+    const model = blankModeleMBPrime();
+    const standardToitureId = model.toitures[0].id;
+    const structureColorId = model.couleurs[0].id; // Blanc (0€)
+
+    // Case 1: Parallel slats (no swap). Entered dimensions: Width = 3000, Depth = 4000.
+    // Pricing lookup: W=3000, D=4000 -> price should be 4400 (Grid cell: [profondeur 4000][largeur 3000])
+    const resultParallel = calculerPrix(model, 3000, 4000, standardToitureId, structureColorId, 1.0, 2500, 0, 2500, [], structureColorId);
+    expect(resultParallel.prixAchatBaseHT).toBe(4400);
+
+    // Case 2: Perpendicular slats (swap in caller). Entered dimensions: Width = 3000, Depth = 4000.
+    // Pricing lookup: W=4000, D=3000 -> price should be 4600 (Grid cell: [profondeur 3000][largeur 4000])
+    const width = 3000;
+    const depth = 4000;
+    const isPerpendiculaire = true;
+    const resultPerp = calculerPrix(
+      model,
+      isPerpendiculaire ? depth : width,
+      isPerpendiculaire ? width : depth,
+      standardToitureId,
+      structureColorId,
+      1.0,
+      2500,
+      0,
+      2500,
+      [],
+      structureColorId
+    );
+    expect(resultPerp.prixAchatBaseHT).toBe(4600);
+
+    // Case 3: Description output check
+    const desc = genererDescription(model.templateDescription, {
+      nom: model.nom,
+      largeurMm: 3000,
+      profondeurMm: 4000,
+      toiture: "Lames aluminium plates",
+      couleur: "RAL 7016 Anthracite",
+      couleurLames: "Blanc RAL 9016",
+      typePose: "Adossée au mur",
+      lamesOrientation: isPerpendiculaire ? "Lames perpendiculaires à la façade" : "Lames parallèles à la façade",
+      poteaux: 2,
+      typeDim: "largeur_profondeur",
+      hauteurPoteauxMm: 2500,
+    });
+    expect(desc).toContain("Configuration : Pergola Adossée au mur — Lames perpendiculaires à la façade");
+  });
+});
+
 
