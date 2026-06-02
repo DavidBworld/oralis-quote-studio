@@ -7,10 +7,10 @@ import {
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
 import {
-  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, getLabelsModele, blankOption,
+  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, getLabelsModele, blankOption,
   parseExcelGrid, validateGrille, formatMM, formatCoef,
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
-  type ModelePergola, type ModeleCoulissant, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
+  type ModelePergola, type ModeleCoulissant, type ModeleParoiFixe, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
@@ -1645,6 +1645,238 @@ function ModeleCoulissantEditorModal({
   );
 }
 
+function ModeleParoiFixeEditorModal({
+  modele,
+  fournisseurs,
+  onSave,
+  onClose,
+}: {
+  modele: ModeleParoiFixe;
+  fournisseurs: any[];
+  onSave: (m: ModeleParoiFixe) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<ModeleParoiFixe>(modele);
+  const [tab, setTab] = useState<"couleurs" | "description">("couleurs");
+  const [imagePreview, setImagePreview] = useState<string | null>(modele.image || null);
+
+  const handleSave = () => {
+    if (!draft.nom.trim()) {
+      toast.error("Donnez un nom au modèle");
+      return;
+    }
+    onSave(draft);
+    toast.success("Modèle enregistré");
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await processImageFile(file);
+        setDraft({ ...draft, image: compressed });
+        setImagePreview(compressed);
+      } catch (err) {
+        toast.error("Erreur lors du traitement de l'image");
+      }
+    }
+  };
+
+  const TABS = [
+    { key: "couleurs" as const, label: "Couleurs" },
+    { key: "description" as const, label: "Description devis" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-8 px-4">
+      <div className="bg-card border border-border rounded-xl shadow-elevated w-full max-w-4xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h2 className="font-display text-[18px] font-semibold">
+              {modele.nom ? `Modifier : ${modele.nom}` : "Nouveau modèle de paroi fixe"}
+            </h2>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Configuration des parois latérales fixes et couleurs</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded hover:bg-muted transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Infos générales */}
+        <div className="px-6 py-4 border-b border-border bg-muted/20">
+          <div className="flex flex-col md:flex-row gap-5">
+            {/* Image (droite ou gauche) */}
+            <div className="w-full md:w-44 shrink-0 flex flex-col items-center gap-2">
+              <div className="w-full h-32 rounded-lg border border-border bg-card flex flex-col items-center justify-center overflow-hidden relative group shadow-sm">
+                {imagePreview ? (
+                  <>
+                    <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraft({ ...draft, image: undefined });
+                        setImagePreview(null);
+                      }}
+                      className="absolute top-1 right-1 p-1 bg-background/80 hover:bg-background rounded-full border border-border opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} className="text-destructive" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-muted-foreground p-3 text-center">
+                    <Camera size={24} className="mb-1 opacity-40" />
+                    <span className="text-[10px]">Aucune image</span>
+                  </div>
+                )}
+              </div>
+              <label className="btn-ghost !h-7 !text-[11px] border border-border cursor-pointer flex items-center gap-1">
+                <Upload size={12} /> Choisir une image
+                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              </label>
+            </div>
+
+            {/* Infos textuelles (droite) */}
+            <div className="flex-1 space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="col-span-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="form-label !mb-0">
+                      Nom catalogue ORALIS * <span className="text-[10px] text-muted-foreground font-normal">(visible client)</span>
+                    </label>
+                    <span className="text-[9px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                      PAROI FIXE
+                    </span>
+                  </div>
+                  <input
+                    value={draft.nom}
+                    onChange={(e) => setDraft({ ...draft, nom: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: PAROI LATÉRALE FIXE MB..."
+                  />
+                </div>
+                <div>
+                  <label className="form-label">
+                    Nom fournisseur <span className="text-[10px] text-muted-foreground font-normal">(interne)</span>
+                  </label>
+                  <input
+                    value={draft.nomFournisseur}
+                    onChange={(e) => setDraft({ ...draft, nomFournisseur: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: PAROIS FIXES MB"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Marge par défaut — {formatCoef(draft.margeDefaut)}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.05}
+                    value={draft.margeDefaut}
+                    onChange={(e) => setDraft({ ...draft, margeDefaut: parseFloat(e.target.value) || 1.45 })}
+                    className="form-input w-full font-mono"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Fournisseur</label>
+                  <select
+                    value={draft.fournisseurId}
+                    onChange={(e) => {
+                      const f = fournisseurs.find((x) => x.id === e.target.value);
+                      setDraft({ ...draft, fournisseurId: e.target.value, fournisseurNom: f?.societe || f?.nom || "" });
+                    }}
+                    className="form-input w-full"
+                  >
+                    <option value="">— Non lié —</option>
+                    {fournisseurs.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.societe || f.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Corps - Tabs */}
+        <div className="px-6 py-4">
+          <div className="flex border-b border-border mb-4">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors -mb-[2px] ${
+                  tab === t.key
+                    ? "border-accent text-accent"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "couleurs" && (
+            <OptionsList
+              label="Couleurs / Finitions structure"
+              options={draft.couleurs || []}
+              onChange={(c) => setDraft({ ...draft, couleurs: c })}
+            />
+          )}
+
+          {tab === "description" && (
+            <div className="space-y-4">
+              <div>
+                <label className="form-label">Template de description pour le devis</label>
+                <textarea
+                  value={draft.templateDescription}
+                  onChange={(e) => setDraft({ ...draft, templateDescription: e.target.value })}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed !h-36 min-h-[144px] resize-y"
+                  placeholder="Gabarit de description du produit..."
+                />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
+                  Variables disponibles :
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {["{{nom}}", "{{type_paroi}}", "{{largeur}}", "{{hauteur}}", "{{couleur}}", "{{notes}}"].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setDraft({ ...draft, templateDescription: draft.templateDescription + " " + v });
+                      }}
+                      className="px-2 py-1 bg-muted hover:bg-muted-foreground/15 border border-border text-muted-foreground text-[10px] font-mono rounded transition-colors"
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/10 rounded-b-xl">
+          <button onClick={onClose} className="btn-ghost border border-border">
+            Annuler
+          </button>
+          <button onClick={handleSave} className="btn-gold flex items-center gap-2">
+            <Save size={15} /> Enregistrer le modèle
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ModeleEditorModal ──────────────────────────────────────────────────────────
 
 function ModeleEditorModal({
@@ -1981,6 +2213,13 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         options: m.options.map((o) => ({ ...o, id: uid() })),
         couleurs: (m.couleurs || []).map((c) => ({ ...c, id: uid() })),
       };
+    } else if (m.typeModele === "paroi_fixe") {
+      duplicated = {
+        ...m,
+        id: uid(),
+        nom: `${m.nom} (copie)`,
+        couleurs: (m.couleurs || []).map((c) => ({ ...c, id: uid() })),
+      } as ModeleParoiFixe;
     } else {
       duplicated = {
         ...m,
@@ -2012,7 +2251,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
             Matrices de prix et tarifs unitaires par vantail — descriptions et configurations
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => setEditingModele(blankModele())} className="btn-gold flex items-center gap-2">
             <Plus size={15} /> Nouveau modèle pergola
           </button>
@@ -2021,6 +2260,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           </button>
           <button onClick={() => setEditingModele(blankModeleCoulissant())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle coulissant
+          </button>
+          <button onClick={() => setEditingModele(blankModeleParoiFixe())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
+            <Plus size={15} /> Nouveau modèle paroi fixe
           </button>
         </div>
       </div>
@@ -2032,7 +2274,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           <p className="text-[13px] text-muted-foreground mb-4">
             Créez votre premier modèle avec sa grille de prix pour accélérer le chiffrage.
           </p>
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-2 justify-center flex-wrap">
             <button onClick={() => setEditingModele(blankModele())} className="btn-gold inline-flex items-center gap-2">
               <Plus size={15} /> Créer un modèle pergola
             </button>
@@ -2041,6 +2283,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
             </button>
             <button onClick={() => setEditingModele(blankModeleCoulissant())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle coulissant
+            </button>
+            <button onClick={() => setEditingModele(blankModeleParoiFixe())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
+              <Plus size={15} /> Créer un modèle paroi fixe
             </button>
           </div>
         </div>
@@ -2087,9 +2332,13 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                             {m.nomFournisseur}
                           </span>
                         )}
-                        {isCoulissant ? (
+                        {m.typeModele === "coulissant" ? (
                           <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
                             COULISSANT
+                          </span>
+                        ) : m.typeModele === "paroi_fixe" ? (
+                          <span className="text-[9px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                            PAROI FIXE
                           </span>
                         ) : m.typeModele === "screen" || m.typeModele === "volet" ? (
                           <span className="text-[9px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
@@ -2102,7 +2351,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                         )}
                       </div>
 
-                      {isCoulissant ? (
+                      {m.typeModele === "coulissant" ? (
                         (() => {
                           const mc = m as ModeleCoulissant;
                           return (
@@ -2126,6 +2375,22 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                                 {mc.tarifsPanneau.length > 4 && (
                                   <span className="text-[10px] text-muted-foreground">+{mc.tarifsPanneau.length - 4}</span>
                                 )}
+                              </div>
+                            </>
+                          );
+                        })()
+                      ) : m.typeModele === "paroi_fixe" ? (
+                        (() => {
+                          const mf = m as ModeleParoiFixe;
+                          return (
+                            <>
+                              <div className="text-[12px] text-muted-foreground mt-0.5">
+                                {mf.fournisseurNom && <span>{mf.fournisseurNom} · </span>}
+                                <span className="font-mono">{formatCoef(mf.margeDefaut)}</span>
+                                {" · "}
+                                <span>Tarification manuelle</span>
+                                {" · "}
+                                <span>{mf.couleurs?.length || 0} couleur{(mf.couleurs?.length || 0) !== 1 ? "s" : ""}</span>
                               </div>
                             </>
                           );
@@ -2201,6 +2466,13 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         editingModele.typeModele === "coulissant" ? (
           <ModeleCoulissantEditorModal
             modele={editingModele as ModeleCoulissant}
+            fournisseurs={fournisseurs}
+            onSave={handleSaveModele}
+            onClose={() => setEditingModele(null)}
+          />
+        ) : editingModele.typeModele === "paroi_fixe" ? (
+          <ModeleParoiFixeEditorModal
+            modele={editingModele as ModeleParoiFixe}
             fournisseurs={fournisseurs}
             onSave={handleSaveModele}
             onClose={() => setEditingModele(null)}

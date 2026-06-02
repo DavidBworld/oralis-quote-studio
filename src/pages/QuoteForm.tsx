@@ -14,7 +14,8 @@ import {
   formatMM, formatCoef, formatDimDevis, getLabelsModele,
   calculerPrixCoulissant, genererDescriptionCoulissant,
   ABAQUE_COULISSANT, type AbaquePanneau,
-  type ModelePergola, type ResultatCalcul, type ModeleCoulissant, type ResultatCoulissant, type AnyModele,
+  calculerPrixParoiFixe, genererDescriptionParoiFixe,
+  type ModelePergola, type ResultatCalcul, type ModeleCoulissant, type ResultatCoulissant, type ModeleParoiFixe, type ResultatParoiFixe, type AnyModele,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
@@ -116,6 +117,12 @@ interface WizardState {
   optionsCoulissantIds?: string[];
   largeurVerre?: number;
   hauteurVerre?: number;
+
+  // Parois fixes
+  typeParoi?: string;
+  largeurParoi?: number;
+  hauteurParoi?: number;
+  prixAchatBaseHT?: number;
 }
 
 function ConfigurateurWizard({ initialState, onApply, onClose }: {
@@ -146,6 +153,10 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           optionsCoulissantIds: initialState.optionsCoulissantIds || [],
           largeurVerre: initialState.largeurVerre || 90,
           hauteurVerre: initialState.hauteurVerre || 200,
+          typeParoi: initialState.typeParoi || "Aluminium 12 lattes (192 cm de haut)",
+          largeurParoi: initialState.largeurParoi || 100,
+          hauteurParoi: initialState.hauteurParoi || 192,
+          prixAchatBaseHT: initialState.prixAchatBaseHT || 0,
         };
       }
     }
@@ -168,6 +179,10 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       optionsCoulissantIds: [],
       largeurVerre: 90,
       hauteurVerre: 200,
+      typeParoi: "Aluminium 12 lattes (192 cm de haut)",
+      largeurParoi: 100,
+      hauteurParoi: 192,
+      prixAchatBaseHT: 0,
     };
   });
 
@@ -175,9 +190,10 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   const [calcError, setCalcError] = useState<string | null>(null);
   const [resultat, setResultat] = useState<ResultatCalcul | null>(null);
   const [resultatCoulissant, setResultatCoulissant] = useState<ResultatCoulissant | null>(null);
+  const [resultatParoiFixe, setResultatParoiFixe] = useState<ResultatParoiFixe | null>(null);
 
   const modele = modeles.find((m) => m.id === state.modeleId);
-  const isOrisSolid = (modele && modele.typeModele !== "coulissant") ? (modele as ModelePergola).nom.toLowerCase().includes("oris solid") : false;
+  const isOrisSolid = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe") ? (modele as ModelePergola).nom.toLowerCase().includes("oris solid") : false;
 
   // Auto-sélection quand le modèle change
   useEffect(() => {
@@ -198,6 +214,17 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           largeurVerre: 90,
           hauteurVerre: 200,
         }));
+      } else if (modele.typeModele === "paroi_fixe") {
+        const mf = modele as ModeleParoiFixe;
+        setState((s) => ({
+          ...s,
+          coefficient: mf.margeDefaut,
+          couleurId: mf.couleurs?.[0]?.id || "",
+          typeParoi: "Aluminium 12 lattes (192 cm de haut)",
+          largeurParoi: 100,
+          hauteurParoi: 192,
+          prixAchatBaseHT: 0,
+        }));
       } else {
         const mp = modele as ModelePergola;
         setState((s) => ({
@@ -214,7 +241,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
   // Recalcul live pour pergolas/screens
   useEffect(() => {
-    if (step < 3 || !modele || modele.typeModele === "coulissant") return;
+    if (step < 3 || !modele || modele.typeModele === "coulissant" || modele.typeModele === "paroi_fixe") return;
     const mp = modele as ModelePergola;
     if (!state.toitureId || !state.couleurId) return;
     try {
@@ -255,8 +282,29 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     }
   }, [modele, state.vantaux, state.tarifPanneauId, state.optionsCoulissantIds, state.couleurId, state.coefficient, step]);
 
+  // Recalcul live pour parois fixes
+  useEffect(() => {
+    if (!modele || modele.typeModele !== "paroi_fixe") return;
+    const mf = modele as ModeleParoiFixe;
+    try {
+      const r = calculerPrixParoiFixe(
+        mf,
+        {
+          typeParoi: state.typeParoi || "",
+          largeurParoi: state.largeurParoi || 0,
+          hauteurParoi: state.hauteurParoi || 0,
+          prixAchatBaseHT: state.prixAchatBaseHT || 0,
+        },
+        state.coefficient
+      );
+      setResultatParoiFixe(r);
+    } catch {
+      setResultatParoiFixe(null);
+    }
+  }, [modele, state.typeParoi, state.largeurParoi, state.hauteurParoi, state.prixAchatBaseHT, state.coefficient, step]);
+
   // Poteaux calculés en live (pergolas uniquement)
-  const poteauxCalc = (modele && modele.typeModele !== "coulissant")
+  const poteauxCalc = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe")
     ? calculerPoteaux((modele as ModelePergola).reglesPoteau, state.largeur, state.profondeur)
     : 0;
 
@@ -267,6 +315,14 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     if (step === 1) return !!modele;
     if (modele?.typeModele === "coulissant") {
       if (step === 2) return !!state.tarifPanneauId;
+      return false;
+    }
+    if (modele?.typeModele === "paroi_fixe") {
+      if (step === 2) {
+        const isVerre = state.typeParoi?.toLowerCase().includes("verre");
+        const hasHeight = !isVerre || (state.hauteurParoi && state.hauteurParoi > 0);
+        return !!state.typeParoi && !!state.largeurParoi && state.largeurParoi > 0 && !!hasHeight && state.prixAchatBaseHT !== undefined && state.prixAchatBaseHT >= 0;
+      }
       return false;
     }
     if (step === 2) return !!state.toitureId && !!state.couleurId;
@@ -303,6 +359,30 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       });
 
       onApply({ designation, description, prixVenteHT: resultatCoulissant.prixVenteHT, prixAchatHT: resultatCoulissant.prixAchatTotalHT, image: mc.image }, state);
+    } else if (modele.typeModele === "paroi_fixe") {
+      if (!resultatParoiFixe) return;
+      const mf = modele as ModeleParoiFixe;
+      const couleurOpt = mf.couleurs?.find((c) => c.id === state.couleurId);
+      const couleurNom = couleurOpt ? couleurOpt.nom : "—";
+
+      const designation = `${state.typeParoi} ${mf.nom} — ${state.largeurParoi} cm`;
+      
+      let warningNotes = "";
+      if (state.typeParoi?.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
+        warningNotes = "Note : Largeur supérieure à 96 cm avec profil F (lattes de 16 cm)";
+      } else if (state.typeParoi?.includes("10 lattes") && (state.largeurParoi || 0) > 100) {
+        warningNotes = "Note : Largeur supérieure à 100 cm avec profil F (lattes de 20 cm)";
+      }
+
+      const description = genererDescriptionParoiFixe(mf, {
+        typeParoi: state.typeParoi || "—",
+        largeur: state.largeurParoi || 0,
+        hauteur: state.hauteurParoi || 0,
+        couleur: couleurNom,
+        notes: warningNotes,
+      });
+
+      onApply({ designation, description, prixVenteHT: resultatParoiFixe.prixVenteHT, prixAchatHT: resultatParoiFixe.prixAchatTotalHT, image: mf.image }, state);
     } else {
       if (!resultat) return;
       const mp = modele as ModelePergola;
@@ -312,10 +392,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         .map((id) => mp.optionsSupp?.find((o) => o.id === id)?.nom)
         .filter(Boolean) as string[];
 
-      // Désignation
       const designation = mp.nom;
 
-      // Description auto depuis template
       const description = genererDescription(mp.templateDescription, {
         nom: mp.nom,
         largeurMm: state.largeur,
@@ -336,12 +414,18 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     }
   };
 
-  const STEPS = [
-    { n: 1 as WizardStep, label: "Modèle" },
-    { n: 2 as WizardStep, label: "Options" },
-    { n: 3 as WizardStep, label: "Dimensions" },
-    { n: 4 as WizardStep, label: "Prix" },
-  ];
+  const STEPS = (modele?.typeModele === "coulissant" || modele?.typeModele === "paroi_fixe")
+    ? [
+        { n: 1 as WizardStep, label: "Modèle" },
+        { n: 2 as WizardStep, label: "Configuration" },
+        { n: 3 as WizardStep, label: "Prix & Marge" },
+      ]
+    : [
+        { n: 1 as WizardStep, label: "Modèle" },
+        { n: 2 as WizardStep, label: "Options" },
+        { n: 3 as WizardStep, label: "Dimensions" },
+        { n: 4 as WizardStep, label: "Prix" },
+      ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -988,6 +1072,136 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
             );
           })()}
 
+          {/* Étape 2 — Configuration (uniquement pour paroi fixe) */}
+          {step === 2 && modele && modele.typeModele === "paroi_fixe" && (() => {
+            const mf = modele as ModeleParoiFixe;
+            const isVerre = state.typeParoi?.toLowerCase().includes("verre");
+            
+            let warningMsg = "";
+            if (state.typeParoi?.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
+              warningMsg = "⚠️ Largeur maximale avec profil F : 96 cm (pour des lattes de 16 cm)";
+            } else if (state.typeParoi?.includes("10 lattes") && (state.largeurParoi || 0) > 100) {
+              warningMsg = "⚠️ Largeur maximale avec profil F : 100 cm (pour des lattes de 20 cm)";
+            }
+
+            return (
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                    Type de paroi
+                  </label>
+                  <select
+                    value={state.typeParoi || ""}
+                    onChange={(e) => {
+                      const selectedType = e.target.value;
+                      let defaultH = state.hauteurParoi || 192;
+                      if (selectedType.includes("12 lattes")) {
+                        defaultH = 192;
+                      } else if (selectedType.includes("10 lattes")) {
+                        defaultH = 200;
+                      } else if (selectedType.includes("Verre fixe rectangle") && defaultH < 100) {
+                        defaultH = 220;
+                      }
+                      setState({ ...state, typeParoi: selectedType, hauteurParoi: defaultH });
+                    }}
+                    className="form-input w-full font-body text-sm"
+                  >
+                    <option value="Aluminium 12 lattes (192 cm de haut)">Aluminium 12 lattes (192 cm de haut)</option>
+                    <option value="Aluminium 10 lattes (200 cm de haut)">Aluminium 10 lattes (200 cm de haut)</option>
+                    <option value="Verre fixe rectangle">Verre fixe rectangle</option>
+                    <option value="Verre fixe incliné">Verre fixe incliné</option>
+                    <option value="Polycarbonate">Polycarbonate</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                      Largeur (cm)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={state.largeurParoi || ""}
+                      onChange={(e) => setState({ ...state, largeurParoi: parseFloat(e.target.value) || 0 })}
+                      className="form-input w-full font-mono text-sm"
+                      placeholder="Saisir la largeur en cm"
+                    />
+                    {warningMsg && (
+                      <p className="text-xs text-destructive mt-1.5 font-medium">{warningMsg}</p>
+                    )}
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      Valeurs de référence : 100, 150, 200, 250, 300, 350, 400, 450, 500 cm
+                    </div>
+                  </div>
+
+                  {isVerre && (
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Hauteur (cm)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={state.hauteurParoi || ""}
+                        onChange={(e) => setState({ ...state, hauteurParoi: parseFloat(e.target.value) || 0 })}
+                        className="form-input w-full font-mono text-sm"
+                        placeholder="Saisir la hauteur en cm"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1.5 italic">
+                        {state.typeParoi === "Verre fixe rectangle"
+                          ? "Supplément de 150 € si hauteur > 220 cm"
+                          : "Supplément de 150 € si hauteur > 275 cm"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                    Couleur structure
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
+                    {(mf.couleurs || []).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setState({ ...state, couleurId: c.id })}
+                        className={`w-full text-left px-3 py-2 rounded border transition-all text-[13px] ${
+                          state.couleurId === c.id
+                            ? "border-accent bg-accent/5 font-semibold text-accent"
+                            : "border-border hover:border-accent/40 bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{c.nom}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-lg bg-accent/5 border border-accent/25">
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-accent mb-2 block">
+                    Prix d'achat HT catalogue (€)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={state.prixAchatBaseHT || ""}
+                    onChange={(e) => setState({ ...state, prixAchatBaseHT: parseFloat(e.target.value) || 0 })}
+                    className="form-input w-full font-mono text-sm"
+                    placeholder="Saisir le prix d'achat HT de base"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Source : MB Aluminium — Prix MB Partners HT (TVA non incluse).
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Étape 3 — Prix (uniquement pour coulissant) */}
           {step === 3 && modele && modele.typeModele === "coulissant" && resultatCoulissant && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1073,6 +1287,94 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
               </div>
             </div>
           )}
+
+          {/* Étape 3 — Prix (uniquement pour paroi fixe) */}
+          {step === 3 && modele && modele.typeModele === "paroi_fixe" && resultatParoiFixe && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold text-[14px] mb-4">Détail du chiffrage</h3>
+                <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2.5 text-[13px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Type de paroi</span>
+                    <span className="font-semibold">{state.typeParoi}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Prix d'achat de base HT</span>
+                    <span className="font-mono">{formatEUR(resultatParoiFixe.prixAchatBaseHT)}</span>
+                  </div>
+                  {resultatParoiFixe.surchargeHauteurHT > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground text-destructive">Surcharge hauteur verre (+150€)</span>
+                      <span className="font-mono text-destructive font-semibold">+{formatEUR(resultatParoiFixe.surchargeHauteurHT)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-border pt-2 font-medium">
+                    <span className="text-muted-foreground">Prix achat total HT</span>
+                    <span className="font-mono font-semibold">{formatEUR(resultatParoiFixe.prixAchatTotalHT)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Marge appliquée</span>
+                    <span className="font-mono">{formatCoef(resultatParoiFixe.coefficient)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="form-label">Coefficient de marge — {formatCoef(state.coefficient)}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.05}
+                    value={state.coefficient}
+                    onChange={(e) => setState({ ...state, coefficient: parseFloat(e.target.value) || 1.0 })}
+                    className="form-input w-40 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-between">
+                <div>
+                  <h3 className="font-semibold text-[14px] mb-4">Prix de vente final</h3>
+                  <div className="bg-accent/10 border border-accent/30 rounded-lg px-5 py-4 flex flex-col items-center justify-center text-center">
+                    <span className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Prix de vente HT conseillé</span>
+                    <span className="font-display text-3xl font-bold text-accent font-mono">{formatEUR(resultatParoiFixe.prixVenteHT)}</span>
+                    <span className="text-[10px] text-muted-foreground mt-1.5 italic">
+                      (achat : {formatEUR(resultatParoiFixe.prixAchatTotalHT)} × marge {state.coefficient.toFixed(2)})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Preview de la désignation et de la description */}
+                <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
+                  <div className="font-semibold text-foreground text-[12px] mb-1">
+                    {state.typeParoi} {modele.nom} — {state.largeurParoi} cm
+                  </div>
+                  <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
+                    {(() => {
+                      const mf = modele as ModeleParoiFixe;
+                      const couleurOpt = mf.couleurs?.find(c => c.id === state.couleurId);
+                      const couleurNom = couleurOpt ? couleurOpt.nom : "—";
+                      
+                      let warningNotes = "";
+                      if (state.typeParoi?.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
+                        warningNotes = "Note : Largeur supérieure à 96 cm avec profil F (lattes de 16 cm)";
+                      } else if (state.typeParoi?.includes("10 lattes") && (state.largeurParoi || 0) > 100) {
+                        warningNotes = "Note : Largeur supérieure à 100 cm avec profil F (lattes de 20 cm)";
+                      }
+
+                      return genererDescriptionParoiFixe(mf, {
+                        typeParoi: state.typeParoi || "—",
+                        largeur: state.largeurParoi || 0,
+                        hauteur: state.hauteurParoi || 0,
+                        couleur: couleurNom,
+                        notes: warningNotes,
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -1080,13 +1382,13 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           <button onClick={()=>step>1?setStep((step-1) as WizardStep):onClose()} className="btn-ghost border border-border flex items-center gap-1.5 text-[13px]">
             <ArrowLeft size={14}/> {step===1?"Annuler":"Retour"}
           </button>
-          {step < (modele?.typeModele === "coulissant" ? 3 : 4) ? (
+          {step < (modele?.typeModele === "coulissant" || modele?.typeModele === "paroi_fixe" ? 3 : 4) ? (
             <button onClick={()=>setStep((step+1) as WizardStep)} disabled={!canNext()}
               className="btn-gold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
               Suivant <ArrowRight size={14}/>
             </button>
           ) : (
-            <button onClick={handleApply} disabled={modele?.typeModele === "coulissant" ? !resultatCoulissant : (!resultat||!!calcError)}
+            <button onClick={handleApply} disabled={modele?.typeModele === "coulissant" ? !resultatCoulissant : modele?.typeModele === "paroi_fixe" ? !resultatParoiFixe : (!resultat||!!calcError)}
               className="btn-gold flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
               <CheckCircle2 size={15}/> Appliquer au devis
             </button>

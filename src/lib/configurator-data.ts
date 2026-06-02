@@ -76,7 +76,20 @@ export interface ModeleCoulissant {
   image?: string;                 // image optionnelle du modèle
 }
 
-export type AnyModele = ModelePergola | ModeleCoulissant;
+export interface ModeleParoiFixe {
+  id: string;
+  typeModele: "paroi_fixe";
+  nom: string;            // Nom catalogue ORALIS (visible client)
+  nomFournisseur: string; // ex: "PAROIS FIXES MB"
+  fournisseurId: string;
+  fournisseurNom: string;
+  margeDefaut: number;
+  couleurs: OptionConfigurable[]; // Couleurs / Finitions
+  templateDescription: string;
+  image?: string;
+}
+
+export type AnyModele = ModelePergola | ModeleCoulissant | ModeleParoiFixe;
 
 
 /** Résultat de calcul complet */
@@ -117,6 +130,20 @@ function migrateModeles(modeles: AnyModele[]): AnyModele[] {
           { id: uid(), nom: "RAL 9007 Gris métallique FST", surchargeHT: 0, surchargePct: 0 },
           { id: uid(), nom: "RAL 9005 Noir FST", surchargeHT: 0, surchargePct: 0 },
           { id: uid(), nom: "DB703 Gris pailleté", surchargeHT: 0, surchargePct: 0 },
+        ];
+        migrated = true;
+      }
+      return copy;
+    }
+    if (m.typeModele === "paroi_fixe") {
+      let copy = { ...m } as ModeleParoiFixe;
+      if (!copy.couleurs || copy.couleurs.length === 0) {
+        copy.couleurs = [
+          { id: uid(), nom: "Blanc RAL 9016", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "Gris métallique RAL 9007", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "IJzerglimmer DB703", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "Anthracite RAL 7016", surchargeHT: 0, surchargePct: 0 },
+          { id: uid(), nom: "Noir RAL 9005", surchargeHT: 0, surchargePct: 0 },
         ];
         migrated = true;
       }
@@ -291,11 +318,18 @@ export interface LabelsModele {
   showPoteaux: boolean;
 }
 
-export function getLabelsModele(type?: ModelePergola["typeModele"]): LabelsModele {
+export function getLabelsModele(type?: string): LabelsModele {
   if (type === "screen" || type === "volet") {
     return {
       toituresLabel: "Couleur de la toile",
       dim2Label: "Hauteur",
+      showPoteaux: false,
+    };
+  }
+  if (type === "paroi_fixe") {
+    return {
+      toituresLabel: "Type de paroi",
+      dim2Label: "Dimensions",
       showPoteaux: false,
     };
   }
@@ -809,3 +843,103 @@ export function genererDescriptionCoulissant(
   
   return desc;
 }
+
+export function blankModeleParoiFixe(): ModeleParoiFixe {
+  return {
+    id: uid(),
+    typeModele: "paroi_fixe",
+    nom: "",
+    nomFournisseur: "PAROIS FIXES MB",
+    fournisseurId: "",
+    fournisseurNom: "",
+    margeDefaut: 1.45,
+    couleurs: [
+      { id: uid(), nom: "Blanc RAL 9016", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Gris métallique RAL 9007", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "IJzerglimmer DB703", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Anthracite RAL 7016", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Noir RAL 9005", surchargeHT: 0, surchargePct: 0 },
+    ],
+    templateDescription:
+`Parois latérales fixes aluminium {{nom}} sur mesure
+Configuration : {{type_paroi}}
+Dimensions : Largeur {{largeur}} cm × Hauteur {{hauteur}} cm
+Couleur structure : {{couleur}}
+{{notes}}
+Structure aluminium — Remplissage de qualité supérieure
+Fabrication sur mesure`,
+  };
+}
+
+export interface ResultatParoiFixe {
+  prixAchatBaseHT: number;
+  surchargeHauteurHT: number;
+  prixAchatTotalHT: number;
+  coefficient: number;
+  prixVenteHT: number;
+}
+
+export function calculerPrixParoiFixe(
+  modele: ModeleParoiFixe,
+  state: {
+    typeParoi: string;
+    largeurParoi: number;
+    hauteurParoi: number;
+    prixAchatBaseHT: number;
+  },
+  coefficient: number
+): ResultatParoiFixe {
+  let surchargeHauteurHT = 0;
+  
+  if (state.typeParoi === "Verre fixe rectangle" && state.hauteurParoi > 220) {
+    surchargeHauteurHT = 150;
+  } else if (state.typeParoi === "Verre fixe incliné" && state.hauteurParoi > 275) {
+    surchargeHauteurHT = 150;
+  }
+
+  const prixAchatTotal = state.prixAchatBaseHT + surchargeHauteurHT;
+  const prixVente = Math.round(prixAchatTotal * coefficient * 100) / 100;
+
+  return {
+    prixAchatBaseHT: state.prixAchatBaseHT,
+    surchargeHauteurHT,
+    prixAchatTotalHT: prixAchatTotal,
+    coefficient,
+    prixVenteHT: prixVente,
+  };
+}
+
+export function genererDescriptionParoiFixe(
+  modele: ModeleParoiFixe,
+  ctx: {
+    typeParoi: string;
+    largeur: number;
+    hauteur: number;
+    couleur: string;
+    notes: string;
+  }
+): string {
+  let template = modele.templateDescription || "";
+  
+  let hauteurStr = String(ctx.hauteur);
+  if (ctx.typeParoi.includes("12 lattes")) {
+    hauteurStr = "192";
+  } else if (ctx.typeParoi.includes("10 lattes")) {
+    hauteurStr = "200";
+  } else if (!ctx.hauteur) {
+    hauteurStr = "—";
+  }
+
+  let desc = template
+    .replace(/\{\{nom\}\}/g, modele.nom)
+    .replace(/\{\{type_paroi\}\}/g, ctx.typeParoi)
+    .replace(/\{\{largeur\}\}/g, String(ctx.largeur))
+    .replace(/\{\{hauteur\}\}/g, hauteurStr)
+    .replace(/\{\{couleur\}\}/g, ctx.couleur)
+    .replace(/\{\{notes\}\}/g, ctx.notes)
+    .trim();
+
+  desc = desc.replace(/\n\n+/g, "\n");
+  return desc;
+}
+
