@@ -1345,7 +1345,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       <p className="text-xs text-destructive mt-1.5 font-medium">{warningMsg}</p>
                     )}
                     <div className="mt-2 text-[10px] text-muted-foreground">
-                      Valeurs de référence : 100, 150, 200, 250, 300, 350, 400, 450, 500 cm
+                      Valeurs de référence : {(mg.typesParoi[0]?.largeurs || []).map((l) => `${Math.round(l / 10)}`).join(", ")} cm
                     </div>
                   </div>
 

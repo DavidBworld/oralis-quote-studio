@@ -1920,12 +1920,14 @@ function ModeleParoiGrilleEditorModal({
     }
   };
 
+  const curLargeurs = draft.typesParoi[0]?.largeurs || [2500, 3000, 3500, 4000, 5000];
+
   const handleAddType = () => {
     const newType = {
       id: uid(),
       nom: "Nouveau type",
-      largeurs: [2500, 3000, 3500, 4000, 5000],
-      prixAchatHT: [0, 0, 0, 0, 0],
+      largeurs: [...curLargeurs],
+      prixAchatHT: new Array(curLargeurs.length).fill(0),
     };
     setDraft({
       ...draft,
@@ -1938,6 +1940,36 @@ function ModeleParoiGrilleEditorModal({
       ...draft,
       typesParoi: draft.typesParoi.filter((t) => t.id !== id),
     });
+  };
+
+  const updateLargeur = (widthIdx: number, valMm: number) => {
+    const newTypes = draft.typesParoi.map((tp) => {
+      const newLargeurs = [...tp.largeurs];
+      newLargeurs[widthIdx] = valMm;
+      return { ...tp, largeurs: newLargeurs };
+    });
+    setDraft({ ...draft, typesParoi: newTypes });
+  };
+
+  const addLargeur = () => {
+    const last = curLargeurs[curLargeurs.length - 1] || 5000;
+    const newMm = last + 500; // +50cm (500mm) par défaut
+    const newTypes = draft.typesParoi.map((tp) => ({
+      ...tp,
+      largeurs: [...tp.largeurs, newMm],
+      prixAchatHT: [...tp.prixAchatHT, 0],
+    }));
+    setDraft({ ...draft, typesParoi: newTypes });
+  };
+
+  const removeLargeur = (widthIdx: number) => {
+    if (curLargeurs.length <= 1) return;
+    const newTypes = draft.typesParoi.map((tp) => ({
+      ...tp,
+      largeurs: tp.largeurs.filter((_, i) => i !== widthIdx),
+      prixAchatHT: tp.prixAchatHT.filter((_, i) => i !== widthIdx),
+    }));
+    setDraft({ ...draft, typesParoi: newTypes });
   };
 
   const TABS = [
@@ -2098,11 +2130,45 @@ function ModeleParoiGrilleEditorModal({
                   <thead>
                     <tr className="bg-muted/40 border-b border-border">
                       <th className="p-3 font-semibold text-muted-foreground w-1/3">Type de paroi</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">2500 mm (250cm)</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">3000 mm (300cm)</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">3500 mm (350cm)</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">4000 mm (400cm)</th>
-                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">5000 mm (500cm)</th>
+                      {curLargeurs.map((l, ci) => (
+                        <th key={ci} className="p-3 font-semibold text-muted-foreground text-center font-mono min-w-[110px]">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <input
+                              type="number"
+                              min={10}
+                              value={Math.round(l / 10)}
+                              onChange={(e) => {
+                                const valCm = parseInt(e.target.value) || 0;
+                                updateLargeur(ci, valCm * 10);
+                              }}
+                              className="w-16 bg-transparent text-center font-mono font-semibold border-b border-dashed border-border focus:outline-none focus:border-accent text-xs"
+                              title="Modifier la largeur en cm"
+                            />
+                            <span className="text-[10px] text-muted-foreground font-normal">cm</span>
+                            {curLargeurs.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeLargeur(ci)}
+                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                title="Supprimer cette largeur"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-[9px] text-muted-foreground block font-normal mt-0.5">({l} mm)</span>
+                        </th>
+                      ))}
+                      <th className="p-3 border border-dashed border-border text-center w-12">
+                        <button
+                          type="button"
+                          onClick={addLargeur}
+                          className="text-accent hover:text-accent-hover transition-colors"
+                          title="Ajouter une largeur"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </th>
                       <th className="p-3 font-semibold text-muted-foreground text-center w-12">Actions</th>
                     </tr>
                   </thead>
@@ -2122,7 +2188,7 @@ function ModeleParoiGrilleEditorModal({
                             placeholder="Nom du type"
                           />
                         </td>
-                        {[0, 1, 2, 3, 4].map((widthIdx) => (
+                        {curLargeurs.map((_, widthIdx) => (
                           <td key={widthIdx} className="p-2.5">
                             <div className="flex items-center justify-center">
                               <input
@@ -2142,6 +2208,8 @@ function ModeleParoiGrilleEditorModal({
                             </div>
                           </td>
                         ))}
+                        {/* Cellule vide pour la colonne "+" */}
+                        <td className="p-2.5 bg-muted/5 border-l border-r border-dashed border-border"></td>
                         <td className="p-2.5 text-center">
                           <button
                             type="button"
@@ -2156,7 +2224,7 @@ function ModeleParoiGrilleEditorModal({
                     ))}
                     {draft.typesParoi.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="p-6 text-center text-muted-foreground italic">
+                        <td colSpan={3 + curLargeurs.length} className="p-6 text-center text-muted-foreground italic">
                           Aucun type de paroi configuré. Cliquez sur « Ajouter un type de paroi » pour commencer.
                         </td>
                       </tr>
