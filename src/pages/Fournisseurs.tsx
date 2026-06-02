@@ -2726,9 +2726,6 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           <button onClick={() => setEditingModele(blankModeleCoulissant())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle coulissant
           </button>
-          <button onClick={() => setEditingModele(blankModeleParoiFixe())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
-            <Plus size={15} /> Nouveau modèle paroi fixe
-          </button>
           <button onClick={() => setEditingModele(blankModeleParoiGrille())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle Paroi avec grille
           </button>
@@ -2751,9 +2748,6 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
             </button>
             <button onClick={() => setEditingModele(blankModeleCoulissant())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle coulissant
-            </button>
-            <button onClick={() => setEditingModele(blankModeleParoiFixe())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
-              <Plus size={15} /> Créer un modèle paroi fixe
             </button>
             <button onClick={() => setEditingModele(blankModeleParoiGrille())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle paroi avec grille
