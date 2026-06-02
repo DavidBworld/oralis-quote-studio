@@ -290,7 +290,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       const couleurOpt = mc.couleurs?.find((c) => c.id === state.couleurId);
       const couleurNom = couleurOpt ? couleurOpt.nom : "—";
 
-      const designation = `Parois coulissantes ${mc.nom} — ${state.vantaux} vantaux`;
+      const hasPrefix = mc.nom.toLowerCase().includes("paroi") || mc.nom.toLowerCase().includes("couliss");
+      const designation = `${hasPrefix ? "" : "Parois coulissantes "}${mc.nom} — ${state.vantaux} vantaux`;
       const description = genererDescriptionCoulissant(mc, {
         vantaux: state.vantaux || 3,
         tarifPanneau: tarif?.label || "—",
@@ -1050,7 +1051,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 {/* Preview de la désignation et de la description */}
                 <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
                   <div className="font-semibold text-foreground text-[12px] mb-1">
-                    Parois coulissantes {modele.nom} — {state.vantaux} vantaux
+                    {modele.nom.toLowerCase().includes("paroi") || modele.nom.toLowerCase().includes("couliss") ? "" : "Parois coulissantes "}
+                    {modele.nom} — {state.vantaux} vantaux
                   </div>
                   <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
                     {(() => {
