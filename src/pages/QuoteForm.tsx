@@ -15,7 +15,8 @@ import {
   calculerPrixCoulissant, genererDescriptionCoulissant,
   ABAQUE_COULISSANT, type AbaquePanneau,
   calculerPrixParoiFixe, genererDescriptionParoiFixe,
-  type ModelePergola, type ResultatCalcul, type ModeleCoulissant, type ResultatCoulissant, type ModeleParoiFixe, type ResultatParoiFixe, type AnyModele,
+  calculerPrixParoiGrille, genererDescriptionParoiGrille,
+  type ModelePergola, type ResultatCalcul, type ModeleCoulissant, type ResultatCoulissant, type ModeleParoiFixe, type ResultatParoiFixe, type ModeleParoiGrille, type ResultatParoiGrille, type AnyModele,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
@@ -120,6 +121,7 @@ interface WizardState {
 
   // Parois fixes
   typeParoi?: string;
+  typeParoiId?: string;
   largeurParoi?: number;
   hauteurParoi?: number;
   prixAchatBaseHT?: number;
@@ -154,6 +156,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           largeurVerre: initialState.largeurVerre || 90,
           hauteurVerre: initialState.hauteurVerre || 200,
           typeParoi: initialState.typeParoi || "Aluminium 12 lattes (192 cm de haut)",
+          typeParoiId: initialState.typeParoiId || (found?.typeModele === "paroi_avec_grille" ? (found as ModeleParoiGrille).typesParoi[0]?.id : ""),
           largeurParoi: initialState.largeurParoi || 100,
           hauteurParoi: initialState.hauteurParoi || 192,
           prixAchatBaseHT: initialState.prixAchatBaseHT || 0,
@@ -180,6 +183,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       largeurVerre: 90,
       hauteurVerre: 200,
       typeParoi: "Aluminium 12 lattes (192 cm de haut)",
+      typeParoiId: defaultModele?.typeModele === "paroi_avec_grille" ? (defaultModele as ModeleParoiGrille).typesParoi[0]?.id : "",
       largeurParoi: 100,
       hauteurParoi: 192,
       prixAchatBaseHT: 0,
@@ -191,9 +195,10 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   const [resultat, setResultat] = useState<ResultatCalcul | null>(null);
   const [resultatCoulissant, setResultatCoulissant] = useState<ResultatCoulissant | null>(null);
   const [resultatParoiFixe, setResultatParoiFixe] = useState<ResultatParoiFixe | null>(null);
+  const [resultatParoiGrille, setResultatParoiGrille] = useState<ResultatParoiGrille | null>(null);
 
   const modele = modeles.find((m) => m.id === state.modeleId);
-  const isOrisSolid = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe") ? (modele as ModelePergola).nom.toLowerCase().includes("oris solid") : false;
+  const isOrisSolid = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe" && modele.typeModele !== "paroi_avec_grille") ? (modele as ModelePergola).nom.toLowerCase().includes("oris solid") : false;
 
   // Auto-sélection quand le modèle change
   useEffect(() => {
@@ -224,6 +229,17 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           largeurParoi: 100,
           hauteurParoi: 192,
           prixAchatBaseHT: 0,
+        }));
+      } else if (modele.typeModele === "paroi_avec_grille") {
+        const mg = modele as ModeleParoiGrille;
+        setState((s) => ({
+          ...s,
+          coefficient: mg.margeDefaut,
+          couleurId: mg.couleurs?.[0]?.id || "",
+          typeParoiId: mg.typesParoi?.[0]?.id || "",
+          typeParoi: mg.typesParoi?.[0]?.nom || "",
+          largeurParoi: 250, // default 250cm
+          hauteurParoi: 200, // default height
         }));
       } else {
         const mp = modele as ModelePergola;
@@ -303,8 +319,29 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     }
   }, [modele, state.typeParoi, state.largeurParoi, state.hauteurParoi, state.prixAchatBaseHT, state.coefficient, step]);
 
+  // Recalcul live pour parois avec grille
+  useEffect(() => {
+    if (!modele || modele.typeModele !== "paroi_avec_grille") return;
+    const mg = modele as ModeleParoiGrille;
+    try {
+      const r = calculerPrixParoiGrille(
+        mg,
+        {
+          typeParoiId: state.typeParoiId || "",
+          largeurMm: (state.largeurParoi || 0) * 10,
+          hauteurCm: state.hauteurParoi,
+          couleurId: state.couleurId || "",
+        },
+        state.coefficient
+      );
+      setResultatParoiGrille(r);
+    } catch {
+      setResultatParoiGrille(null);
+    }
+  }, [modele, state.typeParoiId, state.largeurParoi, state.hauteurParoi, state.couleurId, state.coefficient, step]);
+
   // Poteaux calculés en live (pergolas uniquement)
-  const poteauxCalc = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe")
+  const poteauxCalc = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe" && modele.typeModele !== "paroi_avec_grille")
     ? calculerPoteaux((modele as ModelePergola).reglesPoteau, state.largeur, state.profondeur)
     : 0;
 
@@ -322,6 +359,12 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         const isVerre = state.typeParoi?.toLowerCase().includes("verre");
         const hasHeight = !isVerre || (state.hauteurParoi && state.hauteurParoi > 0);
         return !!state.typeParoi && !!state.largeurParoi && state.largeurParoi > 0 && !!hasHeight && state.prixAchatBaseHT !== undefined && state.prixAchatBaseHT >= 0;
+      }
+      return false;
+    }
+    if (modele?.typeModele === "paroi_avec_grille") {
+      if (step === 2) {
+        return !!state.typeParoiId && !!state.largeurParoi && state.largeurParoi > 0 && !!state.couleurId;
       }
       return false;
     }
@@ -383,6 +426,32 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       });
 
       onApply({ designation, description, prixVenteHT: resultatParoiFixe.prixVenteHT, prixAchatHT: resultatParoiFixe.prixAchatTotalHT, image: mf.image }, state);
+    } else if (modele.typeModele === "paroi_avec_grille") {
+      if (!resultatParoiGrille) return;
+      const mg = modele as ModeleParoiGrille;
+      const typeParoiOpt = mg.typesParoi.find((t) => t.id === state.typeParoiId);
+      const typeParoiNom = typeParoiOpt ? typeParoiOpt.nom : "—";
+      const couleurOpt = mg.couleurs?.find((c) => c.id === state.couleurId);
+      const couleurNom = couleurOpt ? couleurOpt.nom : "—";
+
+      const designation = `${typeParoiNom} ${mg.nom} — ${state.largeurParoi} cm`;
+
+      let warningNotes = "";
+      if (typeParoiNom.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
+        warningNotes = "Note : Largeur supérieure à 96 cm avec profil F (lattes de 16 cm)";
+      } else if (typeParoiNom.includes("10 lattes") && (state.largeurParoi || 0) > 100) {
+        warningNotes = "Note : Largeur supérieure à 100 cm avec profil F (lattes de 20 cm)";
+      }
+
+      const description = genererDescriptionParoiGrille(mg, {
+        typeParoi: typeParoiNom,
+        largeur: state.largeurParoi || 0,
+        hauteur: state.hauteurParoi,
+        couleur: couleurNom,
+        notes: warningNotes,
+      });
+
+      onApply({ designation, description, prixVenteHT: resultatParoiGrille.prixVenteHT, prixAchatHT: resultatParoiGrille.prixAchatTotalHT, image: mg.image }, state);
     } else {
       if (!resultat) return;
       const mp = modele as ModelePergola;
@@ -1202,6 +1271,138 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
             );
           })()}
 
+          {/* Étape 2 — Configuration (uniquement pour paroi avec grille) */}
+          {step === 2 && modele && modele.typeModele === "paroi_avec_grille" && (() => {
+            const mg = modele as ModeleParoiGrille;
+            const isVerre = state.typeParoi?.toLowerCase().includes("verre");
+
+            let warningMsg = "";
+            if (state.typeParoi?.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
+              warningMsg = "⚠️ Largeur maximale avec profil F : 96 cm (pour des lattes de 16 cm)";
+            } else if (state.typeParoi?.includes("10 lattes") && (state.largeurParoi || 0) > 100) {
+              warningMsg = "⚠️ Largeur maximale avec profil F : 100 cm (pour des lattes de 20 cm)";
+            }
+
+            return (
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                    Type de paroi
+                  </label>
+                  <select
+                    value={state.typeParoiId || ""}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const tp = mg.typesParoi.find((t) => t.id === selectedId);
+                      if (tp) {
+                        let defaultH = state.hauteurParoi || 192;
+                        if (tp.nom.includes("12 lattes")) {
+                          defaultH = 192;
+                        } else if (tp.nom.includes("10 lattes")) {
+                          defaultH = 200;
+                        } else if (tp.nom.toLowerCase().includes("verre fixe rectangle") && defaultH < 100) {
+                          defaultH = 220;
+                        }
+                        setState({ ...state, typeParoiId: selectedId, typeParoi: tp.nom, hauteurParoi: defaultH });
+                      }
+                    }}
+                    className="form-input w-full font-body text-sm"
+                  >
+                    {(mg.typesParoi || []).map((tp) => (
+                      <option key={tp.id} value={tp.id}>
+                        {tp.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                      Largeur (cm)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={state.largeurParoi || ""}
+                      onChange={(e) => setState({ ...state, largeurParoi: parseFloat(e.target.value) || 0 })}
+                      className="form-input w-full font-mono text-sm"
+                      placeholder="Saisir la largeur en cm"
+                    />
+                    {warningMsg && (
+                      <p className="text-xs text-destructive mt-1.5 font-medium">{warningMsg}</p>
+                    )}
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      Valeurs de référence : 100, 150, 200, 250, 300, 350, 400, 450, 500 cm
+                    </div>
+                  </div>
+
+                  {isVerre && (
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Hauteur (cm)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={state.hauteurParoi || ""}
+                        onChange={(e) => setState({ ...state, hauteurParoi: parseFloat(e.target.value) || 0 })}
+                        className="form-input w-full font-mono text-sm"
+                        placeholder="Saisir la hauteur en cm"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1.5 italic">
+                        {state.typeParoi === "Verre fixe rectangle"
+                          ? "Supplément de 150 € si hauteur > 220 cm"
+                          : "Supplément de 150 € si hauteur > 275 cm"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                    Couleur structure
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
+                    {(mg.couleurs || []).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setState({ ...state, couleurId: c.id })}
+                        className={`w-full text-left px-3 py-2 rounded border transition-all text-[13px] ${
+                          state.couleurId === c.id
+                            ? "border-accent bg-accent/5 font-semibold text-accent"
+                            : "border-border hover:border-accent/40 bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{c.nom}</span>
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            {c.surchargeHT > 0 && `+${formatEUR(c.surchargeHT)}`}
+                            {c.surchargePct > 0 && `+${c.surchargePct}%`}
+                            {c.surchargeHT === 0 && c.surchargePct === 0 && "standard"}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {resultatParoiGrille && (
+                  <div className="p-4 rounded-lg bg-accent/5 border border-accent/25">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-semibold text-accent">Prix d'achat HT base (grille) :</span>
+                      <span className="font-mono font-bold text-accent">{formatEUR(resultatParoiGrille.prixAchatBaseHT)}</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Calculé pour une largeur grille de {(resultatParoiGrille.largeurGrille / 10).toFixed(0)} cm (arrondi supérieur).
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Étape 3 — Prix (uniquement pour coulissant) */}
           {step === 3 && modele && modele.typeModele === "coulissant" && resultatCoulissant && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1375,6 +1576,100 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
               </div>
             </div>
           )}
+
+          {/* Étape 3 — Prix (uniquement pour paroi avec grille) */}
+          {step === 3 && modele && modele.typeModele === "paroi_avec_grille" && resultatParoiGrille && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold text-[14px] mb-4">Détail du chiffrage</h3>
+                <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2.5 text-[13px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Type de paroi</span>
+                    <span className="font-semibold">{state.typeParoi}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Prix d'achat de base HT</span>
+                    <span className="font-mono">{formatEUR(resultatParoiGrille.prixAchatBaseHT)}</span>
+                  </div>
+                  {resultatParoiGrille.surchargeCouleurHT > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground text-accent">Surcharge couleur</span>
+                      <span className="font-mono text-accent font-semibold">+{formatEUR(resultatParoiGrille.surchargeCouleurHT)}</span>
+                    </div>
+                  )}
+                  {resultatParoiGrille.surchargeHauteurHT > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground text-destructive">Surcharge hauteur verre (+150€)</span>
+                      <span className="font-mono text-destructive font-semibold">+{formatEUR(resultatParoiGrille.surchargeHauteurHT)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-border pt-2 font-medium">
+                    <span className="text-muted-foreground">Prix achat total HT</span>
+                    <span className="font-mono font-semibold">{formatEUR(resultatParoiGrille.prixAchatTotalHT)}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
+                    <span>Marge appliquée</span>
+                    <span className="font-mono">{formatCoef(resultatParoiGrille.coefficient)}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="form-label">Coefficient de marge — {formatCoef(state.coefficient)}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.05}
+                    value={state.coefficient}
+                    onChange={(e) => setState({ ...state, coefficient: parseFloat(e.target.value) || 1.0 })}
+                    className="form-input w-40 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-between">
+                <div>
+                  <h3 className="font-semibold text-[14px] mb-4">Prix de vente final</h3>
+                  <div className="bg-accent/10 border border-accent/30 rounded-lg px-5 py-4 flex flex-col items-center justify-center text-center">
+                    <span className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Prix de vente HT conseillé</span>
+                    <span className="font-display text-3xl font-bold text-accent font-mono">{formatEUR(resultatParoiGrille.prixVenteHT)}</span>
+                    <span className="text-[10px] text-muted-foreground mt-1.5 italic">
+                      (achat : {formatEUR(resultatParoiGrille.prixAchatTotalHT)} × marge {state.coefficient.toFixed(2)})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Preview de la désignation et de la description */}
+                <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
+                  <div className="font-semibold text-foreground text-[12px] mb-1">
+                    {state.typeParoi} {modele.nom} — {state.largeurParoi} cm
+                  </div>
+                  <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
+                    {(() => {
+                      const mg = modele as ModeleParoiGrille;
+                      const couleurOpt = mg.couleurs?.find(c => c.id === state.couleurId);
+                      const couleurNom = couleurOpt ? couleurOpt.nom : "—";
+                      
+                      let warningNotes = "";
+                      if (state.typeParoi?.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
+                        warningNotes = "Note : Largeur supérieure à 96 cm avec profil F (lattes de 16 cm)";
+                      } else if (state.typeParoi?.includes("10 lattes") && (state.largeurParoi || 0) > 100) {
+                        warningNotes = "Note : Largeur supérieure à 100 cm avec profil F (lattes de 20 cm)";
+                      }
+
+                      return genererDescriptionParoiGrille(mg, {
+                        typeParoi: state.typeParoi || "—",
+                        largeur: state.largeurParoi || 0,
+                        hauteur: state.hauteurParoi,
+                        couleur: couleurNom,
+                        notes: warningNotes,
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -1382,13 +1677,13 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           <button onClick={()=>step>1?setStep((step-1) as WizardStep):onClose()} className="btn-ghost border border-border flex items-center gap-1.5 text-[13px]">
             <ArrowLeft size={14}/> {step===1?"Annuler":"Retour"}
           </button>
-          {step < (modele?.typeModele === "coulissant" || modele?.typeModele === "paroi_fixe" ? 3 : 4) ? (
+          {step < (modele?.typeModele === "coulissant" || modele?.typeModele === "paroi_fixe" || modele?.typeModele === "paroi_avec_grille" ? 3 : 4) ? (
             <button onClick={()=>setStep((step+1) as WizardStep)} disabled={!canNext()}
               className="btn-gold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
               Suivant <ArrowRight size={14}/>
             </button>
           ) : (
-            <button onClick={handleApply} disabled={modele?.typeModele === "coulissant" ? !resultatCoulissant : modele?.typeModele === "paroi_fixe" ? !resultatParoiFixe : (!resultat||!!calcError)}
+            <button onClick={handleApply} disabled={modele?.typeModele === "coulissant" ? !resultatCoulissant : modele?.typeModele === "paroi_fixe" ? !resultatParoiFixe : modele?.typeModele === "paroi_avec_grille" ? !resultatParoiGrille : (!resultat||!!calcError)}
               className="btn-gold flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
               <CheckCircle2 size={15}/> Appliquer au devis
             </button>

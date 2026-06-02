@@ -4,6 +4,10 @@ import {
   calculerPrixParoiFixe,
   genererDescriptionParoiFixe,
   type ModeleParoiFixe,
+  blankModeleParoiGrille,
+  calculerPrixParoiGrille,
+  genererDescriptionParoiGrille,
+  type ModeleParoiGrille,
 } from "../lib/configurator-data";
 
 describe("Parois Fixes Model tests", () => {
@@ -117,3 +121,100 @@ describe("Parois Fixes Model tests", () => {
     });
   });
 });
+
+describe("Paroi avec Grille Model tests", () => {
+  const model: ModeleParoiGrille = blankModeleParoiGrille();
+
+  describe("calculerPrixParoiGrille", () => {
+    it("should select price based on width using arrondi supérieur", () => {
+      // Modify model to have mock prices for Aluminium 12 lattes H192 cm
+      const typeAlu = model.typesParoi[0]; // Aluminium 12 lattes H192 cm
+      typeAlu.largeurs = [2500, 3000, 3500, 4000, 5000];
+      typeAlu.prixAchatHT = [500, 600, 700, 800, 1000];
+
+      const state = {
+        typeParoiId: typeAlu.id,
+        largeurMm: 2800, // should round up to 3000 -> price 600
+        couleurId: model.couleurs[0].id, // Blanc (no surcharge)
+      };
+
+      const result = calculerPrixParoiGrille(model, state, 1.5);
+      expect(result.prixAchatBaseHT).toBe(600);
+      expect(result.largeurGrille).toBe(3000);
+      expect(result.surchargeCouleurHT).toBe(0);
+      expect(result.surchargeHauteurHT).toBe(0);
+      expect(result.prixAchatTotalHT).toBe(600);
+      expect(result.prixVenteHT).toBe(900); // 600 * 1.5
+    });
+
+    it("should fallback to max width if largeurMm exceeds all entries", () => {
+      const typeAlu = model.typesParoi[0];
+      const state = {
+        typeParoiId: typeAlu.id,
+        largeurMm: 6000, // exceeds max (5000)
+        couleurId: model.couleurs[0].id,
+      };
+      typeAlu.prixAchatHT = [500, 600, 700, 800, 1000];
+
+      const result = calculerPrixParoiGrille(model, state, 1.5);
+      expect(result.prixAchatBaseHT).toBe(1000);
+      expect(result.largeurGrille).toBe(5000);
+    });
+
+    it("should apply height surcharge for Verre type > 220 cm", () => {
+      const typeVerre = model.typesParoi[2]; // Verre fixe rectangle
+      typeVerre.prixAchatHT = [600, 700, 800, 900, 1100];
+      
+      const state = {
+        typeParoiId: typeVerre.id,
+        largeurMm: 3000, // 3000 -> price 700
+        hauteurCm: 230, // > 220
+        couleurId: model.couleurs[0].id,
+      };
+
+      const result = calculerPrixParoiGrille(model, state, 1.5);
+      expect(result.prixAchatBaseHT).toBe(700);
+      expect(result.surchargeHauteurHT).toBe(150);
+      expect(result.prixAchatTotalHT).toBe(850); // 700 + 150
+      expect(result.prixVenteHT).toBe(1275); // 850 * 1.5
+    });
+
+    it("should apply color surcharge", () => {
+      const typeAlu = model.typesParoi[0];
+      typeAlu.prixAchatHT = [500, 600, 700, 800, 1000];
+
+      // Add a custom color with surcharge
+      const customColor = { id: "custom_c", nom: "Custom Bronze", surchargeHT: 50, surchargePct: 10 };
+      model.couleurs.push(customColor);
+
+      const state = {
+        typeParoiId: typeAlu.id,
+        largeurMm: 3000, // price 600
+        couleurId: "custom_c",
+      };
+
+      const result = calculerPrixParoiGrille(model, state, 1.5);
+      expect(result.prixAchatBaseHT).toBe(600);
+      expect(result.surchargeCouleurHT).toBe(110); // 50 + 10% of 600 = 50 + 60 = 110
+      expect(result.prixAchatTotalHT).toBe(710); // 600 + 110
+      expect(result.prixVenteHT).toBe(1065); // 710 * 1.5
+    });
+  });
+
+  describe("genererDescriptionParoiGrille", () => {
+    it("should format final description using the default template", () => {
+      const desc = genererDescriptionParoiGrille(model, {
+        typeParoi: "Aluminium 12 lattes H192 cm",
+        largeur: 250,
+        couleur: "IJzerglimmer DB703",
+        notes: "Note : Largeur supérieure à 96 cm",
+      });
+
+      expect(desc).toContain("Paroi latérale fixe MB Aluminium — Aluminium 12 lattes H192 cm");
+      expect(desc).toContain("Largeur : 250 cm");
+      expect(desc).toContain("Couleur structure : IJzerglimmer DB703");
+      expect(desc).toContain("Note : Largeur supérieure à 96 cm");
+    });
+  });
+});
+

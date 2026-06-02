@@ -7,10 +7,10 @@ import {
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
 import {
-  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, getLabelsModele, blankOption,
+  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, blankModeleParoiGrille, getLabelsModele, blankOption,
   parseExcelGrid, validateGrille, formatMM, formatCoef,
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
-  type ModelePergola, type ModeleCoulissant, type ModeleParoiFixe, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
+  type ModelePergola, type ModeleCoulissant, type ModeleParoiFixe, type ModeleParoiGrille, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
@@ -1877,6 +1877,352 @@ function ModeleParoiFixeEditorModal({
   );
 }
 
+function ModeleParoiGrilleEditorModal({
+  modele,
+  fournisseurs,
+  onSave,
+  onClose,
+}: {
+  modele: ModeleParoiGrille;
+  fournisseurs: any[];
+  onSave: (m: ModeleParoiGrille) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<ModeleParoiGrille>(modele);
+  const [tab, setTab] = useState<"tarifs" | "couleurs" | "description">("tarifs");
+  const [imagePreview, setImagePreview] = useState<string | null>(modele.image || null);
+
+  const handleSave = () => {
+    if (!draft.nom.trim()) {
+      toast.error("Donnez un nom au modèle");
+      return;
+    }
+    for (const tp of draft.typesParoi) {
+      if (!tp.nom.trim()) {
+        toast.error("Chaque type de paroi doit avoir un nom");
+        return;
+      }
+    }
+    onSave(draft);
+    toast.success("Modèle enregistré");
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await processImageFile(file);
+        setDraft({ ...draft, image: compressed });
+        setImagePreview(compressed);
+      } catch (err) {
+        toast.error("Erreur lors du traitement de l'image");
+      }
+    }
+  };
+
+  const handleAddType = () => {
+    const newType = {
+      id: uid(),
+      nom: "Nouveau type",
+      largeurs: [2500, 3000, 3500, 4000, 5000],
+      prixAchatHT: [0, 0, 0, 0, 0],
+    };
+    setDraft({
+      ...draft,
+      typesParoi: [...draft.typesParoi, newType],
+    });
+  };
+
+  const handleRemoveType = (id: string) => {
+    setDraft({
+      ...draft,
+      typesParoi: draft.typesParoi.filter((t) => t.id !== id),
+    });
+  };
+
+  const TABS = [
+    { key: "tarifs" as const, label: "Grille de tarifs" },
+    { key: "couleurs" as const, label: "Couleurs" },
+    { key: "description" as const, label: "Description devis" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-8 px-4">
+      <div className="bg-card border border-border rounded-xl shadow-elevated w-full max-w-5xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h2 className="font-display text-[18px] font-semibold">
+              {modele.nom ? `Modifier : ${modele.nom}` : "Nouveau modèle de paroi avec grille"}
+            </h2>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Configuration des parois fixes avec grille de tarifs</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded hover:bg-muted transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Infos générales */}
+        <div className="px-6 py-4 border-b border-border bg-muted/20">
+          <div className="flex flex-col md:flex-row gap-5">
+            {/* Image */}
+            <div className="w-full md:w-44 shrink-0 flex flex-col items-center gap-2">
+              <div className="w-full h-32 rounded-lg border border-border bg-card flex flex-col items-center justify-center overflow-hidden relative group shadow-sm">
+                {imagePreview ? (
+                  <>
+                    <img src={imagePreview} alt="Aperçu" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraft({ ...draft, image: undefined });
+                        setImagePreview(null);
+                      }}
+                      className="absolute top-1 right-1 p-1 bg-background/80 hover:bg-background rounded-full border border-border opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} className="text-destructive" />
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-muted-foreground p-3 text-center">
+                    <Camera size={24} className="mb-1 opacity-40" />
+                    <span className="text-[10px]">Aucune image</span>
+                  </div>
+                )}
+              </div>
+              <label className="btn-ghost !h-7 !text-[11px] border border-border cursor-pointer flex items-center gap-1">
+                <Upload size={12} /> Choisir une image
+                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              </label>
+            </div>
+
+            {/* Infos textuelles */}
+            <div className="flex-1 space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="col-span-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="form-label !mb-0">
+                      Nom catalogue ORALIS * <span className="text-[10px] text-muted-foreground font-normal">(visible client)</span>
+                    </label>
+                    <span className="text-[9px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                      PAROI AVEC GRILLE
+                    </span>
+                  </div>
+                  <input
+                    value={draft.nom}
+                    onChange={(e) => setDraft({ ...draft, nom: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: PAROI LATÉRALE FIXE AVEC GRILLE..."
+                  />
+                </div>
+                <div>
+                  <label className="form-label">
+                    Nom fournisseur <span className="text-[10px] text-muted-foreground font-normal">(interne)</span>
+                  </label>
+                  <input
+                    value={draft.nomFournisseur}
+                    onChange={(e) => setDraft({ ...draft, nomFournisseur: e.target.value })}
+                    className="form-input w-full"
+                    placeholder="ex: PAROIS FIXES MB"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Marge par défaut — {formatCoef(draft.margeDefaut)}</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    step={0.05}
+                    value={draft.margeDefaut}
+                    onChange={(e) => setDraft({ ...draft, margeDefaut: parseFloat(e.target.value) || 1.45 })}
+                    className="form-input w-full font-mono"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Fournisseur</label>
+                  <select
+                    value={draft.fournisseurId}
+                    onChange={(e) => {
+                      const f = fournisseurs.find((x) => x.id === e.target.value);
+                      setDraft({ ...draft, fournisseurId: e.target.value, fournisseurNom: f?.societe || f?.nom || "" });
+                    }}
+                    className="form-input w-full"
+                  >
+                    <option value="">— Non lié —</option>
+                    {fournisseurs.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.societe || f.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Corps - Tabs */}
+        <div className="px-6 py-4">
+          <div className="flex border-b border-border mb-4">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors -mb-[2px] ${
+                  tab === t.key
+                    ? "border-accent text-accent"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === "tarifs" && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[13px] font-semibold text-muted-foreground">Grille de prix d'achat HT par largeur (en mm)</span>
+                <button
+                  type="button"
+                  onClick={handleAddType}
+                  className="btn-ghost !h-7 !text-[11px] border border-border flex items-center gap-1 text-accent hover:text-accent-hover"
+                >
+                  <Plus size={12} /> Ajouter un type de paroi
+                </button>
+              </div>
+
+              <div className="overflow-x-auto border border-border rounded-lg">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-muted/40 border-b border-border">
+                      <th className="p-3 font-semibold text-muted-foreground w-1/3">Type de paroi</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">2500 mm (250cm)</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">3000 mm (300cm)</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">3500 mm (350cm)</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">4000 mm (400cm)</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center font-mono">5000 mm (500cm)</th>
+                      <th className="p-3 font-semibold text-muted-foreground text-center w-12">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {draft.typesParoi.map((tp, idx) => (
+                      <tr key={tp.id} className="hover:bg-muted/10">
+                        <td className="p-2.5">
+                          <input
+                            type="text"
+                            value={tp.nom}
+                            onChange={(e) => {
+                              const newTypes = [...draft.typesParoi];
+                              newTypes[idx] = { ...tp, nom: e.target.value };
+                              setDraft({ ...draft, typesParoi: newTypes });
+                            }}
+                            className="form-input w-full text-xs font-medium"
+                            placeholder="Nom du type"
+                          />
+                        </td>
+                        {[0, 1, 2, 3, 4].map((widthIdx) => (
+                          <td key={widthIdx} className="p-2.5">
+                            <div className="flex items-center justify-center">
+                              <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={tp.prixAchatHT[widthIdx] ?? 0}
+                                onChange={(e) => {
+                                  const newTypes = [...draft.typesParoi];
+                                  const newPrix = [...tp.prixAchatHT];
+                                  newPrix[widthIdx] = parseFloat(e.target.value) || 0;
+                                  newTypes[idx] = { ...tp, prixAchatHT: newPrix };
+                                  setDraft({ ...draft, typesParoi: newTypes });
+                                }}
+                                className="form-input w-24 text-center font-mono text-xs"
+                              />
+                            </div>
+                          </td>
+                        ))}
+                        <td className="p-2.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveType(tp.id)}
+                            className="p-1.5 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors"
+                            title="Supprimer ce type"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {draft.typesParoi.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="p-6 text-center text-muted-foreground italic">
+                          Aucun type de paroi configuré. Cliquez sur « Ajouter un type de paroi » pour commencer.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {tab === "couleurs" && (
+            <OptionsList
+              label="Couleurs / Finitions structure"
+              options={draft.couleurs || []}
+              onChange={(c) => setDraft({ ...draft, couleurs: c })}
+            />
+          )}
+
+          {tab === "description" && (
+            <div className="space-y-4">
+              <div>
+                <label className="form-label">Template de description pour le devis</label>
+                <textarea
+                  value={draft.templateDescription}
+                  onChange={(e) => setDraft({ ...draft, templateDescription: e.target.value })}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed !h-36 min-h-[144px] resize-y"
+                  placeholder="Gabarit de description du produit..."
+                />
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
+                  Variables disponibles :
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {["{{nom}}", "{{type_paroi}}", "{{largeur}}", "{{hauteur}}", "{{couleur}}", "{{notes}}"].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => {
+                        setDraft({ ...draft, templateDescription: draft.templateDescription + " " + v });
+                      }}
+                      className="px-2 py-1 bg-muted hover:bg-muted-foreground/15 border border-border text-muted-foreground text-[10px] font-mono rounded transition-colors"
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/10 rounded-b-xl">
+          <button onClick={onClose} className="btn-ghost border border-border">
+            Annuler
+          </button>
+          <button onClick={handleSave} className="btn-gold flex items-center gap-2">
+            <Save size={15} /> Enregistrer le modèle
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ModeleEditorModal ──────────────────────────────────────────────────────────
 
 function ModeleEditorModal({
@@ -2220,6 +2566,19 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         nom: `${m.nom} (copie)`,
         couleurs: (m.couleurs || []).map((c) => ({ ...c, id: uid() })),
       } as ModeleParoiFixe;
+    } else if (m.typeModele === "paroi_avec_grille") {
+      duplicated = {
+        ...m,
+        id: uid(),
+        nom: `${m.nom} (copie)`,
+        typesParoi: m.typesParoi.map((tp) => ({
+          ...tp,
+          id: uid(),
+          largeurs: [...tp.largeurs],
+          prixAchatHT: [...tp.prixAchatHT],
+        })),
+        couleurs: (m.couleurs || []).map((c) => ({ ...c, id: uid() })),
+      } as ModeleParoiGrille;
     } else {
       duplicated = {
         ...m,
@@ -2264,6 +2623,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           <button onClick={() => setEditingModele(blankModeleParoiFixe())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle paroi fixe
           </button>
+          <button onClick={() => setEditingModele(blankModeleParoiGrille())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
+            <Plus size={15} /> Nouveau modèle Paroi avec grille
+          </button>
         </div>
       </div>
 
@@ -2286,6 +2648,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
             </button>
             <button onClick={() => setEditingModele(blankModeleParoiFixe())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle paroi fixe
+            </button>
+            <button onClick={() => setEditingModele(blankModeleParoiGrille())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
+              <Plus size={15} /> Créer un modèle paroi avec grille
             </button>
           </div>
         </div>
@@ -2340,6 +2705,10 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                           <span className="text-[9px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
                             PAROI FIXE
                           </span>
+                        ) : m.typeModele === "paroi_avec_grille" ? (
+                          <span className="text-[9px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
+                            PAROI AVEC GRILLE
+                          </span>
                         ) : m.typeModele === "screen" || m.typeModele === "volet" ? (
                           <span className="text-[9px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded tracking-wide uppercase shrink-0">
                             SCREEN / VOLET
@@ -2391,6 +2760,22 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
                                 <span>Tarification manuelle</span>
                                 {" · "}
                                 <span>{mf.couleurs?.length || 0} couleur{(mf.couleurs?.length || 0) !== 1 ? "s" : ""}</span>
+                              </div>
+                            </>
+                          );
+                        })()
+                      ) : m.typeModele === "paroi_avec_grille" ? (
+                        (() => {
+                          const mg = m as ModeleParoiGrille;
+                          return (
+                            <>
+                              <div className="text-[12px] text-muted-foreground mt-0.5">
+                                {mg.fournisseurNom && <span>{mg.fournisseurNom} · </span>}
+                                <span className="font-mono">{formatCoef(mg.margeDefaut)}</span>
+                                {" · "}
+                                <span>{mg.typesParoi?.length || 0} type{(mg.typesParoi?.length || 0) !== 1 ? "s" : ""} de paroi</span>
+                                {" · "}
+                                <span>{mg.couleurs?.length || 0} couleur{(mg.couleurs?.length || 0) !== 1 ? "s" : ""}</span>
                               </div>
                             </>
                           );
@@ -2473,6 +2858,13 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         ) : editingModele.typeModele === "paroi_fixe" ? (
           <ModeleParoiFixeEditorModal
             modele={editingModele as ModeleParoiFixe}
+            fournisseurs={fournisseurs}
+            onSave={handleSaveModele}
+            onClose={() => setEditingModele(null)}
+          />
+        ) : editingModele.typeModele === "paroi_avec_grille" ? (
+          <ModeleParoiGrilleEditorModal
+            modele={editingModele as ModeleParoiGrille}
             fournisseurs={fournisseurs}
             onSave={handleSaveModele}
             onClose={() => setEditingModele(null)}

@@ -89,7 +89,27 @@ export interface ModeleParoiFixe {
   image?: string;
 }
 
-export type AnyModele = ModelePergola | ModeleCoulissant | ModeleParoiFixe;
+export interface ModeleParoiGrille {
+  id: string;
+  typeModele: "paroi_avec_grille";
+  nom: string;
+  nomFournisseur: string;
+  fournisseurId: string;
+  fournisseurNom: string;
+  margeDefaut: number;
+  typesParoi: {
+    id: string;
+    nom: string;
+    // largeurs en mm → prix achat HT
+    largeurs: number[];
+    prixAchatHT: number[];
+  }[];
+  couleurs: OptionConfigurable[];
+  templateDescription: string;
+  image?: string;
+}
+
+export type AnyModele = ModelePergola | ModeleCoulissant | ModeleParoiFixe | ModeleParoiGrille;
 
 
 /** Résultat de calcul complet */
@@ -148,6 +168,9 @@ function migrateModeles(modeles: AnyModele[]): AnyModele[] {
         migrated = true;
       }
       return copy;
+    }
+    if (m.typeModele === "paroi_avec_grille") {
+      return m;
     }
     let copy = { ...m } as ModelePergola;
     if (!copy.typeModele) {
@@ -330,6 +353,13 @@ export function getLabelsModele(type?: string): LabelsModele {
     return {
       toituresLabel: "Type de paroi",
       dim2Label: "Dimensions",
+      showPoteaux: false,
+    };
+  }
+  if (type === "paroi_avec_grille") {
+    return {
+      toituresLabel: "Type de paroi",
+      dim2Label: "Largeur",
       showPoteaux: false,
     };
   }
@@ -935,6 +965,145 @@ export function genererDescriptionParoiFixe(
     .replace(/\{\{type_paroi\}\}/g, ctx.typeParoi)
     .replace(/\{\{largeur\}\}/g, String(ctx.largeur))
     .replace(/\{\{hauteur\}\}/g, hauteurStr)
+    .replace(/\{\{couleur\}\}/g, ctx.couleur)
+    .replace(/\{\{notes\}\}/g, ctx.notes)
+    .trim();
+
+  desc = desc.replace(/\n\n+/g, "\n");
+  return desc;
+}
+
+export function blankModeleParoiGrille(): ModeleParoiGrille {
+  return {
+    id: uid(),
+    typeModele: "paroi_avec_grille",
+    nom: "",
+    nomFournisseur: "PAROIS FIXES MB",
+    fournisseurId: "",
+    fournisseurNom: "",
+    margeDefaut: 1.45,
+    typesParoi: [
+      { id: uid(), nom: "Aluminium 12 lattes H192 cm", largeurs: [2500, 3000, 3500, 4000, 5000], prixAchatHT: [0, 0, 0, 0, 0] },
+      { id: uid(), nom: "Aluminium 10 lattes H200 cm", largeurs: [2500, 3000, 3500, 4000, 5000], prixAchatHT: [0, 0, 0, 0, 0] },
+      { id: uid(), nom: "Verre fixe rectangle", largeurs: [2500, 3000, 3500, 4000, 5000], prixAchatHT: [0, 0, 0, 0, 0] },
+      { id: uid(), nom: "Verre fixe incliné", largeurs: [2500, 3000, 3500, 4000, 5000], prixAchatHT: [0, 0, 0, 0, 0] },
+      { id: uid(), nom: "Polycarbonate", largeurs: [2500, 3000, 3500, 4000, 5000], prixAchatHT: [0, 0, 0, 0, 0] },
+    ],
+    couleurs: [
+      { id: uid(), nom: "Blanc RAL 9016", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Gris métallique RAL 9007", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "IJzerglimmer DB703", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Anthracite RAL 7016", surchargeHT: 0, surchargePct: 0 },
+      { id: uid(), nom: "Noir RAL 9005", surchargeHT: 0, surchargePct: 0 },
+    ],
+    templateDescription:
+`Paroi latérale fixe MB Aluminium — {{type_paroi}}
+Largeur : {{largeur}} cm
+Couleur structure : {{couleur}}
+{{notes}}
+Fabrication sur mesure — Prix MB Partners HT, TVA non incluse`,
+  };
+}
+
+export interface ResultatParoiGrille {
+  prixAchatBaseHT: number;
+  surchargeCouleurHT: number;
+  surchargeHauteurHT: number;
+  prixAchatTotalHT: number;
+  coefficient: number;
+  prixVenteHT: number;
+  largeurGrille: number;
+}
+
+export function calculerPrixParoiGrille(
+  modele: ModeleParoiGrille,
+  state: {
+    typeParoiId: string;
+    largeurMm: number;
+    hauteurCm?: number;
+    couleurId: string;
+  },
+  coefficient: number
+): ResultatParoiGrille {
+  const typeParoi = modele.typesParoi.find((t) => t.id === state.typeParoiId);
+  if (!typeParoi) throw new Error("Type de paroi introuvable");
+
+  // Arrondi supérieur sur la largeur
+  const matchingIndices = typeParoi.largeurs
+    .map((w, idx) => ({ w, idx }))
+    .filter((item) => item.w >= state.largeurMm);
+
+  let selectedIndex = -1;
+  let largeurGrille = 0;
+  if (matchingIndices.length > 0) {
+    matchingIndices.sort((a, b) => a.w - b.w);
+    selectedIndex = matchingIndices[0].idx;
+    largeurGrille = matchingIndices[0].w;
+  } else {
+    // Fallback à la largeur max si pas trouvée supérieure
+    let maxIdx = 0;
+    let maxW = typeParoi.largeurs[0] || 0;
+    for (let i = 1; i < typeParoi.largeurs.length; i++) {
+      if (typeParoi.largeurs[i] > maxW) {
+        maxW = typeParoi.largeurs[i];
+        maxIdx = i;
+      }
+    }
+    selectedIndex = maxIdx;
+    largeurGrille = maxW;
+  }
+
+  const prixAchatBaseHT = typeParoi.prixAchatHT[selectedIndex] || 0;
+
+  // Surcharge couleur
+  const selectedColor = modele.couleurs?.find((c) => c.id === state.couleurId);
+  const surchargeCouleurHT = selectedColor
+    ? selectedColor.surchargeHT + (prixAchatBaseHT * selectedColor.surchargePct) / 100
+    : 0;
+
+  // Surcharge hauteur
+  let surchargeHauteurHT = 0;
+  if (state.hauteurCm !== undefined) {
+    const nomLower = typeParoi.nom.toLowerCase();
+    const isRectangle = nomLower.includes("verre fixe rectangle");
+    const isIncline = nomLower.includes("verre fixe incliné") || nomLower.includes("verre fixe incline");
+    if (isRectangle && state.hauteurCm > 220) {
+      surchargeHauteurHT = 150;
+    } else if (isIncline && state.hauteurCm > 275) {
+      surchargeHauteurHT = 150;
+    }
+  }
+
+  const prixAchatTotalHT = prixAchatBaseHT + surchargeCouleurHT + surchargeHauteurHT;
+  const prixVenteHT = Math.round(prixAchatTotalHT * coefficient * 100) / 100;
+
+  return {
+    prixAchatBaseHT,
+    surchargeCouleurHT,
+    surchargeHauteurHT,
+    prixAchatTotalHT,
+    coefficient,
+    prixVenteHT,
+    largeurGrille,
+  };
+}
+
+export function genererDescriptionParoiGrille(
+  modele: ModeleParoiGrille,
+  ctx: {
+    typeParoi: string;
+    largeur: number;
+    hauteur?: number;
+    couleur: string;
+    notes: string;
+  }
+): string {
+  let template = modele.templateDescription || "";
+
+  let desc = template
+    .replace(/\{\{nom\}\}/g, modele.nom)
+    .replace(/\{\{type_paroi\}\}/g, ctx.typeParoi)
+    .replace(/\{\{largeur\}\}/g, String(ctx.largeur))
     .replace(/\{\{couleur\}\}/g, ctx.couleur)
     .replace(/\{\{notes\}\}/g, ctx.notes)
     .trim();
