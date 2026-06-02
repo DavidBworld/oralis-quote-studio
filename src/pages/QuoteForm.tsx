@@ -136,7 +136,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   const [step, setStep] = useState<WizardStep>(() => {
     if (!initialState) return 1;
     const found = modeles.find((m) => m.id === initialState.modeleId);
-    if (found?.typeModele === "coulissant" || found?.typeModele === "paroi_fixe" || found?.typeModele === "paroi_avec_grille") {
+    if (!found) return 1;
+    if (found.typeModele === "coulissant" || found.typeModele === "paroi_fixe" || found.typeModele === "paroi_avec_grille") {
       return 3;
     }
     return 4;
@@ -264,7 +265,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
   // Recalcul live pour pergolas/screens
   useEffect(() => {
-    if (step < 3 || !modele || modele.typeModele === "coulissant" || modele.typeModele === "paroi_fixe") return;
+    if (step < 3 || !modele || (modele.typeModele !== "pergola" && modele.typeModele !== "screen" && modele.typeModele !== "volet")) return;
     const mp = modele as ModelePergola;
     if (!state.toitureId || !state.couleurId) return;
     try {
@@ -563,6 +564,10 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                             {m.fournisseurNom && <span>{m.fournisseurNom} · </span>}
                             {m.typeModele === "coulissant" ? (
                               <span>{(m as ModeleCoulissant).tarifsPanneau.length} tarifs · vantaux {(m as ModeleCoulissant).vantauxMin}-{(m as ModeleCoulissant).vantauxMax} · </span>
+                            ) : m.typeModele === "paroi_fixe" ? (
+                              <span>Tarification manuelle · </span>
+                            ) : m.typeModele === "paroi_avec_grille" ? (
+                              <span>{(m as ModeleParoiGrille).typesParoi.length} types de paroi · </span>
                             ) : (
                               <span>{(m as ModelePergola).grille.largeurs.length}L × {(m as ModelePergola).grille.profondeurs.length}P · </span>
                             )}
@@ -579,7 +584,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           )}
 
           {/* Étape 2 — Options */}
-          {step===2 && modele && modele.typeModele !== "coulissant" && (
+          {step===2 && modele && (modele.typeModele === "pergola" || modele.typeModele === "screen" || modele.typeModele === "volet") && (
             <div>
               <h3 className="font-semibold text-[14px] mb-4">Options — <span className="text-accent">{modele.nom}</span></h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -679,7 +684,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           )}
 
           {/* Étape 3 — Dimensions */}
-          {step===3 && modele && modele.typeModele !== "coulissant" && (
+          {step===3 && modele && (modele.typeModele === "pergola" || modele.typeModele === "screen" || modele.typeModele === "volet") && (
             <div>
               <h3 className="font-semibold text-[14px] mb-4">Dimensions (mm)</h3>
               <div className="grid grid-cols-2 gap-6 mb-4">
@@ -787,7 +792,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           )}
 
           {/* Étape 4 — Prix */}
-          {step===4 && modele && modele.typeModele !== "coulissant" && (
+          {step===4 && modele && (modele.typeModele === "pergola" || modele.typeModele === "screen" || modele.typeModele === "volet") && (
             <div>
               <h3 className="font-semibold text-[14px] mb-4">Calculateur de prix</h3>
               <div className="mb-4">
