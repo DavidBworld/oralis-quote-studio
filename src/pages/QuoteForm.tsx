@@ -416,7 +416,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       const couleurOpt = mf.couleurs?.find((c) => c.id === state.couleurId);
       const couleurNom = couleurOpt ? couleurOpt.nom : "—";
 
-      const designation = `${state.typeParoi} ${mf.nom} — ${state.largeurParoi} cm`;
+      const designation = `${state.typeParoi} — ${state.largeurParoi} cm`;
       
       let warningNotes = "";
       if (state.typeParoi?.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
@@ -442,7 +442,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       const couleurOpt = mg.couleurs?.find((c) => c.id === state.couleurId);
       const couleurNom = couleurOpt ? couleurOpt.nom : "—";
 
-      const designation = `${typeParoiNom} ${mg.nom} — ${state.largeurParoi} cm`;
+      const designation = `${typeParoiNom} — ${state.largeurParoi} cm`;
 
       let warningNotes = "";
       if (typeParoiNom.includes("12 lattes") && (state.largeurParoi || 0) > 96) {
@@ -1560,7 +1560,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 {/* Preview de la désignation et de la description */}
                 <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
                   <div className="font-semibold text-foreground text-[12px] mb-1">
-                    {state.typeParoi} {modele.nom} — {state.largeurParoi} cm
+                    {state.typeParoi} — {state.largeurParoi} cm
                   </div>
                   <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
                     {(() => {
@@ -1654,7 +1654,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 {/* Preview de la désignation et de la description */}
                 <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
                   <div className="font-semibold text-foreground text-[12px] mb-1">
-                    {state.typeParoi} {modele.nom} — {state.largeurParoi} cm
+                    {state.typeParoi} — {state.largeurParoi} cm
                   </div>
                   <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
                     {(() => {
