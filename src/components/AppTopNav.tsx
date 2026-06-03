@@ -22,9 +22,21 @@ export function AppTopNav() {
   const [password, setPassword] = useState("");
   const [error, setError]       = useState("");
 
-  const openSettings = () => { setPassword(""); setError(""); setModal(true); };
+  const openSettings = () => {
+    if (sessionStorage.getItem("oralis_supervisor_unlocked") === "true") {
+      navigate("/parametres");
+      return;
+    }
+    setPassword("");
+    setError("");
+    setModal(true);
+  };
   const confirm = () => {
-    if (checkPassword(password)) { setModal(false); navigate("/parametres"); }
+    if (checkPassword(password)) {
+      sessionStorage.setItem("oralis_supervisor_unlocked", "true");
+      setModal(false);
+      navigate("/parametres");
+    }
     else setError("Mot de passe incorrect");
   };
 

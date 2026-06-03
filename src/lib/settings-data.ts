@@ -118,7 +118,7 @@ const SETTINGS_KEY = "oralis_settings";
 
 export function defaultCompany(): CompanySettings {
   return {
-    nom: "ORALIS SAS",
+    nom: "TOUT POUR MA TERRASSE - SAS",
     rue: "30 rue de la poudrière",
     ville: "Saint Max",
     codePostal: "54130",
@@ -222,11 +222,11 @@ export function defaultSettings(): AppSettings {
 
 export function defaultComptabilite(): ComptabiliteSettings {
   return {
-    nomEntreprise: "ORALIS SAS",
+    nomEntreprise: "TOUT POUR MA TERRASSE - SAS",
     adresseEntreprise: "30 rue de la poudrière",
     cpVilleEntreprise: "54130 Saint Max",
     telephone: "+352 661 457 599",
-    emailComptabilite: "compta@pergola-oralis.com",
+    emailComptabilite: "contact@pergola-oralis.com",
     siret: "903 507 283",
     iban: "FR76 3000 2000 1000 0123 4567 890",
     bic: "AGRIFRPPXXX",
@@ -251,6 +251,20 @@ export function loadSettings(): AppSettings {
       };
       // If no logo was set, use the default ORALIS logo
       if (!merged.logo) merged.logo = defaults.logo;
+
+      // Migrate / ensure unique ids exist on all items
+      if (merged.comptabilite.nomEntreprise === "ORALIS SAS") {
+        merged.comptabilite.nomEntreprise = "TOUT POUR MA TERRASSE - SAS";
+      }
+      if (merged.comptabilite.emailComptabilite === "compta@pergola-oralis.com") {
+        merged.comptabilite.emailComptabilite = "contact@pergola-oralis.com";
+      }
+      if (merged.company.nom === "ORALIS SAS") {
+        merged.company.nom = "TOUT POUR MA TERRASSE - SAS";
+      }
+      if (merged.company.email === "compta@pergola-oralis.com") {
+        merged.company.email = "contact@pergola-oralis.com";
+      }
 
       // Migrate / ensure unique ids exist on all items
       if (merged.coefficients) {

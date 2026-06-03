@@ -1179,6 +1179,13 @@ function RappelModal({
   );
 }
 
+function formatPDFMoney(val: number): string {
+  let formatted = val.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Replace non-breaking spaces (u202F, u00A0) with standard space
+  formatted = formatted.replace(/[\u202F\u00A0]/g, " ");
+  return formatted + " EUR";
+}
+
 function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: string) {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -1207,13 +1214,21 @@ function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: s
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text(compta.nomEntreprise, 15, 28);
+
+  let currentHeaderY = 33;
+  if (compta.nomEntreprise === "TOUT POUR MA TERRASSE - SAS") {
+    doc.setFont("helvetica", "bold");
+    doc.text("ORALIS - Marque premium", 15, 33);
+    currentHeaderY = 38;
+  }
+
   doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);
-  doc.text(compta.adresseEntreprise, 15, 33);
-  doc.text(compta.cpVilleEntreprise, 15, 38);
-  doc.text(`Tél : ${compta.telephone}`, 15, 43);
-  doc.text(`Email : ${compta.emailComptabilite}`, 15, 48);
-  doc.text(`SIRET : ${compta.siret}`, 15, 53);
+  doc.text(compta.adresseEntreprise, 15, currentHeaderY);
+  doc.text(compta.cpVilleEntreprise, 15, currentHeaderY + 5);
+  doc.text(`Tél : ${compta.telephone}`, 15, currentHeaderY + 10);
+  doc.text(`Email : ${compta.emailComptabilite}`, 15, currentHeaderY + 15);
+  doc.text(`SIRET : ${compta.siret}`, 15, currentHeaderY + 20);
 
   doc.setTextColor(0, 0, 0);
   doc.setFont("helvetica", "bold");
@@ -1273,7 +1288,7 @@ function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: s
 
     doc.text("Sauf erreur ou omission de notre part, nous constatons que votre compte présente un solde", 15, currentY);
     currentY += 6;
-    doc.text(`débiteur de ${formatEUR(soldeDu)} TTC au titre de la facture N° ${facture.numero}.`, 15, currentY);
+    doc.text(`débiteur de ${formatPDFMoney(soldeDu)} TTC au titre de la facture N° ${facture.numero}.`, 15, currentY);
     currentY += 10;
 
     doc.text(`Cette facture, dont la date d'échéance était fixée au ${dateEcheance}, est restée impayée à ce`, 15, currentY);
@@ -1296,7 +1311,7 @@ function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: s
     const formattedRappel1Date = dateRappel1Input ? formatDate(dateRappel1Input) : todayStr;
     doc.text(`Malgré notre première lettre de relance amiable en date du ${formattedRappel1Date}, nous n'avons`, 15, currentY);
     currentY += 6;
-    doc.text(`toujours pas reçu le règlement de votre facture N° ${facture.numero} d'un montant de ${formatEUR(soldeDu)} TTC`, 15, currentY);
+    doc.text(`toujours pas reçu le règlement de votre facture N° ${facture.numero} d'un montant de ${formatPDFMoney(soldeDu)} TTC`, 15, currentY);
     currentY += 6;
     doc.text(`(échéance dépassée le ${dateEcheance}).`, 15, currentY);
     currentY += 10;
@@ -1330,10 +1345,10 @@ function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: s
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text("Désignation", 18, currentY + 5.5);
-  doc.text("Montant HT", 85, currentY + 5.5, { align: "right" });
-  doc.text("TVA", 108, currentY + 5.5, { align: "right" });
-  doc.text("Montant TTC", 138, currentY + 5.5, { align: "right" });
-  doc.text("Acompte payé", 168, currentY + 5.5, { align: "right" });
+  doc.text("Montant HT", 100, currentY + 5.5, { align: "right" });
+  doc.text("TVA", 122, currentY + 5.5, { align: "right" });
+  doc.text("Montant TTC", 146, currentY + 5.5, { align: "right" });
+  doc.text("Acompte payé", 170, currentY + 5.5, { align: "right" });
   doc.text("Solde dû", 192, currentY + 5.5, { align: "right" });
 
   currentY += 8;
@@ -1347,14 +1362,14 @@ function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: s
   const totalHT = facture.totalHT;
   const tvaAmount = facture.totalTTC - totalHT;
 
-  doc.text(formatEUR(totalHT), 85, currentY + 6, { align: "right" });
-  doc.text(formatEUR(tvaAmount), 108, currentY + 6, { align: "right" });
-  doc.text(formatEUR(facture.totalTTC), 138, currentY + 6, { align: "right" });
-  doc.text(formatEUR(acompteVerse), 168, currentY + 6, { align: "right" });
+  doc.text(formatPDFMoney(totalHT), 100, currentY + 6, { align: "right" });
+  doc.text(formatPDFMoney(tvaAmount), 122, currentY + 6, { align: "right" });
+  doc.text(formatPDFMoney(facture.totalTTC), 146, currentY + 6, { align: "right" });
+  doc.text(formatPDFMoney(acompteVerse), 170, currentY + 6, { align: "right" });
 
   doc.setFont("helvetica", "bold");
   doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
-  doc.text(formatEUR(soldeDu), 192, currentY + 6, { align: "right" });
+  doc.text(formatPDFMoney(soldeDu), 192, currentY + 6, { align: "right" });
 
   // 6. Barre "Solde restant dû"
   currentY += 16;
@@ -1364,7 +1379,7 @@ function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: s
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text(`Solde restant dû : ${formatEUR(soldeDu)} — Virement bancaire uniquement`, 18, currentY + 5.5);
+  doc.text(`Solde restant dû : ${formatPDFMoney(soldeDu)} — Virement bancaire uniquement`, 18, currentY + 5.5);
 
   // 7. Encadré coordonnées bancaires
   currentY += 12;

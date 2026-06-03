@@ -11,6 +11,10 @@ export function AppSidebar() {
   const [error, setError] = useState("");
 
   const handleSettingsClick = () => {
+    if (sessionStorage.getItem("oralis_supervisor_unlocked") === "true") {
+      navigate("/parametres");
+      return;
+    }
     setPassword("");
     setError("");
     setShowModal(true);
@@ -18,6 +22,7 @@ export function AppSidebar() {
 
   const handleConfirm = () => {
     if (checkPassword(password)) {
+      sessionStorage.setItem("oralis_supervisor_unlocked", "true");
       setShowModal(false);
       navigate("/parametres");
     } else {

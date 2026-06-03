@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, Upload, Download, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -16,6 +17,15 @@ import { uid } from "@/lib/quote-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
 export default function Settings() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (sessionStorage.getItem("oralis_supervisor_unlocked") !== "true") {
+      navigate("/");
+      toast.error("Veuillez saisir le mot de passe superviseur pour accéder à cette page.");
+    }
+  }, [navigate]);
+
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [activeTab, setActiveTab] = useState<"entreprise" | "comptabilite" | "tarifs" | "bibliotheque" | "sauvegarde">("entreprise");
   const fileInputRef = useRef<HTMLInputElement>(null);
