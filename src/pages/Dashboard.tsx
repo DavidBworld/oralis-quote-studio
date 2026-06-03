@@ -7,9 +7,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  loadQuotes,
-  saveQuotes,
-  initializeStorage,
   formatEUR,
   formatDate,
   calcTotals,
@@ -19,13 +16,16 @@ import {
 } from "@/lib/quote-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import {
-  loadCommandes, saveCommandes, nextCommandeNumber,
+  nextCommandeNumber,
   createCommandeFromDevis, getCommandeResteAFacturer,
   getCommandeTotalFacture, getProchainEcheancier,
   ECHEANCIER_DEFAUT, createFactureFromCommande,
   nextFactureNumberOR,
   type Commande,
 } from "@/lib/commande-data";
+import { dbLoadQuotes, dbSaveQuote, dbDeleteQuote } from "@/lib/supabase-data/devis";
+import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
+import { dbLoadFactures, dbSaveFacture } from "@/lib/supabase-data/factures";
 
 const statusClass: Record<Quote["statut"], string> = {
   brouillon: "status-brouillon",
@@ -41,11 +41,7 @@ const statusBorderClass: Record<Quote["statut"], string> = {
   refuse: "border-l-[3px] border-l-destructive",
 };
 
-// ── Helpers for factures localStorage ──
-function loadFactures(): any[] {
-  try { return JSON.parse(localStorage.getItem("oralis_factures") || "[]"); } catch { return []; }
-}
-function saveFactures(f: any[]) { localStorage.setItem("oralis_factures", JSON.stringify(f)); }
+
 
 function loadFavoris(): string[] {
   try { return JSON.parse(localStorage.getItem("oralis_devis_favoris") || "[]"); } catch { return []; }
@@ -185,13 +181,16 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
     setOpen(!open);
   };
 
-  const changeStatus = (s: Quote["statut"]) => {
-    const all = loadQuotes();
-    const idx = all.findIndex((q) => q.id === quote.id);
-    if (idx >= 0) { all[idx].statut = s; saveQuotes(all); }
-    setOpen(false);
-    onUpdate();
-    toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
+  const changeStatus = async (s: Quote["statut"]) => {
+    try {
+      const updated = { ...quote, statut: s };
+      await dbSaveQuote(updated);
+      setOpen(false);
+      onUpdate();
+      toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
+    } catch (err) {
+      toast.error("Erreur lors de la modification du statut.");
+    }
   };
 
   const quickTransitions = STATUS_TRANSITIONS[quote.statut];
@@ -267,25 +266,25 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
 }
 
 // ── Convert to Commande Client Modal ──
-function ConvertCommandeModal({ quote, onClose, onDone }: { quote: Quote; onClose: () => void; onDone: () => void }) {
+function ConvertCommandeModal({ quote, commandes, onClose, onDone }: { quote: Quote; commandes: Commande[]; onClose: () => void; onDone: () => void }) {
   const [refAffaire, setRefAffaire] = useState("");
   const [dateLivraison, setDateLivraison] = useState("");
 
-  const handleConvert = () => {
-    const cmd = createCommandeFromDevis(quote, refAffaire, dateLivraison);
-    const cmds = loadCommandes();
-    cmds.push(cmd);
-    saveCommandes(cmds);
+  const handleConvert = async () => {
+    try {
+      const cmd = createCommandeFromDevis(quote, refAffaire, dateLivraison, commandes);
+      await dbSaveCommande(cmd);
 
-    const all = loadQuotes();
-    const idx = all.findIndex((q) => q.id === quote.id);
-    if (idx >= 0) {
-      all[idx].statut = "accepte";
-      saveQuotes(all);
+      const updatedQuote = { ...quote, statut: "accepte" as const };
+      await dbSaveQuote(updatedQuote);
+
+      toast.success(`Commande ${cmd.numero} créée ✓`);
+      onDone();
+      onClose();
+    } catch (err) {
+      console.error("Erreur lors de la conversion en commande:", err);
+      toast.error("Erreur lors de la conversion en commande.");
     }
-    toast.success(`Commande ${cmd.numero} créée ✓`);
-    onDone();
-    onClose();
   };
 
   return (
@@ -322,7 +321,7 @@ function ConvertCommandeModal({ quote, onClose, onDone }: { quote: Quote; onClos
 }
 
 // ── Facture Acompte Modal ──
-function FactureAcompteModal({ quote, onClose, onDone }: { quote: Quote; onClose: () => void; onDone: () => void }) {
+function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quote; factures: any[]; onClose: () => void; onDone: () => void }) {
   const totals = calcTotals(quote.lignes);
   const [pct, setPct] = useState(30);
   const [usePercent, setUsePercent] = useState(true);
@@ -339,45 +338,49 @@ function FactureAcompteModal({ quote, onClose, onDone }: { quote: Quote; onClose
 
   const montantAcompte = usePercent ? totals.totalTTC * (pct / 100) : montantDirect;
 
-  const handleCreate = () => {
-    const tvaBreakdown = Object.entries(totals.tvaMap).map(([taux, montantTVA]) => {
-      const t = parseFloat(taux);
-      // Calculate base HT for this rate
-      let baseHT = 0;
-      for (const l of quote.lignes) {
-        if (l.tva === t) baseHT += l.quantite * l.prixUnitaireHT;
-        for (const o of l.options) { if (o.tva === t) baseHT += o.prixHT; }
-      }
-      return { taux: t, baseHT, montantTVA, montantTTC: baseHT + montantTVA };
-    });
+  const handleCreate = async () => {
+    try {
+      const tvaBreakdown = Object.entries(totals.tvaMap).map(([taux, montantTVA]) => {
+        const t = parseFloat(taux);
+        let baseHT = 0;
+        for (const l of quote.lignes) {
+          if (l.tva === t) baseHT += l.quantite * l.prixUnitaireHT;
+          for (const o of l.options) { if (o.tva === t) baseHT += o.prixHT; }
+        }
+        return { taux: t, baseHT, montantTVA, montantTTC: baseHT + montantTVA };
+      });
 
-    const facture = {
-      id: uid(),
-      numero: nextFactureNumberOR(),
-      type: "acompte",
-      devisId: quote.id,
-      devisNumero: quote.numero,
-      client: quote.client,
-      lignes: quote.lignes,
-      totalHT: totals.sousTotal,
-      totalTTC: totals.totalTTC,
-      montantAcompte,
-      montantAcomptePct: usePercent ? pct : Math.round((montantAcompte / totals.totalTTC) * 100),
-      libelle,
-      dateFacture,
-      dateEcheance,
-      modePaiement,
-      statut: "non_payee",
-      reglements: addReglement ? [{ montant: montantRecu, date: dateReception }] : [],
-      dateCreation: new Date().toISOString().split("T")[0],
-      tvaBreakdown,
-    };
-    const all = loadFactures();
-    all.push(facture);
-    saveFactures(all);
-    toast.success("Facture d'acompte créée ✓");
-    onDone();
-    onClose();
+      const nextNum = nextFactureNumberOR(factures);
+      const facture = {
+        id: uid(),
+        numero: nextNum,
+        type: "acompte" as const,
+        devisId: quote.id,
+        devisNumero: quote.numero,
+        client: quote.client,
+        lignes: quote.lignes,
+        totalHT: totals.sousTotal,
+        totalTTC: totals.totalTTC,
+        montantAcompte,
+        montantAcomptePct: usePercent ? pct : Math.round((montantAcompte / totals.totalTTC) * 100),
+        libelle,
+        dateFacture,
+        dateEcheance,
+        modePaiement,
+        statut: "non_payee" as const,
+        reglements: addReglement ? [{ montant: montantRecu, date: dateReception }] : [],
+        dateCreation: new Date().toISOString().split("T")[0],
+        tvaBreakdown,
+      };
+
+      await dbSaveFacture(facture);
+      toast.success("Facture d'acompte créée ✓");
+      onDone();
+      onClose();
+    } catch (err) {
+      console.error("Erreur lors de la création de la facture d'acompte:", err);
+      toast.error("Erreur lors de la création de la facture.");
+    }
   };
 
   return (
@@ -454,6 +457,9 @@ function FactureAcompteModal({ quote, onClose, onDone }: { quote: Quote; onClose
 export default function Dashboard() {
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [commandes, setCommandes] = useState<Commande[]>([]);
+  const [factures, setFactures] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [favoris, setFavoris] = useState<string[]>([]);
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
@@ -470,68 +476,79 @@ export default function Dashboard() {
     onConfirm: () => {},
   });
 
-  const reload = useCallback(() => {
-    setQuotes(loadQuotes());
-    setFavoris(loadFavoris());
+  const reload = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [allQuotes, allCommandes, allFactures] = await Promise.all([
+        dbLoadQuotes(),
+        dbLoadCommandes(),
+        dbLoadFactures(),
+      ]);
+      setQuotes(allQuotes);
+      setCommandes(allCommandes);
+      setFactures(allFactures);
+      setFavoris(loadFavoris());
+    } catch (err) {
+      console.error("Erreur lors du chargement des données du tableau de bord:", err);
+      toast.error("Erreur lors du chargement des données.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    initializeStorage();
     reload();
   }, [reload]);
 
-  const filtered = quotes.filter(
-    (q) =>
-      q.client.nom.toLowerCase().includes(search.toLowerCase()) ||
-      q.client.prenom.toLowerCase().includes(search.toLowerCase()) ||
-      q.numero.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const commandes = loadCommandes();
-  const factures = loadFactures();
-
-  const duplicateQuote = (q: Quote) => {
-    const all = loadQuotes();
-    const dup: Quote = {
-      ...JSON.parse(JSON.stringify(q)),
-      id: uid(),
-      numero: `${q.numero}-COPIE`,
-      statut: "brouillon" as const,
-      date: new Date().toISOString().split("T")[0],
-    };
-    all.push(dup);
-    saveQuotes(all);
-    reload();
-    toast.success("Devis dupliqué ✓");
+  const duplicateQuote = async (q: Quote) => {
+    try {
+      const dup: Quote = {
+        ...JSON.parse(JSON.stringify(q)),
+        id: uid(),
+        numero: `${q.numero}-COPIE`,
+        statut: "brouillon" as const,
+        date: new Date().toISOString().split("T")[0],
+      };
+      await dbSaveQuote(dup);
+      await reload();
+      toast.success("Devis dupliqué ✓");
+    } catch (err) {
+      toast.error("Erreur lors de la duplication du devis.");
+    }
   };
 
-  const createVariant = (q: Quote) => {
-    const all = loadQuotes();
-    const base = q.numero.replace(/-[a-z]$/, "");
-    const existingVars = all.filter((x) => x.numero.startsWith(base) && x.numero !== base);
-    const nextLetter = String.fromCharCode(98 + existingVars.length); // b, c, d...
-    const dup: Quote = {
-      ...JSON.parse(JSON.stringify(q)),
-      id: uid(),
-      numero: `${base}-${nextLetter}`,
-      statut: "brouillon" as const,
-      date: new Date().toISOString().split("T")[0],
-    };
-    all.push(dup);
-    saveQuotes(all);
-    reload();
-    toast.success(`Variante ${dup.numero} créée ✓`);
+  const createVariant = async (q: Quote) => {
+    try {
+      const base = q.numero.replace(/-[a-z]$/, "");
+      const existingVars = quotes.filter((x) => x.numero.startsWith(base) && x.numero !== base);
+      const nextLetter = String.fromCharCode(98 + existingVars.length); // b, c, d...
+      const dup: Quote = {
+        ...JSON.parse(JSON.stringify(q)),
+        id: uid(),
+        numero: `${base}-${nextLetter}`,
+        statut: "brouillon" as const,
+        date: new Date().toISOString().split("T")[0],
+      };
+      await dbSaveQuote(dup);
+      await reload();
+      toast.success(`Variante ${dup.numero} créée ✓`);
+    } catch (err) {
+      toast.error("Erreur lors de la création de la variante.");
+    }
   };
 
   const deleteQuote = (q: Quote) => {
     setConfirmDelete({
       isOpen: true,
-      message: "Voulez-vous vraiment supprimer ce devis ?",
-      onConfirm: () => {
-        const all = loadQuotes().filter((x) => x.id !== q.id);
-        saveQuotes(all);
-        reload();
-        toast.success("Devis supprimé");
+      message: `Voulez-vous vraiment supprimer le devis ${q.numero} ? Cette action est irréversible.`,
+      onConfirm: async () => {
+        try {
+          await dbDeleteQuote(q.id);
+          await reload();
+          toast.success("Devis supprimé ✓");
+        } catch (err) {
+          toast.error("Erreur lors de la suppression du devis.");
+        }
       },
     });
   };
@@ -544,12 +561,15 @@ export default function Dashboard() {
     setFavoris([...f]);
   };
 
-  const setStatus = (q: Quote, s: Quote["statut"]) => {
-    const all = loadQuotes();
-    const idx = all.findIndex((x) => x.id === q.id);
-    if (idx >= 0) { all[idx].statut = s; saveQuotes(all); }
-    reload();
-    toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
+  const setStatus = async (q: Quote, s: Quote["statut"]) => {
+    try {
+      const updated = { ...q, statut: s };
+      await dbSaveQuote(updated);
+      await reload();
+      toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
+    } catch (err) {
+      toast.error("Erreur lors de la modification du statut.");
+    }
   };
 
   const handleCtxAction = (action: string, q: Quote, sub?: string) => {
@@ -567,6 +587,24 @@ export default function Dashboard() {
     }
     setCtxMenu(null);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement du tableau de bord...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const filtered = quotes.filter(
+    (q) =>
+      q.client.nom.toLowerCase().includes(search.toLowerCase()) ||
+      q.client.prenom.toLowerCase().includes(search.toLowerCase()) ||
+      q.numero.toLowerCase().includes(search.toLowerCase())
+  );
 
   const handleRowContextMenu = (e: React.MouseEvent, q: Quote) => {
     e.preventDefault();
@@ -851,8 +889,8 @@ export default function Dashboard() {
       {ctxMenu && <ContextMenu ctx={ctxMenu} onClose={() => setCtxMenu(null)} onAction={handleCtxAction} />}
 
       {/* Modals */}
-      {convertModal && <ConvertCommandeModal quote={convertModal} onClose={() => setConvertModal(null)} onDone={reload} />}
-      {factureModal && <FactureAcompteModal quote={factureModal} onClose={() => setFactureModal(null)} onDone={reload} />}
+      {convertModal && <ConvertCommandeModal quote={convertModal} commandes={commandes} onClose={() => setConvertModal(null)} onDone={reload} />}
+      {factureModal && <FactureAcompteModal quote={factureModal} factures={factures} onClose={() => setFactureModal(null)} onDone={reload} />}
 
       <ConfirmModal
         isOpen={confirmDelete.isOpen}

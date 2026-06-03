@@ -70,8 +70,8 @@ export function saveCommandes(commandes: Commande[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(commandes));
 }
 
-export function nextCommandeNumber(): string {
-  const all = loadCommandes();
+export function nextCommandeNumber(commandes?: Commande[]): string {
+  const all = commandes || loadCommandes();
   const y = new Date().getFullYear();
   const nums = all.map((c) => {
     const m = c.numero.match(/CMD-\d+-(\d+)/);
@@ -121,11 +121,11 @@ export function getProchainEcheancier(commande: Commande): typeof ECHEANCIER_DEF
 
 // ── Créer une commande depuis un devis accepté ──
 
-export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, dateLivraison: string): Commande {
+export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, dateLivraison: string, commandes?: Commande[]): Commande {
   const totals = calcTotals(quote.lignes);
   return {
     id: uid(),
-    numero: nextCommandeNumber(),
+    numero: nextCommandeNumber(commandes),
     devisId: quote.id,
     devisNumero: quote.numero,
     client: quote.client,

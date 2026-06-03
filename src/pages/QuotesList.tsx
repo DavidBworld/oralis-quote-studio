@@ -10,10 +10,9 @@ import {
   type Quote,
 } from "@/lib/quote-data";
 import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
+import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
 import { useCallback } from "react";
 import {
-  loadCommandes,
-  saveCommandes,
   createCommandeFromDevis,
 } from "@/lib/commande-data";
 import { toast } from "sonner";
@@ -36,18 +35,20 @@ const TABS: { label: string; value: Quote["statut"] | "tous" }[] = [
 export default function QuotesList() {
   const navigate = useNavigate();
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [commandes, setCommandes] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<Quote["statut"] | "tous">("tous");
   const [convertModal, setConvertModal] = useState<Quote | null>(null);
   const [convertRef, setConvertRef] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const hasCmdForQuote = (qId: string) => loadCommandes().some((c: any) => c.devisId === qId);
+  const hasCmdForQuote = (qId: string) => commandes.some((c: any) => c.devisId === qId);
 
   const fetchQuotes = useCallback(async () => {
     try {
-      const list = await dbLoadQuotes();
+      const [list, cmds] = await Promise.all([dbLoadQuotes(), dbLoadCommandes()]);
       setQuotes(list);
+      setCommandes(cmds);
     } catch (err) {
       toast.error("Erreur lors du chargement des devis.");
     } finally {
@@ -61,11 +62,11 @@ export default function QuotesList() {
       const updatedQuote = { ...convertModal, statut: "accepte" as const };
       await dbSaveQuote(updatedQuote);
       
-      const commandes = loadCommandes();
-      const cmd = createCommandeFromDevis(convertModal, convertRef, "");
-      saveCommandes([...commandes, cmd]);
+      const cmds = await dbLoadCommandes();
+      const cmd = createCommandeFromDevis(convertModal, convertRef, "", cmds);
+      await dbSaveCommande(cmd);
       
-      toast.success(`Commande ${cmd.numero} créée`);
+      toast.success(`Commande ${cmd.numero} créée ✓`);
       setConvertModal(null);
       setConvertRef("");
       navigate(`/commandes/${cmd.id}`);
