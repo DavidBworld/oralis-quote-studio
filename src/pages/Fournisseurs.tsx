@@ -13,6 +13,7 @@ import {
   type ModelePergola, type ModeleCoulissant, type ModeleParoiFixe, type ModeleParoiGrille, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { dbLoadFournisseurs, dbSaveFournisseur, dbDeleteFournisseur } from "@/lib/supabase-data/fournisseurs";
 
 // ── processImageFile ───────────────────────────────────────────────────────────
 
@@ -65,18 +66,6 @@ export interface Fournisseur {
   notes: string;
   produits: ProduitFournisseur[];
   dateCreation: string;
-}
-
-function loadFournisseurs(): Fournisseur[] {
-  try {
-    return JSON.parse(localStorage.getItem("oralis_fournisseurs") || "[]");
-  } catch {
-    return [];
-  }
-}
-
-function saveFournisseurs(data: Fournisseur[]) {
-  localStorage.setItem("oralis_fournisseurs", JSON.stringify(data));
 }
 
 const CATEGORIES = [
@@ -3030,28 +3019,69 @@ export default function Fournisseurs() {
     onConfirm: () => {},
   });
 
-  const reload = useCallback(() => setFournisseurs(loadFournisseurs()), []);
-  useEffect(() => reload(), [reload]);
+  const [loading, setLoading] = useState(true);
 
-  const save = (list: Fournisseur[]) => {
-    saveFournisseurs(list);
-    setFournisseurs(list);
+  const reload = useCallback(async () => {
+    try {
+      const data = await dbLoadFournisseurs();
+      setFournisseurs(data);
+    } catch (err) {
+      toast.error("Erreur lors du chargement des fournisseurs.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  const addFournisseur = async () => {
+    const newF = blankFournisseur();
+    try {
+      await dbSaveFournisseur(newF);
+      toast.success("Nouveau fournisseur créé");
+      await reload();
+    } catch (err) {
+      toast.error("Erreur lors de la création du fournisseur.");
+    }
   };
-  const addFournisseur = () => {
-    save([blankFournisseur(), ...fournisseurs]);
-    toast.success("Nouveau fournisseur créé");
+
+  const updateFournisseur = async (f: Fournisseur) => {
+    try {
+      await dbSaveFournisseur(f);
+      await reload();
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement du fournisseur.");
+    }
   };
-  const updateFournisseur = (f: Fournisseur) => save(fournisseurs.map((x) => (x.id === f.id ? f : x)));
+
   const deleteFournisseur = (id: string) => {
     setConfirmDelete({
       isOpen: true,
       message: "Voulez-vous vraiment supprimer ce fournisseur et tous ses tarifs ?",
-      onConfirm: () => {
-        save(fournisseurs.filter((f) => f.id !== id));
-        toast.success("Fournisseur supprimé");
+      onConfirm: async () => {
+        try {
+          await dbDeleteFournisseur(id);
+          toast.success("Fournisseur supprimé");
+          await reload();
+        } catch (err) {
+          toast.error("Erreur lors de la suppression du fournisseur.");
+        }
       },
     });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement des fournisseurs...</p>
+        </div>
+      </div>
+    );
+  }
 
   const allCats = Array.from(new Set(fournisseurs.map((f) => f.categorie).filter(Boolean)));
   const filtered = fournisseurs.filter((f) => {
