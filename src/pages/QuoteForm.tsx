@@ -21,6 +21,7 @@ import {
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadModeles } from "@/lib/supabase-data/modeles";
 import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
+import { dbLoadClients } from "@/lib/supabase-data/clients";
 
 const CATEGORIES = [
   "Pergola bioclimatique",
@@ -2335,8 +2336,45 @@ export default function QuoteForm() {
     async function initQuote() {
       try {
         setLoading(true);
-        const all = await dbLoadQuotes();
-        if (id && id !== "nouveau") {
+        if (!id || id === "nouveau") {
+          const nq = createEmptyQuote([]);
+          nq.conditionsPaiement = settings.company.conditionsPaiement || nq.conditionsPaiement;
+          nq.delaiRealisation = settings.company.delaiRealisation || nq.delaiRealisation;
+
+          // Prefill client if clientId is in URL parameters
+          const urlParams = new URLSearchParams(window.location.search);
+          const clientId = urlParams.get("clientId");
+          if (clientId) {
+            try {
+              const allClients = await dbLoadClients();
+              const matchedClient = allClients.find((c) => c.id === clientId);
+              if (matchedClient) {
+                nq.client = {
+                  type: matchedClient.type || "particulier",
+                  prenom: matchedClient.prenom || "",
+                  nom: matchedClient.nom || "",
+                  societe: matchedClient.societe || "",
+                  email: matchedClient.email || "",
+                  telephone: matchedClient.telephone || matchedClient.mobile || "",
+                  rue: matchedClient.adresse || "",
+                  ville: matchedClient.ville || "",
+                  codePostal: matchedClient.codePostal || "",
+                  pays: matchedClient.pays || "France",
+                };
+                if (matchedClient.tvaDefaut !== undefined) {
+                  setDefaultTva(matchedClient.tvaDefaut);
+                  if (nq.lignes && nq.lignes.length > 0) {
+                    nq.lignes[0].tva = matchedClient.tvaDefaut;
+                  }
+                }
+              }
+            } catch (errClient) {
+              console.error("Erreur lors du pré-remplissage du client:", errClient);
+            }
+          }
+          setQuote(nq);
+        } else {
+          const all = await dbLoadQuotes();
           const found = all.find((q) => q.id === id);
           if (found) {
             setQuote(found);
@@ -2347,11 +2385,6 @@ export default function QuoteForm() {
             toast.error("Devis introuvable.");
             navigate("/");
           }
-        } else {
-          const nq = createEmptyQuote(all);
-          nq.conditionsPaiement = settings.company.conditionsPaiement || nq.conditionsPaiement;
-          nq.delaiRealisation = settings.company.delaiRealisation || nq.delaiRealisation;
-          setQuote(nq);
         }
       } catch (err) {
         console.error("Erreur chargement devis:", err);
