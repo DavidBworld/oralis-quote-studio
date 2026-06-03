@@ -10,9 +10,10 @@ import {
   loadQuotes, formatEUR, formatDate, calcTotals, uid,
   type Quote, type QuoteLine,
 } from "@/lib/quote-data";
-import { loadSettings, getLegalMention } from "@/lib/settings-data";
+import { loadSettings, getLegalMention, defaultComptabilite } from "@/lib/settings-data";
 import { nextFactureNumberOR } from "@/lib/commande-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { jsPDF } from "jspdf";
 
 // ── Facture types ──
 interface Reglement {
@@ -67,6 +68,7 @@ interface Facture {
   marcheRG?: string;
   dateLeveeRG?: string;
   pctRG?: number;
+  dateRappel1?: string;
 }
 
 // ── localStorage helpers ──
@@ -738,6 +740,7 @@ export default function Factures() {
     message: "",
     onConfirm: () => {},
   });
+  const [rappelModalInvoice, setRappelModalInvoice] = useState<Facture | null>(null);
 
   const reload = useCallback(() => {
     initializeSampleFactures();
@@ -1031,6 +1034,15 @@ export default function Factures() {
                     </td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {f.statut === "retard" && (
+                          <button
+                            onClick={() => setRappelModalInvoice(f)}
+                            className="px-2.5 py-1 text-[11px] font-semibold bg-destructive/15 text-destructive rounded hover:bg-destructive/20 transition-colors"
+                            title="Générer un rappel de paiement"
+                          >
+                            Rappel
+                          </button>
+                        )}
                         <button onClick={() => navigate(`/factures/${f.id}/apercu`)} className="p-2 rounded hover:bg-muted transition-colors" title="Aperçu"><Eye size={14} className="text-muted-foreground" /></button>
                         <button onClick={() => navigate(`/factures/${f.id}`)} className="p-2 rounded hover:bg-muted transition-colors" title="Modifier"><Pencil size={14} className="text-muted-foreground" /></button>
                         <button onClick={() => window.print()} className="p-2 rounded hover:bg-muted transition-colors" title="Imprimer"><Printer size={14} className="text-muted-foreground" /></button>
@@ -1056,6 +1068,15 @@ export default function Factures() {
       {/* Reglement Modal */}
       {reglementModal && <ReglementModal facture={reglementModal} onClose={() => setReglementModal(null)} onDone={reload} />}
 
+      {/* Rappel Modal */}
+      {rappelModalInvoice && (
+        <RappelModal
+          facture={rappelModalInvoice}
+          onClose={() => setRappelModalInvoice(null)}
+          onUpdate={reload}
+        />
+      )}
+
       <ConfirmModal
         isOpen={confirmDelete.isOpen}
         message={confirmDelete.message}
@@ -1067,4 +1088,340 @@ export default function Factures() {
       />
     </div>
   );
+}
+
+function RappelModal({
+  facture,
+  onClose,
+  onUpdate,
+}: {
+  facture: Facture;
+  onClose: () => void;
+  onUpdate: () => void;
+}) {
+  const [type, setType] = useState<1 | 2>(1);
+  const defaultDateRappel1 = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split("T")[0];
+  })();
+  const [dateRappel1, setDateRappel1] = useState(facture.dateRappel1 || defaultDateRappel1);
+
+  const handleGenerate = () => {
+    generateReminderPDF(facture, type, type === 2 ? dateRappel1 : undefined);
+
+    const all = loadFactures();
+    const idx = all.findIndex((f) => f.id === facture.id);
+    if (idx >= 0) {
+      if (type === 1) {
+        all[idx].dateRappel1 = new Date().toISOString().split("T")[0];
+      }
+      saveFactures(all);
+    }
+    onUpdate();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-card border border-border rounded-lg w-full max-w-md p-6 shadow-[var(--shadow-elevated)]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-display text-xl font-semibold">Générer un rappel de paiement</h2>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X size={16} /></button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4 font-body">
+          Facture N° <span className="font-mono font-medium text-foreground">{facture.numero}</span> — Client : <span className="font-medium text-foreground">{facture.client.prenom} {facture.client.nom}</span>
+        </p>
+
+        <div className="space-y-4 font-body">
+          <div>
+            <label className="form-label mb-2 block">Niveau de rappel</label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 p-3 rounded border border-border hover:bg-accent/5 cursor-pointer">
+                <input type="radio" checked={type === 1} onChange={() => setType(1)} className="accent-accent" />
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Rappel 1 — Première relance amiable</div>
+                  <div className="text-[11px] text-muted-foreground">Courrier cordial de relance pour oubli</div>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 p-3 rounded border border-border hover:bg-accent/5 cursor-pointer">
+                <input type="radio" checked={type === 2} onChange={() => setType(2)} className="accent-accent" />
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Rappel 2 — Mise en demeure</div>
+                  <div className="text-[11px] text-muted-foreground">Mise en demeure sous 8 jours avant poursuites</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {type === 2 && (
+            <div>
+              <label className="form-label">Date du premier rappel (Rappel 1)</label>
+              <input
+                type="date"
+                className="form-input"
+                value={dateRappel1}
+                onChange={(e) => setDateRappel1(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Utilisée pour faire référence au premier courrier dans le corps du texte.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onClose} className="btn-ghost">Annuler</button>
+          <button onClick={handleGenerate} className="btn-gold font-semibold">Télécharger le PDF</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: string) {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4"
+  });
+
+  const settings = loadSettings();
+  const compta = settings.comptabilite || defaultComptabilite();
+  const accentColor = type === 1 ? [220, 120, 40] : [200, 30, 30];
+
+  // 1. Bandeau accent en haut
+  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.rect(0, 0, 210, 15, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  const title = type === 1 ? "LETTRE DE RAPPEL — RELANCE AMIABLE" : "MISE EN DEMEURE DE PAYER";
+  doc.text(title, 15, 10);
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+
+  // 2. En-tête 2 colonnes
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(compta.nomEntreprise, 15, 28);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  doc.text(compta.adresseEntreprise, 15, 33);
+  doc.text(compta.cpVilleEntreprise, 15, 38);
+  doc.text(`Tél : ${compta.telephone}`, 15, 43);
+  doc.text(`Email : ${compta.emailComptabilite}`, 15, 48);
+  doc.text(`SIRET : ${compta.siret}`, 15, 53);
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.text("DESTINATAIRE :", 120, 28);
+  const clientName = facture.client.societe
+    ? `${facture.client.societe} (${facture.client.prenom} ${facture.client.nom})`
+    : `${facture.client.prenom} ${facture.client.nom}`;
+  doc.text(clientName, 120, 33);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  doc.text(facture.client.rue, 120, 38);
+  doc.text(`${facture.client.codePostal} ${facture.client.ville}`, 120, 43);
+  doc.text(facture.client.pays, 120, 48);
+  if (facture.client.telephone) doc.text(`Tél : ${facture.client.telephone}`, 120, 53);
+  if (facture.client.email) doc.text(`Email : ${facture.client.email}`, 120, 58);
+
+  // 3. Zone méta
+  doc.setDrawColor(220, 220, 220);
+  doc.setFillColor(250, 250, 250);
+  doc.rect(15, 68, 180, 28, "FD");
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.text("Date d'émission :", 20, 74);
+  doc.text("Référence :", 20, 80);
+  doc.text("Objet :", 20, 86);
+  doc.text("Échéance dépassée :", 20, 92);
+
+  doc.setFont("helvetica", "normal");
+  const todayStr = new Date().toLocaleDateString("fr-FR");
+  const refRappel = `RAPPEL-${type}-${facture.numero}`;
+  const objectText = type === 1 ? "Relance pour facture impayée" : "Mise en demeure pour non-paiement";
+  const dateEcheanceFormatted = formatDate(facture.dateEcheance);
+
+  doc.text(todayStr, 60, 74);
+  doc.text(refRappel, 60, 80);
+  doc.text(objectText, 60, 86);
+  doc.setTextColor(200, 30, 30);
+  doc.setFont("helvetica", "bold");
+  doc.text(dateEcheanceFormatted, 60, 92);
+
+  // 4. Corps du courrier
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10.5);
+
+  const acompteVerse = facture.reglements.reduce((s, r) => s + r.montant, 0);
+  const soldeDu = facture.totalTTC - acompteVerse;
+  const dateEcheance = formatDate(facture.dateEcheance);
+
+  let currentY = 110;
+
+  if (type === 1) {
+    doc.text("Madame, Monsieur,", 15, currentY);
+    currentY += 10;
+
+    doc.text("Sauf erreur ou omission de notre part, nous constatons que votre compte présente un solde", 15, currentY);
+    currentY += 6;
+    doc.text(`débiteur de ${formatEUR(soldeDu)} TTC au titre de la facture N° ${facture.numero}.`, 15, currentY);
+    currentY += 10;
+
+    doc.text(`Cette facture, dont la date d'échéance était fixée au ${dateEcheance}, est restée impayée à ce`, 15, currentY);
+    currentY += 6;
+    doc.text("jour dans notre comptabilité.", 15, currentY);
+    currentY += 10;
+
+    doc.text("Nous vous prions de bien vouloir procéder à la régularisation de ce montant par virement", 15, currentY);
+    currentY += 6;
+    doc.text("bancaire dans les plus brefs délais. Vous trouverez nos coordonnées bancaires au bas de ce document.", 15, currentY);
+    currentY += 10;
+
+    doc.text("Si votre paiement a déjà été effectué avant la réception de cette lettre, nous vous prions de ne pas", 15, currentY);
+    currentY += 6;
+    doc.text("en tenir compte et de nous en excuser.", 15, currentY);
+  } else {
+    doc.text("Madame, Monsieur,", 15, currentY);
+    currentY += 10;
+
+    const formattedRappel1Date = dateRappel1Input ? formatDate(dateRappel1Input) : todayStr;
+    doc.text(`Malgré notre première lettre de relance amiable en date du ${formattedRappel1Date}, nous n'avons`, 15, currentY);
+    currentY += 6;
+    doc.text(`toujours pas reçu le règlement de votre facture N° ${facture.numero} d'un montant de ${formatEUR(soldeDu)} TTC`, 15, currentY);
+    currentY += 6;
+    doc.text(`(échéance dépassée le ${dateEcheance}).`, 15, currentY);
+    currentY += 10;
+
+    doc.text("Par la présente, nous vous mettons formellement en demeure de régler cette somme sous ", 15, currentY);
+    const w1 = doc.getTextWidth("Par la présente, nous vous mettons formellement en demeure de régler cette somme sous ");
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(200, 30, 30);
+    doc.text("8 jours", 15 + w1, currentY);
+    const w2 = doc.getTextWidth("8 jours");
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text(" à réception de la présente,", 15 + w1 + w2, currentY);
+    currentY += 6;
+    doc.text("conformément aux dispositions légales.", 15, currentY);
+    currentY += 10;
+
+    doc.text("À défaut de paiement intégral dans ce délai, nous serons contraints d'engager des poursuites", 15, currentY);
+    currentY += 6;
+    doc.text("judiciaires pour recouvrer cette créance, ce qui entraînera des frais de procédure supplémentaires", 15, currentY);
+    currentY += 6;
+    doc.text("à votre charge.", 15, currentY);
+  }
+
+  // 5. Tableau facture
+  currentY = 160;
+  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.rect(15, currentY, 180, 8, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Désignation", 18, currentY + 5.5);
+  doc.text("Montant HT", 85, currentY + 5.5, { align: "right" });
+  doc.text("TVA", 108, currentY + 5.5, { align: "right" });
+  doc.text("Montant TTC", 138, currentY + 5.5, { align: "right" });
+  doc.text("Acompte payé", 168, currentY + 5.5, { align: "right" });
+  doc.text("Solde dû", 192, currentY + 5.5, { align: "right" });
+
+  currentY += 8;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(15, currentY, 180, 10, "F");
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Facture N° ${facture.numero}`, 18, currentY + 6);
+
+  const totalHT = facture.totalHT;
+  const tvaAmount = facture.totalTTC - totalHT;
+
+  doc.text(formatEUR(totalHT), 85, currentY + 6, { align: "right" });
+  doc.text(formatEUR(tvaAmount), 108, currentY + 6, { align: "right" });
+  doc.text(formatEUR(facture.totalTTC), 138, currentY + 6, { align: "right" });
+  doc.text(formatEUR(acompteVerse), 168, currentY + 6, { align: "right" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.text(formatEUR(soldeDu), 192, currentY + 6, { align: "right" });
+
+  // 6. Barre "Solde restant dû"
+  currentY += 16;
+  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.rect(15, currentY, 180, 8, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.text(`Solde restant dû : ${formatEUR(soldeDu)} — Virement bancaire uniquement`, 18, currentY + 5.5);
+
+  // 7. Encadré coordonnées bancaires
+  currentY += 12;
+  doc.setDrawColor(200, 200, 200);
+  doc.setFillColor(255, 255, 255);
+  doc.rect(15, currentY, 180, 30, "D");
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Coordonnées bancaires pour le virement :", 20, currentY + 6);
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80, 80, 80);
+  doc.text("Titulaire :", 20, currentY + 12);
+  doc.text("IBAN :", 20, currentY + 18);
+  doc.text("BIC :", 20, currentY + 24);
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.text(compta.nomEntreprise, 40, currentY + 12);
+  doc.text(compta.iban, 40, currentY + 18);
+  doc.text(compta.bic, 40, currentY + 24);
+
+  // Right side label
+  doc.setFillColor(255, 245, 235);
+  doc.rect(130, currentY + 2, 60, 26, "F");
+  doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.text("RÉFÉRENCE À INDIQUER :", 133, currentY + 8);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.text(facture.numero, 133, currentY + 16);
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 100, 100);
+  doc.text("Indication obligatoire pour la", 133, currentY + 21);
+  doc.text("validation de votre paiement.", 133, currentY + 24);
+
+  // 8. Footer fixe en bas de page
+  doc.setTextColor(100, 100, 100);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8.5);
+  doc.text(`Pour toute question relative à votre règlement, contactez-nous par email à : ${compta.emailComptabilite}`, 15, 265);
+  doc.text(`ou par téléphone au ${compta.telephone}.`, 15, 269);
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Service Comptabilité", 195, 265, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.text(compta.nomEntreprise, 195, 270, { align: "right" });
+
+  // 9. Bande accent en bas de page
+  doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
+  doc.rect(0, 290, 210, 7, "F");
+
+  const filename = `RAPPEL-${type}-${facture.numero}-${new Date().toISOString().split("T")[0]}.pdf`;
+  doc.save(filename);
 }

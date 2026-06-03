@@ -5,6 +5,7 @@ import {
   loadSettings,
   saveSettings,
   formatEURCoeff,
+  defaultComptabilite,
   type AppSettings,
   type CoefficientRow,
   type FournisseurRemise,
@@ -16,7 +17,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
-  const [activeTab, setActiveTab] = useState<"entreprise" | "tarifs" | "bibliotheque">("entreprise");
+  const [activeTab, setActiveTab] = useState<"entreprise" | "comptabilite" | "tarifs" | "bibliotheque" | "sauvegarde">("entreprise");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     isOpen: boolean;
@@ -39,6 +40,7 @@ export default function Settings() {
 
   const tabs = [
     { key: "entreprise" as const, label: "Entreprise" },
+    { key: "comptabilite" as const, label: "Comptabilité" },
     { key: "tarifs" as const, label: "Tarifs" },
     { key: "bibliotheque" as const, label: "Bibliothèque" },
     { key: "sauvegarde" as const, label: "Sauvegarde & Restauration" },
@@ -145,6 +147,12 @@ export default function Settings() {
           updateCompany={updateCompany}
           fileInputRef={fileInputRef}
           setConfirmDelete={setConfirmDelete}
+        />
+      )}
+      {activeTab === "comptabilite" && (
+        <ComptabiliteTab
+          settings={settings}
+          update={update}
         />
       )}
       {activeTab === "tarifs" && (
@@ -1116,6 +1124,65 @@ function SauvegardeTab({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// TAB 1.5 — COMPTABILITÉ
+// ══════════════════════════════════════════════
+
+function ComptabiliteTab({
+  settings,
+  update,
+}: {
+  settings: AppSettings;
+  update: (p: Partial<AppSettings>) => void;
+}) {
+  const c = settings.comptabilite || defaultComptabilite();
+  const updateCompta = (patch: Partial<AppSettings["comptabilite"]>) => {
+    update({ comptabilite: { ...c, ...patch } });
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="luxury-card">
+        <h2 className="section-title">Coordonnées comptables & bancaires</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-body">
+          <div className="md:col-span-2">
+            <label className="form-label">Nom de l'entreprise (Comptabilité)</label>
+            <input type="text" value={c.nomEntreprise} onChange={(e) => updateCompta({ nomEntreprise: e.target.value })} className="form-input" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="form-label">Adresse (Comptabilité)</label>
+            <input type="text" value={c.adresseEntreprise} onChange={(e) => updateCompta({ adresseEntreprise: e.target.value })} className="form-input" />
+          </div>
+          <div>
+            <label className="form-label">Code Postal & Ville</label>
+            <input type="text" value={c.cpVilleEntreprise} onChange={(e) => updateCompta({ cpVilleEntreprise: e.target.value })} className="form-input" />
+          </div>
+          <div>
+            <label className="form-label">Téléphone</label>
+            <input type="tel" value={c.telephone} onChange={(e) => updateCompta({ telephone: e.target.value })} className="form-input" />
+          </div>
+          <div>
+            <label className="form-label">Email Service Comptabilité</label>
+            <input type="email" value={c.emailComptabilite} onChange={(e) => updateCompta({ emailComptabilite: e.target.value })} className="form-input" />
+          </div>
+          <div>
+            <label className="form-label">SIRET</label>
+            <input type="text" value={c.siret} onChange={(e) => updateCompta({ siret: e.target.value })} className="form-input" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="form-label">IBAN</label>
+            <input type="text" value={c.iban} onChange={(e) => updateCompta({ iban: e.target.value })} className="form-input font-mono" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="form-label">BIC</label>
+            <input type="text" value={c.bic} onChange={(e) => updateCompta({ bic: e.target.value })} className="form-input font-mono" />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

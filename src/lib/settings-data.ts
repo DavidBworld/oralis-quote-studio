@@ -22,6 +22,17 @@ export interface CompanySettings {
   motDePasse: string;
 }
 
+export interface ComptabiliteSettings {
+  nomEntreprise: string;
+  adresseEntreprise: string;
+  cpVilleEntreprise: string;
+  telephone: string;
+  emailComptabilite: string;
+  siret: string;
+  iban: string;
+  bic: string;
+}
+
 export interface DocumentSettings {
   enTete: string;
   piedDePage: string;
@@ -98,6 +109,7 @@ export interface AppSettings {
   catalogProduits: CatalogProduct[];
   catalogPose: CatalogPose[];
   paymentConditionsList: PaymentCondition[];
+  comptabilite: ComptabiliteSettings;
 }
 
 // ── Defaults ──
@@ -204,6 +216,20 @@ export function defaultSettings(): AppSettings {
     catalogProduits: [],
     catalogPose: [],
     paymentConditionsList: defaultPaymentConditions(),
+    comptabilite: defaultComptabilite(),
+  };
+}
+
+export function defaultComptabilite(): ComptabiliteSettings {
+  return {
+    nomEntreprise: "ORALIS SAS",
+    adresseEntreprise: "30 rue de la poudrière",
+    cpVilleEntreprise: "54130 Saint Max",
+    telephone: "+352 661 457 599",
+    emailComptabilite: "compta@pergola-oralis.com",
+    siret: "903 507 283",
+    iban: "FR76 3000 2000 1000 0123 4567 890",
+    bic: "AGRIFRPPXXX",
   };
 }
 
@@ -220,6 +246,7 @@ export function loadSettings(): AppSettings {
         ...defaults,
         ...parsed,
         company: { ...defaults.company, ...parsed.company },
+        comptabilite: { ...defaults.comptabilite, ...parsed.comptabilite },
         paymentConditionsList: parsed.paymentConditionsList || defaults.paymentConditionsList
       };
       // If no logo was set, use the default ORALIS logo
