@@ -749,6 +749,7 @@ function ReglesPoteauxEditor({
   onChangeSection,
   tarifPoteauSuppHT,
   onChangeTarif,
+  isPrime = false,
 }: {
   regles: ReglePoteau[];
   onChange: (r: ReglePoteau[]) => void;
@@ -756,6 +757,7 @@ function ReglesPoteauxEditor({
   onChangeSection: (s: string) => void;
   tarifPoteauSuppHT: number;
   onChangeTarif: (t: number) => void;
+  isPrime?: boolean;
 }) {
   const add = () => {
     const last = regles[regles.length - 1];
@@ -838,147 +840,149 @@ function ReglesPoteauxEditor({
         </div>
       </div>
 
-      <div className="border border-border rounded-xl p-4 bg-muted/10">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
-              Règles poteaux (pour le calcul automatique du nombre de poteaux)
-            </label>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Le nombre de poteaux est calculé automatiquement selon la largeur (et optionnellement la profondeur) saisie.
-            </p>
+      {!isPrime && (
+        <div className="border border-border rounded-xl p-4 bg-muted/10">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
+                Règles poteaux (pour le calcul automatique du nombre de poteaux)
+              </label>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Le nombre de poteaux est calculé automatiquement selon la largeur (et optionnellement la profondeur) saisie.
+              </p>
+            </div>
+            <button
+              onClick={add}
+              className="flex items-center gap-1 text-[11px] text-accent hover:text-accent/80 font-medium transition-colors shrink-0"
+            >
+              <Plus size={12} /> Ajouter une règle
+            </button>
           </div>
-          <button
-            onClick={add}
-            className="flex items-center gap-1 text-[11px] text-accent hover:text-accent/80 font-medium transition-colors shrink-0"
-          >
-            <Plus size={12} /> Ajouter une règle
-          </button>
-        </div>
-        {regles.length === 0 && (
-          <p className="text-[12px] text-muted-foreground italic">
-            Aucune règle — le nombre de poteaux ne sera pas affiché.
-          </p>
-        )}
-        <div className="space-y-2">
-          {regles.map((r, i) => (
-            <div key={i} className="flex flex-wrap items-center gap-2 bg-card border border-border rounded p-2 text-[12px]">
-              {/* Boutons de déplacement */}
-              <div className="flex flex-col -space-y-1">
-                <button
-                  type="button"
-                  disabled={i === 0}
-                  onClick={() => move(i, -1)}
-                  className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-muted-foreground"
-                  title="Monter la règle"
-                >
-                  <ChevronUp size={14} />
-                </button>
-                <button
-                  type="button"
-                  disabled={i === regles.length - 1}
-                  onClick={() => move(i, 1)}
-                  className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-muted-foreground"
-                  title="Descendre la règle"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-
-              {/* Largeur */}
-              <span className="text-muted-foreground text-[11px] shrink-0">Largeur de</span>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={r.largeurMinMm}
-                onChange={(e) => update(i, { largeurMinMm: parseInt(e.target.value) || 0 })}
-                className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
-                title="Largeur min (mm)"
-              />
-              <span className="text-muted-foreground text-[11px] shrink-0">mm à</span>
-              <input
-                type="number"
-                min={0}
-                step={10}
-                value={r.largeurMaxMm}
-                onChange={(e) => update(i, { largeurMaxMm: parseInt(e.target.value) || 0 })}
-                className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
-                title="Largeur max (mm)"
-              />
-              <span className="text-muted-foreground text-[11px] shrink-0">mm</span>
-
-              {/* Contrainte de profondeur optionnelle */}
-              {r.profondeurMinMm !== undefined || r.profondeurMaxMm !== undefined ? (
-                <div className="flex items-center gap-1 bg-accent/5 border border-accent/20 rounded px-1.5 py-0.5">
-                  <span className="text-muted-foreground text-[11px] shrink-0">Prof. de</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={10}
-                    value={r.profondeurMinMm ?? 0}
-                    onChange={(e) => update(i, { profondeurMinMm: parseInt(e.target.value) || 0 })}
-                    className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
-                    title="Profondeur min (mm)"
-                  />
-                  <span className="text-muted-foreground text-[11px] shrink-0">à</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={10}
-                    value={r.profondeurMaxMm ?? 99999}
-                    onChange={(e) => update(i, { profondeurMaxMm: parseInt(e.target.value) || 0 })}
-                    className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
-                    title="Profondeur max (mm)"
-                  />
-                  <span className="text-muted-foreground text-[11px] shrink-0">mm</span>
+          {regles.length === 0 && (
+            <p className="text-[12px] text-muted-foreground italic">
+              Aucune règle — le nombre de poteaux ne sera pas affiché.
+            </p>
+          )}
+          <div className="space-y-2">
+            {regles.map((r, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-2 bg-card border border-border rounded p-2 text-[12px]">
+                {/* Boutons de déplacement */}
+                <div className="flex flex-col -space-y-1">
                   <button
                     type="button"
-                    onClick={() => update(i, { profondeurMinMm: undefined, profondeurMaxMm: undefined })}
-                    className="p-1 rounded hover:bg-destructive/10 text-destructive/70 transition-colors ml-0.5"
-                    title="Supprimer la contrainte de profondeur"
+                    disabled={i === 0}
+                    onClick={() => move(i, -1)}
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-muted-foreground"
+                    title="Monter la règle"
                   >
-                    <X size={10} />
+                    <ChevronUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={i === regles.length - 1}
+                    onClick={() => move(i, 1)}
+                    className="p-0.5 rounded hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-muted-foreground"
+                    title="Descendre la règle"
+                  >
+                    <ChevronDown size={14} />
                   </button>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => update(i, { profondeurMinMm: 0, profondeurMaxMm: 4000 })}
-                  className="text-[10px] bg-accent/10 hover:bg-accent/20 text-accent font-medium px-2 py-1 rounded transition-colors ml-1"
-                  title="Ajouter une contrainte sur la profondeur"
-                >
-                  + Profondeur
-                </button>
-              )}
 
-              {/* Rendu final */}
-              <span className="text-muted-foreground text-[11px] shrink-0 ml-auto mr-1">→</span>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={r.nombrePoteaux}
-                onChange={(e) => update(i, { nombrePoteaux: parseInt(e.target.value) || 2 })}
-                className="form-input !h-7 !text-[12px] w-12 text-center font-mono font-bold"
-                title="Nombre de poteaux"
-              />
-              <span className="text-muted-foreground text-[11px] shrink-0">poteau{r.nombrePoteaux > 1 ? "x" : ""}</span>
-              
-              {regles.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => remove(i)}
-                  className="p-1 rounded hover:bg-destructive/10 transition-colors ml-1"
-                  title="Supprimer la règle"
-                >
-                  <X size={12} className="text-destructive/70" />
-                </button>
-              )}
-            </div>
-          ))}
+                {/* Largeur */}
+                <span className="text-muted-foreground text-[11px] shrink-0">Largeur de</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={r.largeurMinMm}
+                  onChange={(e) => update(i, { largeurMinMm: parseInt(e.target.value) || 0 })}
+                  className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
+                  title="Largeur min (mm)"
+                />
+                <span className="text-muted-foreground text-[11px] shrink-0">mm à</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={r.largeurMaxMm}
+                  onChange={(e) => update(i, { largeurMaxMm: parseInt(e.target.value) || 0 })}
+                  className="form-input !h-7 !text-[12px] w-20 text-right font-mono"
+                  title="Largeur max (mm)"
+                />
+                <span className="text-muted-foreground text-[11px] shrink-0">mm</span>
+
+                {/* Contrainte de profondeur optionnelle */}
+                {r.profondeurMinMm !== undefined || r.profondeurMaxMm !== undefined ? (
+                  <div className="flex items-center gap-1 bg-accent/5 border border-accent/20 rounded px-1.5 py-0.5">
+                    <span className="text-muted-foreground text-[11px] shrink-0">Prof. de</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.profondeurMinMm ?? 0}
+                      onChange={(e) => update(i, { profondeurMinMm: parseInt(e.target.value) || 0 })}
+                      className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
+                      title="Profondeur min (mm)"
+                    />
+                    <span className="text-muted-foreground text-[11px] shrink-0">à</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10}
+                      value={r.profondeurMaxMm ?? 99999}
+                      onChange={(e) => update(i, { profondeurMaxMm: parseInt(e.target.value) || 0 })}
+                      className="form-input !h-7 !text-[12px] w-16 text-right font-mono"
+                      title="Profondeur max (mm)"
+                    />
+                    <span className="text-muted-foreground text-[11px] shrink-0">mm</span>
+                    <button
+                      type="button"
+                      onClick={() => update(i, { profondeurMinMm: undefined, profondeurMaxMm: undefined })}
+                      className="p-1 rounded hover:bg-destructive/10 text-destructive/70 transition-colors ml-0.5"
+                      title="Supprimer la contrainte de profondeur"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => update(i, { profondeurMinMm: 0, profondeurMaxMm: 4000 })}
+                    className="text-[10px] bg-accent/10 hover:bg-accent/20 text-accent font-medium px-2 py-1 rounded transition-colors ml-1"
+                    title="Ajouter une contrainte sur la profondeur"
+                  >
+                    + Profondeur
+                  </button>
+                )}
+
+                {/* Rendu final */}
+                <span className="text-muted-foreground text-[11px] shrink-0 ml-auto mr-1">→</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={r.nombrePoteaux}
+                  onChange={(e) => update(i, { nombrePoteaux: parseInt(e.target.value) || 2 })}
+                  className="form-input !h-7 !text-[12px] w-12 text-center font-mono font-bold"
+                  title="Nombre de poteaux"
+                />
+                <span className="text-muted-foreground text-[11px] shrink-0">poteau{r.nombrePoteaux > 1 ? "x" : ""}</span>
+                
+                {regles.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => remove(i)}
+                    className="p-1 rounded hover:bg-destructive/10 transition-colors ml-1"
+                    title="Supprimer la règle"
+                  >
+                    <X size={12} className="text-destructive/70" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -2579,6 +2583,7 @@ function ModeleEditorModal({
               onChangeSection={(s) => setDraft({ ...draft, sectionPoteaux: s })}
               tarifPoteauSuppHT={draft.tarifPoteauSuppHT || 0}
               onChangeTarif={(t) => setDraft({ ...draft, tarifPoteauSuppHT: t })}
+              isPrime={draft.isMBPrime || draft.nom.toLowerCase().includes("prime")}
             />
           )}
           {tab === "options_supp" && (
