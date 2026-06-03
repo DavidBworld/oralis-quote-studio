@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
 import {
-  loadQuotes,
   formatEUR,
   formatDate,
   calcTotals,
@@ -10,6 +9,8 @@ import {
   type Quote,
 } from "@/lib/quote-data";
 import { loadSettings, type AppSettings } from "@/lib/settings-data";
+import { dbLoadQuotes } from "@/lib/supabase-data/devis";
+import { toast } from "sonner";
 
 // ── CGV text ──────────────────────────────────────────────────────────────────
 const CGV_ARTICLES = [
@@ -246,35 +247,62 @@ export default function QuotePreview() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const all = loadQuotes();
-    const found = all.find((q) => q.id === id);
-    if (found) setQuote(found);
-    else navigate("/");
-
-    const loadedSettings = loadSettings();
-    setSettings(loadedSettings);
-
-    if (loadedSettings.logo) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        try {
-          const cropped = cropImageTransparency(img);
-          setLogoUrl(cropped);
-        } catch (e) {
-          setLogoUrl(loadedSettings.logo);
+    async function loadData() {
+      try {
+        setLoading(true);
+        const all = await dbLoadQuotes();
+        const found = all.find((q) => q.id === id);
+        if (found) {
+          setQuote(found);
+        } else {
+          toast.error("Devis introuvable.");
+          navigate("/");
+          return;
         }
-      };
-      img.onerror = () => {
-        setLogoUrl(loadedSettings.logo);
-      };
-      img.src = loadedSettings.logo;
-    }
-  }, [id]);
 
-  if (!quote || !settings) return null;
+        const loadedSettings = loadSettings();
+        setSettings(loadedSettings);
+
+        if (loadedSettings.logo) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            try {
+              const cropped = cropImageTransparency(img);
+              setLogoUrl(cropped);
+            } catch (e) {
+              setLogoUrl(loadedSettings.logo);
+            }
+          };
+          img.onerror = () => {
+            setLogoUrl(loadedSettings.logo);
+          };
+          img.src = loadedSettings.logo;
+        }
+      } catch (err) {
+        console.error("Erreur de chargement du devis:", err);
+        toast.error("Erreur de chargement du devis.");
+        navigate("/");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [id, navigate]);
+
+  if (loading || !quote || !settings) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement de l'aperçu...</p>
+        </div>
+      </div>
+    );
+  }
 
   const totals = calcTotals(quote.lignes);
   const c = settings.company;

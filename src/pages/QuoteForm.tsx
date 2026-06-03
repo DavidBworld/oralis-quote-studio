@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Plus, Trash2, Upload, Camera, Wrench, X, ChevronRight, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, Users, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import {
-  loadQuotes, saveQuotes, createEmptyQuote, emptyLine, emptyOption,
+  createEmptyQuote, emptyLine, emptyOption,
   formatEUR, formatDate, expiryDate, calcTotals, lineMontantHT,
   PRODUCT_CATALOG, OPTION_CATALOG, VALIDITE_OPTIONS, PAYS_OPTIONS, STATUT_LABELS,
   type Quote, type QuoteLine, type QuoteOption, uid
@@ -20,6 +20,7 @@ import {
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadModeles } from "@/lib/supabase-data/modeles";
+import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
 
 const CATEGORIES = [
   "Pergola bioclimatique",
@@ -2291,6 +2292,8 @@ export default function QuoteForm() {
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{
     isOpen: boolean;
     message: string;
@@ -2328,25 +2331,49 @@ export default function QuoteForm() {
     ...supplierProductDesignations.filter((d) => !PRODUCT_CATALOG.includes(d) && !catalogDesignations.includes(d))
   ];
 
-  useEffect(()=>{
-    const all = loadQuotes();
-    if (id && id!=="nouveau") {
-      const found = all.find((q)=>q.id===id);
-      if (found) {
-        setQuote(found);
-        if (found.lignes && found.lignes.length > 0) {
-          setDefaultTva(found.lignes[0].tva);
+  useEffect(() => {
+    async function initQuote() {
+      try {
+        setLoading(true);
+        const all = await dbLoadQuotes();
+        if (id && id !== "nouveau") {
+          const found = all.find((q) => q.id === id);
+          if (found) {
+            setQuote(found);
+            if (found.lignes && found.lignes.length > 0) {
+              setDefaultTva(found.lignes[0].tva);
+            }
+          } else {
+            toast.error("Devis introuvable.");
+            navigate("/");
+          }
+        } else {
+          const nq = createEmptyQuote(all);
+          nq.conditionsPaiement = settings.company.conditionsPaiement || nq.conditionsPaiement;
+          nq.delaiRealisation = settings.company.delaiRealisation || nq.delaiRealisation;
+          setQuote(nq);
         }
-      } else navigate("/");
-    } else {
-      const nq = createEmptyQuote(all);
-      nq.conditionsPaiement = settings.company.conditionsPaiement||nq.conditionsPaiement;
-      nq.delaiRealisation = settings.company.delaiRealisation||nq.delaiRealisation;
-      setQuote(nq);
+      } catch (err) {
+        console.error("Erreur chargement devis:", err);
+        toast.error("Erreur lors du chargement des devis.");
+        navigate("/");
+      } finally {
+        setLoading(false);
+      }
     }
-  },[id]);
+    initQuote();
+  }, [id, settings, navigate]);
 
-  if (!quote) return null;
+  if (loading || !quote) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement du devis...</p>
+        </div>
+      </div>
+    );
+  }
 
   const update = (patch: Partial<Quote> | ((prev: Quote) => Partial<Quote>)) => {
     setQuote(prev => {
@@ -2581,16 +2608,25 @@ export default function QuoteForm() {
     toast.success("Prix d'origine et totaux restaurés !");
   };
 
-  const save = () => {
+  const save = async (redirectAfter = true) => {
     if (quote.lignes.length === 0) {
       toast.error("Le devis doit contenir au moins une ligne.");
       return false;
     }
-    const all = loadQuotes();
-    const idx = all.findIndex((q)=>q.id===quote.id);
-    if (idx>=0) all[idx]=quote; else all.push(quote);
-    saveQuotes(all); navigate("/");
-    return true;
+    setSaving(true);
+    try {
+      await dbSaveQuote(quote);
+      toast.success("Devis enregistré !");
+      if (redirectAfter) {
+        navigate("/");
+      }
+      return true;
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement du devis.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
   };
 
   const totals = calcTotals(quote.lignes);
@@ -2882,9 +2918,22 @@ export default function QuoteForm() {
 
       {/* Section F — Actions */}
       <div className="flex flex-wrap gap-3">
-        <button onClick={save} className="btn-gold">Sauvegarder</button>
-        <button onClick={()=>{ if (save()) { const all=loadQuotes(); const saved=all.find((q)=>q.id===quote.id); if(saved) navigate(`/devis/${saved.id}/apercu`); } }} className="btn-outline-gold">Aperçu PDF</button>
-        <button onClick={()=>navigate("/")} className="btn-ghost">Retour au tableau de bord</button>
+        <button onClick={() => save(true)} disabled={saving} className="btn-gold">
+          {saving ? "Sauvegarde..." : "Sauvegarder"}
+        </button>
+        <button
+          onClick={async () => {
+            const success = await save(false);
+            if (success) {
+              navigate(`/devis/${quote.id}/apercu`);
+            }
+          }}
+          disabled={saving}
+          className="btn-outline-gold"
+        >
+          {saving ? "Sauvegarde..." : "Aperçu PDF"}
+        </button>
+        <button onClick={() => navigate("/")} className="btn-ghost">Retour au tableau de bord</button>
       </div>
       <ConfirmModal
         isOpen={confirmDelete.isOpen}

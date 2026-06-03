@@ -2,9 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Plus, Eye, Pencil, Copy, FileText, ArrowRightCircle } from "lucide-react";
 import {
-  loadQuotes,
-  saveQuotes,
-  initializeStorage,
   formatEUR,
   formatDate,
   calcTotals,
@@ -12,6 +9,8 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
+import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
+import { useCallback } from "react";
 import {
   loadCommandes,
   saveCommandes,
@@ -41,27 +40,43 @@ export default function QuotesList() {
   const [activeTab, setActiveTab] = useState<Quote["statut"] | "tous">("tous");
   const [convertModal, setConvertModal] = useState<Quote | null>(null);
   const [convertRef, setConvertRef] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const hasCmdForQuote = (qId: string) => loadCommandes().some((c: any) => c.devisId === qId);
 
-  const handleConvert = () => {
+  const fetchQuotes = useCallback(async () => {
+    try {
+      const list = await dbLoadQuotes();
+      setQuotes(list);
+    } catch (err) {
+      toast.error("Erreur lors du chargement des devis.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleConvert = async () => {
     if (!convertModal) return;
-    const all = loadQuotes();
-    const idx = all.findIndex((q) => q.id === convertModal.id);
-    if (idx >= 0) { all[idx].statut = "accepte"; saveQuotes(all); }
-    const commandes = loadCommandes();
-    const cmd = createCommandeFromDevis(convertModal, convertRef, "");
-    saveCommandes([...commandes, cmd]);
-    toast.success(`Commande ${cmd.numero} créée`);
-    setConvertModal(null);
-    setConvertRef("");
-    navigate(`/commandes/${cmd.id}`);
+    try {
+      const updatedQuote = { ...convertModal, statut: "accepte" as const };
+      await dbSaveQuote(updatedQuote);
+      
+      const commandes = loadCommandes();
+      const cmd = createCommandeFromDevis(convertModal, convertRef, "");
+      saveCommandes([...commandes, cmd]);
+      
+      toast.success(`Commande ${cmd.numero} créée`);
+      setConvertModal(null);
+      setConvertRef("");
+      navigate(`/commandes/${cmd.id}`);
+    } catch (err) {
+      toast.error("Erreur lors de la conversion en commande.");
+    }
   };
 
   useEffect(() => {
-    initializeStorage();
-    setQuotes(loadQuotes());
-  }, []);
+    fetchQuotes();
+  }, [fetchQuotes]);
 
   const filtered = quotes
     .filter(
@@ -72,19 +87,33 @@ export default function QuotesList() {
     )
     .filter((q) => activeTab === "tous" || q.statut === activeTab);
 
-  const duplicateQuote = (q: Quote) => {
-    const all = loadQuotes();
-    const dup: Quote = {
-      ...JSON.parse(JSON.stringify(q)),
-      id: uid(),
-      numero: `${q.numero}-COPIE`,
-      statut: "brouillon" as const,
-      date: new Date().toISOString().split("T")[0],
-    };
-    all.push(dup);
-    saveQuotes(all);
-    setQuotes(all);
+  const duplicateQuote = async (q: Quote) => {
+    try {
+      const dup: Quote = {
+        ...JSON.parse(JSON.stringify(q)),
+        id: uid(),
+        numero: `${q.numero}-COPIE`,
+        statut: "brouillon" as const,
+        date: new Date().toISOString().split("T")[0],
+      };
+      await dbSaveQuote(dup);
+      toast.success("Devis dupliqué !");
+      await fetchQuotes();
+    } catch (err) {
+      toast.error("Erreur lors de la duplication du devis.");
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement des devis...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 w-full">
