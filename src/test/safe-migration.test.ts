@@ -60,7 +60,7 @@ describe("Safe Migration Integration Test", () => {
     expect(detectLocalStorageData()).toBe(false);
 
     // Generate fresh dynamic UUIDs for this test run to avoid database conflicts across test runs
-    const clientId = generateUUID();
+    const clientId = "cli-sample-1";
     const quoteId = "sample1";
     const orderId = generateUUID();
     const invoiceId = "fa-sample-1";

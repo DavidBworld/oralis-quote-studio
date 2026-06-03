@@ -10,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS public.clients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users NOT NULL,
+    local_id TEXT,
     code TEXT,
     type TEXT,
     statut TEXT,
@@ -37,7 +38,8 @@ CREATE TABLE IF NOT EXISTS public.clients (
     -- TODO: migration vers Supabase Storage pour stocker les fichiers images séparément (ex: photos.url)
     photos JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, local_id)
 );
 
 -- Enable RLS on clients

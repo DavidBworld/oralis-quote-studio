@@ -139,37 +139,47 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
   // 1. Clients Migration
   const localClients = JSON.parse(localStorage.getItem("oralis_clients") || "[]");
   if (Array.isArray(localClients) && localClients.length > 0) {
-    const clientsToInsert = localClients.map((c: any) => ({
-      id: c.id,
-      user_id: userId,
-      code: c.code,
-      type: c.type,
-      statut: c.statut,
-      favori: c.favori || false,
-      prenom: c.prenom,
-      nom: c.nom,
-      societe: c.societe,
-      email: c.email,
-      telephone: c.telephone,
-      mobile: c.mobile,
-      adresse: c.adresse,
-      ville: c.ville,
-      code_postal: c.codePostal,
-      pays: c.pays,
-      tva_defaut: c.tvaDefaut,
-      mode_reglement: c.modeReglement,
-      origine: c.origine,
-      profil: c.profil,
-      commercial: c.commercial,
-      note_interne: c.noteInterne,
-      pipeline: c.pipeline,
-      motif_perte: c.motifPerte,
-      interactions: c.interactions || [],
-      reste_a_faire: c.resteAFaire || [],
-      photos: c.photos || [],
-    }));
+    const clientsToInsert = localClients.map((c: any) => {
+      const item: any = {
+        user_id: userId,
+        local_id: c.id,
+        code: c.code,
+        type: c.type,
+        statut: c.statut,
+        favori: c.favori || false,
+        prenom: c.prenom,
+        nom: c.nom,
+        societe: c.societe,
+        email: c.email,
+        telephone: c.telephone,
+        mobile: c.mobile,
+        adresse: c.adresse,
+        ville: c.ville,
+        code_postal: c.codePostal,
+        pays: c.pays,
+        tva_defaut: c.tvaDefaut,
+        mode_reglement: c.modeReglement,
+        origine: c.origine,
+        profil: c.profil,
+        commercial: c.commercial,
+        note_interne: c.noteInterne,
+        pipeline: c.pipeline,
+        motif_perte: c.motifPerte,
+        interactions: c.interactions || [],
+        reste_a_faire: c.resteAFaire || [],
+        photos: c.photos || [],
+      };
 
-    const { error } = await supabase.from("clients").upsert(clientsToInsert);
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(c.id)) {
+        item.id = c.id;
+      }
+      return item;
+    });
+
+    const { error } = await supabase
+      .from("clients")
+      .upsert(clientsToInsert, { onConflict: "user_id,local_id" });
     if (error) errors.push(`Erreur migration Clients : ${error.message}`);
   }
 
