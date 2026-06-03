@@ -61,9 +61,9 @@ describe("Safe Migration Integration Test", () => {
 
     // Generate fresh dynamic UUIDs for this test run to avoid database conflicts across test runs
     const clientId = generateUUID();
-    const quoteId = generateUUID();
+    const quoteId = "sample1";
     const orderId = generateUUID();
-    const invoiceId = generateUUID();
+    const invoiceId = "fa-sample-1";
     const supplierId = generateUUID();
     const modelId = generateUUID();
 

@@ -57,6 +57,7 @@ CREATE POLICY "Users can perform CRUD on their own clients"
 CREATE TABLE IF NOT EXISTS public.devis (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users NOT NULL,
+    local_id TEXT,
     numero TEXT,
     date TEXT,
     validite INTEGER,
@@ -71,7 +72,8 @@ CREATE TABLE IF NOT EXISTS public.devis (
     notes TEXT,
     favori BOOLEAN DEFAULT false, -- fusion de oralis_devis_favoris
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, local_id)
 );
 
 -- Enable RLS on devis
@@ -125,6 +127,7 @@ CREATE POLICY "Users can perform CRUD on their own commandes"
 CREATE TABLE IF NOT EXISTS public.factures (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users NOT NULL,
+    local_id TEXT,
     numero TEXT,
     type TEXT,
     devis_id TEXT,
@@ -161,7 +164,8 @@ CREATE TABLE IF NOT EXISTS public.factures (
     date_rappel1 TEXT,
     date_creation TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, local_id)
 );
 
 -- Enable RLS on factures

@@ -212,23 +212,33 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
   const localFavoris = JSON.parse(localStorage.getItem("oralis_devis_favoris") || "[]");
   const favorisList = Array.isArray(localFavoris) ? localFavoris : [];
   if (Array.isArray(localDevis) && localDevis.length > 0) {
-    const devisToInsert = localDevis.map((q: any) => ({
-      id: q.id,
-      user_id: userId,
-      numero: q.numero,
-      date: q.date,
-      validite: q.validite,
-      statut: q.statut,
-      client: q.client || {},
-      lignes: q.lignes || [],
-      conditions_paiement: q.conditionsPaiement,
-      payment_condition_id: q.paymentConditionId,
-      delai_realisation: q.delaiRealisation,
-      notes: q.notes,
-      favori: favorisList.includes(q.id),
-    }));
+    const devisToInsert = localDevis.map((q: any) => {
+      const item: any = {
+        user_id: userId,
+        local_id: q.id,
+        numero: q.numero,
+        date: q.date,
+        validite: q.validite,
+        statut: q.statut,
+        client: q.client || {},
+        lignes: q.lignes || [],
+        conditions_paiement: q.conditionsPaiement,
+        payment_condition_id: q.paymentConditionId,
+        delai_realisation: q.delaiRealisation,
+        notes: q.notes,
+        favori: favorisList.includes(q.id),
+      };
 
-    const { error } = await supabase.from("devis").upsert(devisToInsert);
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(q.id)) {
+        item.id = q.id;
+      }
+      return item;
+    });
+
+    const { error } = await supabase
+      .from("devis")
+      .upsert(devisToInsert, { onConflict: "user_id,local_id" });
     if (error) errors.push(`Erreur migration Devis : ${error.message}`);
   }
 
@@ -260,47 +270,57 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
   // 6. Factures Migration
   const localFactures = JSON.parse(localStorage.getItem("oralis_factures") || "[]");
   if (Array.isArray(localFactures) && localFactures.length > 0) {
-    const facturesToInsert = localFactures.map((f: any) => ({
-      id: f.id,
-      user_id: userId,
-      numero: f.numero,
-      type: f.type,
-      devis_id: f.devisId,
-      devis_numero: f.devisNumero,
-      commande_id: f.commandeId,
-      client: f.client || {},
-      lignes: f.lignes || [],
-      total_ht: f.totalHT,
-      total_ttc: f.totalTTC,
-      montant_acompte: f.montantAcompte,
-      montant_acompte_pct: f.montantAcomptePct,
-      montant_acompte2: f.montantAcompte2,
-      montant_acompte2_pct: f.montantAcompte2Pct,
-      label_acompte1: f.labelAcompte1,
-      label_acompte2: f.labelAcompte2,
-      libelle: f.libelle,
-      date_facture: f.dateFacture,
-      date_echeance: f.dateEcheance,
-      mode_paiement: f.modePaiement,
-      mode_reglement: f.modeReglement,
-      statut: f.statut,
-      reglements: f.reglements || [],
-      tva_breakdown: f.tvaBreakdown || [],
-      reference_affaire: f.referenceAffaire,
-      commercial: f.commercial,
-      interlocuteur: f.interlocuteur,
-      delai: f.delai,
-      duree_validite: f.dureeValidite,
-      exclure_total_cmd: f.exclureTotalCmd || false,
-      retenue_garantie: f.retenueGarantie || false,
-      marche_rg: f.marcheRg,
-      date_levee_rg: f.dateLeveeRg,
-      pct_rg: f.pctRg,
-      date_rappel1: f.dateRappel1,
-      date_creation: f.dateCreation,
-    }));
+    const facturesToInsert = localFactures.map((f: any) => {
+      const item: any = {
+        user_id: userId,
+        local_id: f.id,
+        numero: f.numero,
+        type: f.type,
+        devis_id: f.devisId,
+        devis_numero: f.devisNumero,
+        commande_id: f.commandeId,
+        client: f.client || {},
+        lignes: f.lignes || [],
+        total_ht: f.totalHT,
+        total_ttc: f.totalTTC,
+        montant_acompte: f.montantAcompte,
+        montant_acompte_pct: f.montantAcomptePct,
+        montant_acompte2: f.montantAcompte2,
+        montant_acompte2_pct: f.montantAcompte2Pct,
+        label_acompte1: f.labelAcompte1,
+        label_acompte2: f.labelAcompte2,
+        libelle: f.libelle,
+        date_facture: f.dateFacture,
+        date_echeance: f.dateEcheance,
+        mode_paiement: f.modePaiement,
+        mode_reglement: f.modeReglement,
+        statut: f.statut,
+        reglements: f.reglements || [],
+        tva_breakdown: f.tvaBreakdown || [],
+        reference_affaire: f.referenceAffaire,
+        commercial: f.commercial,
+        interlocuteur: f.interlocuteur,
+        delai: f.delai,
+        duree_validite: f.dureeValidite,
+        exclure_total_cmd: f.exclureTotalCmd || false,
+        retenue_garantie: f.retenueGarantie || false,
+        marche_rg: f.marcheRg,
+        date_levee_rg: f.dateLeveeRg,
+        pct_rg: f.pctRg,
+        date_rappel1: f.dateRappel1,
+        date_creation: f.dateCreation,
+      };
 
-    const { error } = await supabase.from("factures").upsert(facturesToInsert);
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(f.id)) {
+        item.id = f.id;
+      }
+      return item;
+    });
+
+    const { error } = await supabase
+      .from("factures")
+      .upsert(facturesToInsert, { onConflict: "user_id,local_id" });
     if (error) errors.push(`Erreur migration Factures : ${error.message}`);
   }
 
