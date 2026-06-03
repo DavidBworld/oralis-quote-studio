@@ -110,6 +110,7 @@ interface WizardState {
   longueurPoteauxSupp: number;
   moteur?: string;
   optionsSuppIds?: string[];
+  optionsSuppQtys?: Record<string, number>;
   
   // Parois coulissantes
   vantaux?: number;
@@ -162,6 +163,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           longueurPoteauxSupp: initialState.longueurPoteauxSupp || 2500,
           moteur: initialState.moteur !== undefined ? initialState.moteur : ((found?.typeModele === "screen" || found?.typeModele === "volet") ? "Moteur Somfy" : ""),
           optionsSuppIds: initialState.optionsSuppIds || [],
+          optionsSuppQtys: initialState.optionsSuppQtys || {},
           vantaux: initialState.vantaux || (found?.typeModele === "coulissant" ? (found as ModeleCoulissant).vantauxMin : 3),
           tarifPanneauId: initialState.tarifPanneauId || (found?.typeModele === "coulissant" ? (found as ModeleCoulissant).tarifsPanneau[0]?.id : ""),
           couleurCoulissant: initialState.couleurCoulissant || "Anthracite RAL 7016",
@@ -192,6 +194,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       longueurPoteauxSupp: 2500,
       moteur: (defaultModele?.typeModele === "screen" || defaultModele?.typeModele === "volet") ? "Moteur Somfy" : "",
       optionsSuppIds: [],
+      optionsSuppQtys: {},
       vantaux: defaultModele?.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).vantauxMin : 3,
       tarifPanneauId: defaultModele?.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).tarifsPanneau[0]?.id : "",
       couleurCoulissant: "Anthracite RAL 7016",
@@ -275,6 +278,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           coefficient: mp.margeDefaut,
           moteur: (mp.typeModele === "screen" || mp.typeModele === "volet") ? "Moteur Somfy" : "",
           optionsSuppIds: [],
+          optionsSuppQtys: {},
           couleurLamesId: mp.couleurs[0]?.id || "",
           typePose: "Adossée au mur",
           lamesOrientation: "parallèles",
@@ -338,7 +342,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         state.longueurPoteauxSupp,
         state.optionsSuppIds || [],
         state.couleurLamesId,
-        state.typePose
+        state.typePose,
+        state.optionsSuppQtys || {}
       );
       setResultat(r); setCalcError(null);
     } catch (e) {
@@ -347,7 +352,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   }, [
     modele, state.largeur, state.profondeur, state.toitureId, state.couleurId,
     state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp,
-    state.optionsSuppIds, state.couleurLamesId, state.lamesOrientation, state.typePose, step
+    state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp,
+    state.optionsSuppIds, state.optionsSuppQtys, state.couleurLamesId, state.lamesOrientation, state.typePose, step
   ]);
 
   // Recalcul live pour parois coulissantes
@@ -537,7 +543,11 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       const toiture = mp.toitures.find((t) => t.id === state.toitureId);
       const couleur = mp.couleurs.find((c) => c.id === state.couleurId);
       const optsSupp = (state.optionsSuppIds || [])
-        .map((id) => mp.optionsSupp?.find((o) => o.id === id)?.nom)
+        .map((id) => {
+          const o = mp.optionsSupp?.find((o) => o.id === id);
+          const qty = state.optionsSuppQtys?.[id] ?? 1;
+          return o ? (qty > 1 ? `${o.nom} (×${qty})` : o.nom) : "";
+        })
         .filter(Boolean) as string[];
       const designation = mp.nom;
 
@@ -837,36 +847,65 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {modele.optionsSupp.map((opt) => {
                         const selected = (state.optionsSuppIds || []).includes(opt.id);
+                        const qty = state.optionsSuppQtys?.[opt.id] ?? 1;
                         return (
-                          <label
+                          <div
                             key={opt.id}
-                            className={`flex items-center justify-between p-2.5 rounded border cursor-pointer transition-all text-[13px] ${
+                            className={`flex items-center justify-between p-2.5 rounded border transition-all text-[13px] ${
                               selected
                                 ? "border-accent bg-accent/5 font-medium text-accent"
                                 : "border-border hover:border-accent/40"
                             }`}
                           >
                             <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selected}
-                                onChange={(e) => {
-                                  const current = state.optionsSuppIds || [];
-                                  const next = e.target.checked
-                                    ? [...current, opt.id]
-                                    : current.filter((id) => id !== opt.id);
-                                  setState({ ...state, optionsSuppIds: next });
-                                }}
-                                className="rounded border-gray-300 text-accent focus:ring-accent"
-                              />
-                              <span>{opt.nom}</span>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={(e) => {
+                                    const current = state.optionsSuppIds || [];
+                                    const next = e.target.checked
+                                      ? [...current, opt.id]
+                                      : current.filter((id) => id !== opt.id);
+                                    
+                                    const nextQtys = { ...state.optionsSuppQtys };
+                                    if (e.target.checked && !nextQtys[opt.id]) {
+                                      nextQtys[opt.id] = 1;
+                                    }
+                                    
+                                    setState({ ...state, optionsSuppIds: next, optionsSuppQtys: nextQtys });
+                                  }}
+                                  className="rounded border-gray-300 text-accent focus:ring-accent"
+                                />
+                                <span>{opt.nom}</span>
+                              </label>
+                              
+                              {selected && (
+                                <div className="flex items-center gap-1 ml-2">
+                                  <span className="text-[11px] text-muted-foreground">Qté :</span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    value={qty}
+                                    onChange={(e) => {
+                                      const nextQtys = {
+                                        ...state.optionsSuppQtys,
+                                        [opt.id]: Math.max(1, parseInt(e.target.value) || 1),
+                                      };
+                                      setState({ ...state, optionsSuppQtys: nextQtys });
+                                    }}
+                                    className="form-input !h-6 !py-0 w-12 text-center text-[12px] font-mono"
+                                  />
+                                </div>
+                              )}
                             </div>
                             <span className="text-[11px] text-muted-foreground font-mono">
                               {opt.surchargeHT > 0 && `+${formatEUR(opt.surchargeHT)}`}
                               {opt.surchargePct > 0 && `+${opt.surchargePct}%`}
                               {opt.surchargeHT === 0 && opt.surchargePct === 0 && "inclus"}
                             </span>
-                          </label>
+                          </div>
                         );
                       })}
                     </div>
@@ -1150,12 +1189,20 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         <span className="text-muted-foreground font-semibold text-accent">Options supplémentaires</span>
                         <span className="font-mono font-semibold text-accent text-right max-w-[240px] truncate" title={
                           (state.optionsSuppIds || [])
-                            .map((id) => modele.optionsSupp?.find((o) => o.id === id)?.nom)
+                            .map((id) => {
+                              const o = modele.optionsSupp?.find((o) => o.id === id);
+                              const qty = state.optionsSuppQtys?.[id] ?? 1;
+                              return o ? (qty > 1 ? `${o.nom} (×${qty})` : o.nom) : "";
+                            })
                             .filter(Boolean)
                             .join(", ")
                         }>
                           {(state.optionsSuppIds || [])
-                            .map((id) => modele.optionsSupp?.find((o) => o.id === id)?.nom)
+                            .map((id) => {
+                              const o = modele.optionsSupp?.find((o) => o.id === id);
+                              const qty = state.optionsSuppQtys?.[id] ?? 1;
+                              return o ? (qty > 1 ? `${o.nom} (×${qty})` : o.nom) : "";
+                            })
                             .filter(Boolean)
                             .join(", ")}
                         </span>

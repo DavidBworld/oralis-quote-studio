@@ -246,7 +246,9 @@ Motorisation : Piloté par SOMFY avec télécommande (compris)
 Éclairage : Strip LED périphérique dimmable (compris)
 Structure aluminium thermolaquée — résistance aux UV et aux intempéries
 Fabrication entièrement sur mesure`,
-    optionsSupp: [],
+    optionsSupp: [
+      { id: "opt_tube_lateral", nom: "Tube latéral", surchargeHT: 250, surchargePct: 0 }
+    ],
     image: "",
     sectionPoteaux: "",
     tarifPoteauSuppHT: 0,
@@ -309,6 +311,18 @@ function migrateModeles(modeles: AnyModele[]): AnyModele[] {
         copy.optionsSupp = [
           ...copy.optionsSupp,
           { id: "opt_eclairage_rgb", nom: "Éclairage RGB", surchargeHT: 550, surchargePct: 0 }
+        ];
+        migrated = true;
+      }
+    }
+
+    const isAdaptAir = copy.isAdaptAir || copy.nom.toLowerCase().includes("adapt air");
+    if (isAdaptAir) {
+      const hasTube = copy.optionsSupp.some((o) => o.nom.toLowerCase().includes("tube") || o.id === "opt_tube_lateral");
+      if (!hasTube) {
+        copy.optionsSupp = [
+          ...copy.optionsSupp,
+          { id: "opt_tube_lateral", nom: "Tube latéral", surchargeHT: 250, surchargePct: 0 }
         ];
         migrated = true;
       }
@@ -563,7 +577,8 @@ export function calculerPrix(
   longueurPoteauxSupp: number = 2500,
   optionsSuppIds: string[] = [],
   couleurLamesId?: string,
-  typePose?: string
+  typePose?: string,
+  optionsSuppQtys?: Record<string, number>
 ): ResultatCalcul {
   const { prix, largeurGrille, profondeurGrille } = determinerPrixBase(
     modele.grille, largeur, profondeur
@@ -615,7 +630,8 @@ export function calculerPrix(
     optionsSuppIds.forEach((id) => {
       const opt = modele.optionsSupp?.find((o) => o.id === id);
       if (opt) {
-        surchargeOptionsSuppHT += calcOptionSurcharge(opt);
+        const qty = optionsSuppQtys?.[id] ?? 1;
+        surchargeOptionsSuppHT += calcOptionSurcharge(opt) * qty;
       }
     });
   }

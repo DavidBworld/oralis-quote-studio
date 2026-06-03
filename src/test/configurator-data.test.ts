@@ -836,6 +836,47 @@ describe("MB PRIME model configuration and pricing", () => {
       expect(desc).toContain("Couleur structure : RAL 7016 Anthracite");
       expect(desc).toContain("Couleur toile : B 8118 / 7500");
     });
+
+    it("should compute surcharge and include Tube latéral quantity in description", () => {
+      const model = blankModeleAdaptAir();
+      const standardToitureId = model.toitures[0].id;
+      const structureColorId = model.couleurs[0].id;
+      const tubeId = model.optionsSupp?.[0]?.id || "opt_tube_lateral";
+
+      // Calculating with 2 tubes -> surcharge should be 2 * 250 = 500€
+      const result = calculerPrix(
+        model, 
+        4000, 
+        3000, 
+        standardToitureId, 
+        structureColorId, 
+        1.0, 
+        2500, 
+        0, 
+        2500, 
+        [tubeId], 
+        structureColorId, 
+        "Autoportante",
+        { [tubeId]: 2 }
+      );
+      expect(result.surchargeOptionsSuppHT).toBe(500);
+
+      // Testing description generation output
+      const desc = genererDescription(model.templateDescription, {
+        nom: model.nom,
+        largeurMm: 4000,
+        profondeurMm: 3000,
+        toiture: "B 8118 / 7500",
+        couleur: "RAL 7016 Anthracite",
+        couleurLames: "B 8118 / 7500",
+        typePose: "Autoportante",
+        poteaux: 4,
+        typeDim: "largeur_profondeur",
+        hauteurPoteauxMm: 2500,
+        optionsSupp: ["Tube latéral (×2)"],
+      });
+      expect(desc).toContain("Options : Tube latéral (×2)");
+    });
   });
 });
 
