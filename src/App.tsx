@@ -15,64 +15,161 @@ import Factures from "./pages/Factures";
 import FacturePreview from "./pages/FacturePreview";
 import Commandes from "./pages/Commandes";
 import Fournisseurs from "./pages/Fournisseurs";
+import Login from "./pages/Login";
+import { AuthGuard } from "@/components/AuthGuard";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
+          
           <Route
             path="/"
             element={
-              <AppLayout>
-                <Dashboard />
-              </AppLayout>
+              <AuthGuard>
+                <AppLayout>
+                  <Dashboard />
+                </AppLayout>
+              </AuthGuard>
             }
           />
           <Route
             path="/devis/nouveau"
             element={
-              <AppLayout>
-                <QuoteForm />
-              </AppLayout>
+              <AuthGuard>
+                <AppLayout>
+                  <QuoteForm />
+                </AppLayout>
+              </AuthGuard>
             }
           />
           <Route
             path="/devis/:id"
             element={
-              <AppLayout>
-                <QuoteForm />
-              </AppLayout>
+              <AuthGuard>
+                <AppLayout>
+                  <QuoteForm />
+                </AppLayout>
+              </AuthGuard>
             }
           />
-          <Route path="/devis/:id/apercu" element={<QuotePreview />} />
+          <Route
+            path="/devis/:id/apercu"
+            element={
+              <AuthGuard>
+                <QuotePreview />
+              </AuthGuard>
+            }
+          />
           <Route
             path="/parametres"
             element={
-              <AppLayout>
-                <Settings />
-              </AppLayout>
+              <AuthGuard>
+                <AppLayout>
+                  <Settings />
+                </AppLayout>
+              </AuthGuard>
             }
           />
-          <Route path="/clients" element={<AppLayout><Clients /></AppLayout>} />
-          <Route path="/clients/:id" element={<AppLayout><Clients /></AppLayout>} />
-          <Route path="/devis" element={<AppLayout><QuotesList /></AppLayout>} />
-          <Route path="/factures" element={<AppLayout><Factures /></AppLayout>} />
-          <Route path="/factures/:id" element={<AppLayout><Factures /></AppLayout>} />
-          <Route path="/factures/:id/apercu" element={<FacturePreview />} />
-          <Route path="/commandes" element={<AppLayout><Commandes /></AppLayout>} />
-          <Route path="/commandes/:id" element={<AppLayout><Commandes /></AppLayout>} />
-          <Route path="/fournisseurs" element={<AppLayout><Fournisseurs /></AppLayout>} />
+          <Route
+            path="/clients"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <Clients />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/clients/:id"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <Clients />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/devis"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <QuotesList />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/factures"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <Factures />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/factures/:id"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <Factures />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/factures/:id/apercu"
+            element={
+              <AuthGuard>
+                <FacturePreview />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/commandes"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <Commandes />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/commandes/:id"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <Commandes />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/fournisseurs"
+            element={
+              <AuthGuard>
+                <AppLayout>
+                  <Fournisseurs />
+                </AppLayout>
+              </AuthGuard>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-    </QueryClientProvider>
-  );
+  </QueryClientProvider>
 );
 
 export default App;

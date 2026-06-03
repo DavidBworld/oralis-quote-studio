@@ -1,14 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, FilePlus, Settings, Users, FileText, Receipt, Package } from "lucide-react";
+import { LayoutDashboard, FilePlus, Settings, Users, FileText, Receipt, Package, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { checkPassword } from "@/lib/settings-data";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export function AppSidebar() {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserEmail(user.email ?? null);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Déconnexion réussie");
+      navigate("/login");
+    }
+  };
 
   const handleSettingsClick = () => {
     if (sessionStorage.getItem("oralis_supervisor_unlocked") === "true") {
@@ -90,17 +119,28 @@ export function AppSidebar() {
         <div className="px-5 py-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-semibold">
-              DB
+              {userEmail ? userEmail.substring(0, 2).toUpperCase() : "DB"}
             </div>
             <div>
-              <p className="text-[12px] text-sidebar-accent-foreground font-medium leading-tight">David Boilon</p>
+              <p className="text-[12px] text-sidebar-accent-foreground font-medium leading-tight">
+                {userEmail ? userEmail.split("@")[0] : "David Boilon"}
+              </p>
               <p className="text-[10px] text-sidebar-foreground/50">Administrateur</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] px-2 py-0.5 rounded-full bg-sidebar-accent text-sidebar-foreground/60 tracking-wider uppercase font-medium">
-              v1.0 ORALIS
-            </span>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 justify-between">
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-sidebar-accent text-sidebar-foreground/60 tracking-wider uppercase font-medium">
+                v1.0 ORALIS
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-[10px] text-destructive hover:underline flex items-center gap-1 font-body"
+              >
+                <LogOut size={12} />
+                Se déconnecter
+              </button>
+            </div>
           </div>
         </div>
       </aside>

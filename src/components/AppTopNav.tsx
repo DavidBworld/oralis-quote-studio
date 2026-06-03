@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Truck, FileText,
-  ShoppingCart, Receipt, Settings,
+  ShoppingCart, Receipt, Settings, LogOut,
 } from "lucide-react";
 import { checkPassword } from "@/lib/settings-data";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const MODULES = [
   { label: "Tableau de bord", icon: LayoutDashboard, path: "/" },
@@ -21,6 +23,34 @@ export function AppTopNav() {
   const [modal, setModal]       = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError]       = useState("");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get current user email if logged in
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserEmail(user.email ?? null);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Déconnexion réussie");
+      navigate("/login");
+    }
+  };
 
   const openSettings = () => {
     if (sessionStorage.getItem("oralis_supervisor_unlocked") === "true") {
@@ -182,15 +212,46 @@ export function AppTopNav() {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 11, fontWeight: 700, color: "hsl(var(--accent))",
               flexShrink: 0,
-            }}>DB</div>
+            }}>{userEmail ? userEmail.substring(0, 2).toUpperCase() : "DB"}</div>
             <span style={{
               fontFamily: "var(--font-body)",
               fontSize: 13,
               fontWeight: 500,
               color: "hsl(var(--foreground) / 0.75)",
               whiteSpace: "nowrap",
-            }}>David B.</span>
+            }}>{userEmail ? userEmail.split('@')[0] : "David B."}</span>
           </div>
+
+          {/* Déconnexion */}
+          <button
+            onClick={handleLogout}
+            title="Se déconnecter"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 12px",
+              borderRadius: 8,
+              border: "1px solid hsl(var(--border))",
+              background: "transparent",
+              cursor: "pointer",
+              color: "hsl(var(--destructive))",
+              transition: "background 0.15s, border-color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "hsl(var(--destructive) / 0.08)";
+              e.currentTarget.style.borderColor = "hsl(var(--destructive) / 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.borderColor = "hsl(var(--border))";
+            }}
+          >
+            <LogOut size={15} />
+            <span style={{ fontFamily: "var(--font-body)", fontSize: 13, fontWeight: 500 }}>
+              Déconnexion
+            </span>
+          </button>
         </div>
       </header>
 
