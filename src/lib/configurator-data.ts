@@ -241,7 +241,6 @@ Configuration : Pergola {{type_pose}}
 Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})
 Couverture : Toile {{toiture}}
 Couleur structure : {{couleur}}
-Couleur toile : {{couleur_toile}}
 Motorisation : Piloté par SOMFY avec télécommande (compris)
 Éclairage : Strip LED périphérique dimmable (compris)
 Structure aluminium thermolaquée — résistance aux UV et aux intempéries
@@ -709,7 +708,7 @@ export function genererDescription(
   const labelSecondColor = isAdaptAir ? "Couleur toile" : "Couleur lames";
   const varSecondColor = isAdaptAir ? "{{couleur_toile}}" : "{{couleur_lames}}";
 
-  if (ctx.couleurLames && !resultTemplate.includes("{{couleur_lames}}") && !resultTemplate.includes("{{couleur_toile}}")) {
+  if (ctx.couleurLames && !isAdaptAir && !resultTemplate.includes("{{couleur_lames}}") && !resultTemplate.includes("{{couleur_toile}}")) {
     if (resultTemplate.includes("Couleur structure : {{couleur}}")) {
       resultTemplate = resultTemplate.replace("Couleur structure : {{couleur}}", `Couleur structure : {{couleur}}\n${labelSecondColor} : ${varSecondColor}`);
     } else if (resultTemplate.includes("Couleur : {{couleur}}")) {

@@ -834,7 +834,7 @@ describe("MB PRIME model configuration and pricing", () => {
       expect(desc).toContain("Dimensions : Largeur 4500 mm × Profondeur 3500 mm — 4 poteaux (hauteur 2800 mm)");
       expect(desc).toContain("Couverture : Toile B 8118 / 6028");
       expect(desc).toContain("Couleur structure : RAL 7016 Anthracite");
-      expect(desc).toContain("Couleur toile : B 8118 / 7500");
+      expect(desc).not.toContain("Couleur toile");
     });
 
     it("should compute surcharge and include Tube latéral quantity in description", () => {
