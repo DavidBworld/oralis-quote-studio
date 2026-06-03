@@ -667,6 +667,9 @@ describe("MB PRIME model configuration and pricing", () => {
     expect(model.toitures[0].nom).toBe("Lames aluminium plates");
     expect(model.templateDescription).toContain("{{couleur_lames}}");
     expect(model.templateDescription).toContain("{{type_pose}}");
+    expect(model.optionsSupp.length).toBe(1);
+    expect(model.optionsSupp[0].nom).toBe("Éclairage RGB");
+    expect(model.optionsSupp[0].surchargeHT).toBe(550);
   });
 
   it("should calculate pricing with dual color surcharges correctly", () => {

@@ -184,7 +184,9 @@ Motorisation : Piloté par SOMFY avec télécommande (compris)
 Éclairage : Strip LED périphérique dimmable (compris)
 Structure aluminium thermolaquée — résistance aux UV et aux intempéries
 Fabrication entièrement sur mesure`,
-    optionsSupp: [],
+    optionsSupp: [
+      { id: "opt_eclairage_rgb", nom: "Éclairage RGB", surchargeHT: 550, surchargePct: 0 }
+    ],
     image: "",
     sectionPoteaux: "",
     tarifPoteauSuppHT: 0,
@@ -237,9 +239,19 @@ function migrateModeles(modeles: AnyModele[]): AnyModele[] {
     }
 
     const isPrime = copy.isMBPrime || copy.nom.toLowerCase().includes("prime");
-    if (isPrime && copy.templateDescription && copy.templateDescription.includes("Toit en lames aluminium plates")) {
-      copy.templateDescription = copy.templateDescription.replace("Toit en lames aluminium plates", "{{toiture}}");
-      migrated = true;
+    if (isPrime) {
+      if (copy.templateDescription && copy.templateDescription.includes("Toit en lames aluminium plates")) {
+        copy.templateDescription = copy.templateDescription.replace("Toit en lames aluminium plates", "{{toiture}}");
+        migrated = true;
+      }
+      const hasRGB = copy.optionsSupp.some((o) => o.nom.toLowerCase().includes("rgb") || o.id === "opt_eclairage_rgb");
+      if (!hasRGB) {
+        copy.optionsSupp = [
+          ...copy.optionsSupp,
+          { id: "opt_eclairage_rgb", nom: "Éclairage RGB", surchargeHT: 550, surchargePct: 0 }
+        ];
+        migrated = true;
+      }
     }
 
     const maxLarg = Math.max(...(copy.grille?.largeurs ?? [0]));
