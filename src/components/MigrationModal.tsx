@@ -54,7 +54,8 @@ export function MigrationModal() {
         }, 2000);
       } else {
         toast.error("Certaines erreurs sont survenues lors de la synchronisation.");
-        console.error("Migration errors:", result.errors);
+        console.error("Migration errors details:", result.errors);
+        console.log("Migration errors JSON:", JSON.stringify(result.errors, null, 2));
       }
     } catch (err: any) {
       toast.error(err.message || "La migration a échoué.");
