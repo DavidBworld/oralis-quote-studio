@@ -187,6 +187,7 @@ CREATE POLICY "Users can perform CRUD on their own factures"
 CREATE TABLE IF NOT EXISTS public.fournisseurs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users NOT NULL,
+    local_id TEXT,
     nom TEXT,
     societe TEXT,
     email TEXT,
@@ -198,7 +199,8 @@ CREATE TABLE IF NOT EXISTS public.fournisseurs (
     produits JSONB DEFAULT '[]'::jsonb,
     date_creation TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, local_id)
 );
 
 -- Enable RLS on fournisseurs
@@ -218,11 +220,13 @@ CREATE POLICY "Users can perform CRUD on their own fournisseurs"
 CREATE TABLE IF NOT EXISTS public.modeles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES auth.users NOT NULL,
+    local_id TEXT,
     -- data contient l'objet AnyModele complet
     -- TODO: migration vers Supabase Storage pour data.image (Base64)
     data JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, local_id)
 );
 
 -- Enable RLS on modeles

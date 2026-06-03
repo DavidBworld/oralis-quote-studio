@@ -186,34 +186,52 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
   // 2. Modeles Migration
   const localModeles = JSON.parse(localStorage.getItem("oralis_modeles_pergola") || "[]");
   if (Array.isArray(localModeles) && localModeles.length > 0) {
-    const modelesToInsert = localModeles.map((m: any) => ({
-      id: m.id,
-      user_id: userId,
-      data: m,
-    }));
+    const modelesToInsert = localModeles.map((m: any) => {
+      const item: any = {
+        user_id: userId,
+        local_id: m.id,
+        data: m,
+      };
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(m.id)) {
+        item.id = m.id;
+      }
+      return item;
+    });
 
-    const { error } = await supabase.from("modeles").upsert(modelesToInsert);
+    const { error } = await supabase
+      .from("modeles")
+      .upsert(modelesToInsert, { onConflict: "user_id,local_id" });
     if (error) errors.push(`Erreur migration Modèles : ${error.message}`);
   }
 
   // 3. Fournisseurs Migration
   const localFournisseurs = JSON.parse(localStorage.getItem("oralis_fournisseurs") || "[]");
   if (Array.isArray(localFournisseurs) && localFournisseurs.length > 0) {
-    const fournisseursToInsert = localFournisseurs.map((f: any) => ({
-      id: f.id,
-      user_id: userId,
-      nom: f.nom,
-      societe: f.societe,
-      email: f.email,
-      telephone: f.telephone,
-      adresse: f.adresse,
-      categorie: f.categorie,
-      notes: f.notes,
-      produits: f.produits || [],
-      date_creation: f.dateCreation,
-    }));
+    const fournisseursToInsert = localFournisseurs.map((f: any) => {
+      const item: any = {
+        user_id: userId,
+        local_id: f.id,
+        nom: f.nom,
+        societe: f.societe,
+        email: f.email,
+        telephone: f.telephone,
+        adresse: f.adresse,
+        categorie: f.categorie,
+        notes: f.notes,
+        produits: f.produits || [],
+        date_creation: f.dateCreation,
+      };
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(f.id)) {
+        item.id = f.id;
+      }
+      return item;
+    });
 
-    const { error } = await supabase.from("fournisseurs").upsert(fournisseursToInsert);
+    const { error } = await supabase
+      .from("fournisseurs")
+      .upsert(fournisseursToInsert, { onConflict: "user_id,local_id" });
     if (error) errors.push(`Erreur migration Fournisseurs : ${error.message}`);
   }
 
