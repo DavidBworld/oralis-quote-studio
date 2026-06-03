@@ -7,7 +7,7 @@ import {
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
 import {
-  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, blankModeleParoiGrille, blankModeleMBPrime, getLabelsModele, blankOption,
+  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, blankModeleParoiGrille, blankModeleMBPrime, blankModeleAdaptAir, getLabelsModele, blankOption,
   parseExcelGrid, validateGrille, formatMM, formatCoef,
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
   type ModelePergola, type ModeleCoulissant, type ModeleParoiFixe, type ModeleParoiGrille, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
@@ -2583,7 +2583,7 @@ function ModeleEditorModal({
               onChangeSection={(s) => setDraft({ ...draft, sectionPoteaux: s })}
               tarifPoteauSuppHT={draft.tarifPoteauSuppHT || 0}
               onChangeTarif={(t) => setDraft({ ...draft, tarifPoteauSuppHT: t })}
-              isPrime={draft.isMBPrime || draft.nom.toLowerCase().includes("prime")}
+              isPrime={draft.isMBPrime || draft.isAdaptAir || draft.nom.toLowerCase().includes("prime") || draft.nom.toLowerCase().includes("adapt air")}
             />
           )}
           {tab === "options_supp" && (
@@ -2733,6 +2733,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
           <button onClick={() => setEditingModele(blankModeleMBPrime())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle MB PRIME
           </button>
+          <button onClick={() => setEditingModele(blankModeleAdaptAir())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
+            <Plus size={15} /> Nouveau modèle Adapt AIR
+          </button>
           <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border flex items-center gap-2 text-foreground">
             <Plus size={15} /> Nouveau modèle screen/volet
           </button>
@@ -2758,6 +2761,9 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
             </button>
             <button onClick={() => setEditingModele(blankModeleMBPrime())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle MB PRIME
+            </button>
+            <button onClick={() => setEditingModele(blankModeleAdaptAir())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
+              <Plus size={15} /> Créer un modèle Adapt AIR
             </button>
             <button onClick={() => setEditingModele(blankModeleScreen())} className="btn-ghost border border-border inline-flex items-center gap-2 text-foreground">
               <Plus size={15} /> Créer un modèle screen/volet

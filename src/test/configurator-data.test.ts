@@ -16,6 +16,7 @@ import {
   getLabelsModele,
   ABAQUE_COULISSANT,
   blankModeleMBPrime,
+  blankModeleAdaptAir,
   type GrilleTarif,
   type ModelePergola,
   type ModeleCoulissant,
@@ -786,6 +787,57 @@ describe("MB PRIME model configuration and pricing", () => {
     });
     expect(desc).toContain("Configuration : Pergola Adossée au mur — Lames perpendiculaires à la façade");
   });
+
+  describe("Pergola Adapt AIR", () => {
+    it("should initialize default blank Adapt AIR model correctly", () => {
+      const model = blankModeleAdaptAir();
+      expect(model.nom).toBe("Adapt AIR");
+      expect(model.isAdaptAir).toBe(true);
+      expect(model.toitures.length).toBe(7);
+      expect(model.toitures[0].nom).toBe("B 8118 / 7500");
+      expect(model.couleurs.length).toBe(4);
+      expect(model.couleurs[0].nom).toBe("RAL 9010 Blanc (Zuiverblanc)");
+      expect(model.couleurs[3].surchargeHT).toBe(250);
+    });
+
+    it("should compute pricing and select 4 or 2 posts based on pose type", () => {
+      const model = blankModeleAdaptAir();
+      const standardToitureId = model.toitures[0].id;
+      const structureColorId = model.couleurs[0].id;
+
+      // Autoportante -> 4 posts
+      const resultAutoportante = calculerPrix(model, 4000, 3000, standardToitureId, structureColorId, 1.4, 2500, 0, 2500, [], structureColorId, "Autoportante");
+      expect(resultAutoportante.nombrePoteaux).toBe(4);
+
+      // Adossée au mur -> 2 posts
+      const resultAdossee = calculerPrix(model, 4000, 3000, standardToitureId, structureColorId, 1.4, 2500, 0, 2500, [], structureColorId, "Adossée au mur");
+      expect(resultAdossee.nombrePoteaux).toBe(2);
+    });
+
+    it("should generate description for Adapt AIR and handle couleur_toile variable properly", () => {
+      const model = blankModeleAdaptAir();
+      const desc = genererDescription(model.templateDescription, {
+        nom: model.nom,
+        largeurMm: 4500,
+        profondeurMm: 3500,
+        toiture: "B 8118 / 6028",
+        couleur: "RAL 7016 Anthracite",
+        couleurLames: "B 8118 / 7500", // mapped to canvas color in description
+        typePose: "Autoportante",
+        poteaux: 4,
+        typeDim: "largeur_profondeur",
+        hauteurPoteauxMm: 2800,
+      });
+
+      expect(desc).toContain("Adapt AIR sur mesure");
+      expect(desc).toContain("Configuration : Pergola Autoportante");
+      expect(desc).toContain("Dimensions : Largeur 4500 mm × Profondeur 3500 mm — 4 poteaux (hauteur 2800 mm)");
+      expect(desc).toContain("Couverture : Toile B 8118 / 6028");
+      expect(desc).toContain("Couleur structure : RAL 7016 Anthracite");
+      expect(desc).toContain("Couleur toile : B 8118 / 7500");
+    });
+  });
 });
+
 
 

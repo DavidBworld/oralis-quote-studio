@@ -219,8 +219,10 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   const modele = modeles.find((m) => m.id === state.modeleId);
   const isOrisSolid = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe" && modele.typeModele !== "paroi_avec_grille") ? (modele as ModelePergola).nom.toLowerCase().includes("oris solid") : false;
   const isPrime = modele && (!!(modele as any).isMBPrime || modele.nom.toLowerCase().includes("prime"));
+  const isAdaptAir = modele && (!!(modele as any).isAdaptAir || modele.nom.toLowerCase().includes("adapt air"));
+  const isDoubleColor = isPrime || isAdaptAir;
   const formatVal = (val: number) => {
-    if (isPrime) return `${val} mm`;
+    if (isDoubleColor) return `${val} mm`;
     return formatMM(val);
   };
 
@@ -411,7 +413,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
   // Poteaux calculés en live (pergolas uniquement)
   const poteauxCalc = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe" && modele.typeModele !== "paroi_avec_grille")
-    ? (isPrime
+    ? (isDoubleColor
         ? (state.typePose === "Autoportante" ? 4 : 2)
         : calculerPoteaux((modele as ModelePergola).reglesPoteau, state.largeur, state.profondeur)
       )
@@ -441,7 +443,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
       return false;
     }
     if (step === 2) {
-      if (modele && isPrime) {
+      if (modele && isDoubleColor) {
         return !!state.toitureId && !!state.couleurId && !!state.couleurLamesId && !!state.typePose;
       }
       return !!state.toitureId && !!state.couleurId;
@@ -682,7 +684,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 </div>
 
                 {/* Pose Type (MB Prime) or standard Couleur/Finition */}
-                {isPrime ? (
+                {isDoubleColor ? (
                   <>
                     <div>
                       <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Type de pose</label>
@@ -702,26 +704,28 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Orientation des lames</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: "parallèles", nom: "Lames parallèles" },
-                          { id: "perpendiculaires", nom: "Lames perpendiculaires" }
-                        ].map((opt) => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setState({ ...state, lamesOrientation: opt.id as any })}
-                            className={`px-3 py-2.5 rounded border transition-all text-[13px] text-center font-medium ${
-                              state.lamesOrientation === opt.id ? "border-accent bg-accent/5 text-accent" : "border-border hover:border-accent/40 text-muted-foreground"
-                            }`}
-                          >
-                            {opt.nom}
-                          </button>
-                        ))}
+                    {!isAdaptAir && (
+                      <div>
+                        <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Orientation des lames</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { id: "parallèles", nom: "Lames parallèles" },
+                            { id: "perpendiculaires", nom: "Lames perpendiculaires" }
+                          ].map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setState({ ...state, lamesOrientation: opt.id as any })}
+                              className={`px-3 py-2.5 rounded border transition-all text-[13px] text-center font-medium ${
+                                state.lamesOrientation === opt.id ? "border-accent bg-accent/5 text-accent" : "border-border hover:border-accent/40 text-muted-foreground"
+                              }`}
+                            >
+                              {opt.nom}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </>
                 ) : (
                   <div>
@@ -769,7 +773,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 )}
 
                 {/* If MB Prime: render structure & slats colors separately */}
-                {isPrime && (
+                {isDoubleColor && (
                   <>
                     <div>
                       <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Couleur structure</label>
@@ -791,7 +795,9 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     </div>
 
                     <div>
-                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Couleur lames</label>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        {isAdaptAir ? "Couleur toile" : "Couleur lames"}
+                      </label>
                       <div className="space-y-1.5">
                         {modele.couleurs.map((c)=>(
                           <button key={c.id} onClick={()=>setState({...state,couleurLamesId:c.id})}
@@ -914,7 +920,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       onChange={(e)=>setState({...state,largeur:parseInt(e.target.value)||state.largeur})}
                       className="form-input font-mono text-lg text-center"/>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      → {formatVal(state.largeur)} — Grille : {gridLargeurs.map((l)=> isPrime ? `${l} mm` : `${(l/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
+                      → {formatVal(state.largeur)} — Grille : {gridLargeurs.map((l)=> isDoubleColor ? `${l} mm` : `${(l/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
                     </p>
                     {boundsLargeur && (
                       <p className="text-[12px] text-destructive mt-1.5 font-medium">
@@ -931,7 +937,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                       onChange={(e)=>setState({...state,profondeur:parseInt(e.target.value)||state.profondeur})}
                       className="form-input font-mono text-lg text-center"/>
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      → {formatVal(state.profondeur)} — Grille : {gridProfondeurs.map((p)=> isPrime ? `${p} mm` : `${(p/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
+                      → {formatVal(state.profondeur)} — Grille : {gridProfondeurs.map((p)=> isDoubleColor ? `${p} mm` : `${(p/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
                     </p>
                     {boundsProfondeur && (
                       <p className="text-[12px] text-destructive mt-1.5 font-medium">
@@ -952,7 +958,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         onChange={(e)=>setState({...state,hauteurPoteaux:parseInt(e.target.value)||2500})}
                         className="form-input font-mono text-lg text-center"/>
                       <p className="text-[11px] text-muted-foreground mt-1">
-                        {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatVal(state.hauteurPoteaux)} (Standard : ${isPrime ? "2500 mm" : "2,50m"})`}
+                        {isOrisSolid ? "→ Section : 136×136 mm" : `→ ${formatVal(state.hauteurPoteaux)} (Standard : ${isDoubleColor ? "2500 mm" : "2,50m"})`}
                       </p>
                     </div>
                     {isOrisSolid ? (
@@ -999,13 +1005,13 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                 )}
 
                 {/* Poteaux calculés automatiquement / prévus */}
-                {labels.showPoteaux && (isPrime || modele.reglesPoteau.length > 0) && poteauxCalc > 0 && (
+                {labels.showPoteaux && (isDoubleColor || modele.reglesPoteau.length > 0) && poteauxCalc > 0 && (
                   <div className="flex items-center gap-3 bg-accent/5 border border-accent/20 rounded-lg px-4 py-2.5 mb-3">
                     <Users size={15} className="text-accent shrink-0"/>
                     <div>
                       <span className="text-[13px] font-semibold text-accent">{poteauxCalc} poteaux</span>
                       <span className="text-[12px] text-muted-foreground ml-2">
-                        {isPrime 
+                        {isDoubleColor 
                           ? `prévus pour une pergola ${state.typePose === "Autoportante" ? "autoportante (4 poteaux)" : "adossée (2 poteaux)"}`
                           : `calculés automatiquement pour ${formatVal(isPerp ? state.profondeur : state.largeur)} de largeur`
                         }
@@ -1113,7 +1119,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     </div>
                     {labels.showPoteaux && (
                       <>
-                        {modele.reglesPoteau.length>0 && (
+                        {(modele.reglesPoteau.length>0 || isDoubleColor) && (
                           <div className="flex justify-between text-[11px]">
                             <span className="text-muted-foreground">Poteaux structurels</span>
                             <span className="font-mono font-semibold">{resultat.nombrePoteaux} poteaux</span>
