@@ -9,19 +9,18 @@ import {
   formatEUR, formatDate, calcTotals, uid, type Quote
 } from "@/lib/quote-data";
 import {
-  loadCommandes, saveCommandes,
   COMMANDE_STATUT_LABELS, COMMANDE_STATUT_CLASS,
   ECHEANCIER_DEFAUT,
   getCommandeTotalFacture, getCommandeResteAFacturer, getProchainEcheancier,
   createFactureFromCommande,
   type Commande, type CommandeFacture,
 } from "@/lib/commande-data";
+import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
+import { dbSaveFacture } from "@/lib/supabase-data/factures";
 
-// ── localStorage factures helpers ──
-function loadFactures(): any[] {
-  try { return JSON.parse(localStorage.getItem("oralis_factures") || "[]"); } catch { return []; }
-}
-function saveFactures(f: any[]) { localStorage.setItem("oralis_factures", JSON.stringify(f)); }
+// ── localStorage helpers (Bypassed for Supabase) ──
+function loadFactures(): any[] { return []; }
+function saveFactures(f: any[]) {}
 
 // ── Créer Facture Modal ──
 function CreerFactureModal({ commande, onClose, onDone }: {
@@ -60,7 +59,7 @@ function CreerFactureModal({ commande, onClose, onDone }: {
 
   const montantFinal = montant;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (montantFinal <= 0) {
       toast.error("Le montant doit être supérieur à 0");
       return;
@@ -70,31 +69,42 @@ function CreerFactureModal({ commande, onClose, onDone }: {
       return;
     }
 
-    const result = createFactureFromCommande(
-      commande, type, label, pct, montantFinal, dateFacture, dateEcheance, modePaiement
-    );
+    try {
+      const result = createFactureFromCommande(
+        commande, type, label, pct, montantFinal, dateFacture, dateEcheance, modePaiement
+      );
 
-    // Sauvegarder la facture dans localStorage
-    const allFactures = loadFactures();
-    allFactures.push(result.facture);
-    saveFactures(allFactures);
+      // 1. Sauvegarder la facture dans Supabase
+      await dbSaveFacture(result.facture);
 
-    // Mettre à jour la commande
-    const allCommandes = loadCommandes();
-    const idx = allCommandes.findIndex((c) => c.id === commande.id);
-    if (idx >= 0) {
-      allCommandes[idx].factures.push(result.commandeFacture);
-      // Auto-update statut si tout est facturé
-      const newTotalFacture = allCommandes[idx].factures.reduce((s, f) => s + f.montantTTC, 0);
-      if (newTotalFacture >= commande.totalTTC - 0.01) {
-        allCommandes[idx].statut = "terminee";
+      // 2. Mettre à jour la commande dans Supabase
+      const updatedCommandes = await dbLoadCommandes();
+      const foundIdx = updatedCommandes.findIndex((c) => c.id === commande.id);
+      if (foundIdx >= 0) {
+        const cmdToUpdate = updatedCommandes[foundIdx];
+        cmdToUpdate.factures.push(result.commandeFacture);
+        // Auto-update statut si tout est facturé
+        const newTotalFacture = cmdToUpdate.factures.reduce((s, f) => s + f.montantTTC, 0);
+        if (newTotalFacture >= commande.totalTTC - 0.01) {
+          cmdToUpdate.statut = "terminee";
+        }
+        await dbSaveCommande(cmdToUpdate);
+      } else {
+        const updatedCmd = { ...commande };
+        updatedCmd.factures.push(result.commandeFacture);
+        const newTotalFacture = updatedCmd.factures.reduce((s, f) => s + f.montantTTC, 0);
+        if (newTotalFacture >= commande.totalTTC - 0.01) {
+          updatedCmd.statut = "terminee" as const;
+        }
+        await dbSaveCommande(updatedCmd);
       }
-      saveCommandes(allCommandes);
-    }
 
-    toast.success(`Facture ${result.facture.numero} créée ✓`);
-    onDone();
-    onClose();
+      toast.success(`Facture ${result.facture.numero} créée ✓`);
+      onDone();
+      onClose();
+    } catch (err) {
+      toast.error("Erreur lors de la création de la facture.");
+    }
   };
 
   const factureIndex = commande.factures.length + 1;
@@ -487,12 +497,23 @@ export default function Commandes() {
   const [commandes, setCommandes] = useState<Commande[]>([]);
   const [search, setSearch] = useState("");
   const [factureModalCmd, setFactureModalCmd] = useState<Commande | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const reload = useCallback(() => {
-    setCommandes(loadCommandes());
+  const reload = useCallback(async () => {
+    try {
+      setLoading(true);
+      const list = await dbLoadCommandes();
+      setCommandes(list);
+    } catch (err) {
+      toast.error("Erreur lors du chargement des commandes.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   const filtered = commandes.filter(
     (c) =>
@@ -504,6 +525,17 @@ export default function Commandes() {
 
   const selectedCommande = id ? commandes.find((c) => c.id === id) : null;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement des commandes...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedCommande) {
     return (
       <CommandeDetail
@@ -514,15 +546,18 @@ export default function Commandes() {
     );
   }
 
-  const deleteCommande = (c: Commande) => {
+  const deleteCommande = async (c: Commande) => {
     if (c.factures.length > 0) {
       toast.error("Impossible de supprimer une commande avec des factures");
       return;
     }
-    const all = loadCommandes().filter((x) => x.id !== c.id);
-    saveCommandes(all);
-    reload();
-    toast.success("Commande supprimée");
+    try {
+      await dbDeleteCommande(c.id);
+      await reload();
+      toast.success("Commande supprimée ✓");
+    } catch (err) {
+      toast.error("Erreur lors de la suppression de la commande.");
+    }
   };
 
   return (
