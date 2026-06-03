@@ -128,6 +128,27 @@ export default function Settings() {
     reader.readAsText(file);
   };
 
+  const handleResetTestData = () => {
+    setConfirmDelete({
+      isOpen: true,
+      message: "Attention : cette action va supprimer DEFINITIVEMENT tous vos devis, clients, commandes et factures de l'application (les tarifs fournisseurs et les paramètres d'entreprise seront conservés). Cette action est irréversible. Voulez-vous continuer ?",
+      onConfirm: () => {
+        const keysToClear = [
+          "oralis_quotes",
+          "oralis_clients",
+          "oralis_commandes",
+          "oralis_factures",
+          "oralis_devis_favoris"
+        ];
+        keysToClear.forEach((k) => localStorage.removeItem(k));
+        toast.success("Données de test supprimées avec succès ! Rechargement...");
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      },
+    });
+  };
+
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
       <h1 className="font-display text-[28px] font-semibold mb-1 tracking-tight">Paramètres</h1>
@@ -183,6 +204,7 @@ export default function Settings() {
         <SauvegardeTab
           handleExport={handleExportData}
           handleImport={handleImportData}
+          handleReset={handleResetTestData}
         />
       )}
 
@@ -1069,9 +1091,11 @@ function BibliothequeTab({
 function SauvegardeTab({
   handleExport,
   handleImport,
+  handleReset,
 }: {
   handleExport: () => void;
   handleImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleReset: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -1132,6 +1156,30 @@ function SauvegardeTab({
               </label>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Zone de danger */}
+      <div className="bg-card border border-destructive/20 rounded-xl p-6 shadow-sm">
+        <h3 className="font-semibold text-lg mb-2 text-destructive">Zone de danger</h3>
+        <p className="text-sm text-muted-foreground mb-6 leading-relaxed font-body">
+          Si vous avez terminé vos tests et souhaitez démarrer l'utilisation réelle de l'application, 
+          vous pouvez supprimer toutes les données de test en une seule fois.
+        </p>
+        <div className="pt-4 border-t border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h4 className="font-semibold text-sm text-foreground">Remise à zéro des données opérationnelles</h4>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed font-body">
+              Supprime définitivement tous les devis, clients, commandes et factures (les tarifs fournisseurs et les paramètres sont conservés).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex items-center gap-2 px-4 py-2.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold text-[13px] rounded transition-colors"
+          >
+            <Trash2 size={14} /> Supprimer les données de test
+          </button>
         </div>
       </div>
     </div>
