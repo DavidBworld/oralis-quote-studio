@@ -3,6 +3,8 @@ import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import { MigrationModal } from "./MigrationModal";
+import { dbLoadSettings } from "@/lib/supabase-data/settings";
+import { saveSettings } from "@/lib/settings-data";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -26,6 +28,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (session) {
+      dbLoadSettings()
+        .then((data) => {
+          saveSettings(data);
+        })
+        .catch((err) => {
+          console.error("Failed to sync settings from Supabase on session start:", err);
+        });
+    }
+  }, [session]);
 
   if (loading) {
     return (

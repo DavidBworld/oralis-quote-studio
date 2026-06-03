@@ -7,6 +7,7 @@ import {
   saveSettings,
   formatEURCoeff,
   defaultComptabilite,
+  defaultSettings,
   type AppSettings,
   type CoefficientRow,
   type FournisseurRemise,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/settings-data";
 import { uid } from "@/lib/quote-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { dbLoadSettings, dbSaveSettings } from "@/lib/supabase-data/settings";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -26,7 +28,8 @@ export default function Settings() {
     }
   }, [navigate]);
 
-  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"entreprise" | "comptabilite" | "tarifs" | "bibliotheque" | "sauvegarde">("entreprise");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
@@ -39,13 +42,33 @@ export default function Settings() {
     onConfirm: () => {},
   });
 
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        const data = await dbLoadSettings();
+        setSettings(data);
+        saveSettings(data);
+      } catch (err) {
+        toast.error("Erreur lors du chargement des paramètres.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchSettings();
+  }, []);
+
   const update = (patch: Partial<AppSettings>) => setSettings((s) => ({ ...s, ...patch }));
   const updateCompany = (patch: Partial<AppSettings["company"]>) =>
     update({ company: { ...settings.company, ...patch } });
 
-  const handleSave = () => {
-    saveSettings(settings);
-    toast.success("Paramètres enregistrés");
+  const handleSave = async () => {
+    try {
+      await dbSaveSettings(settings);
+      saveSettings(settings);
+      toast.success("Paramètres enregistrés");
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement des paramètres.");
+    }
   };
 
   const tabs = [
@@ -148,6 +171,17 @@ export default function Settings() {
       },
     });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement des paramètres...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
