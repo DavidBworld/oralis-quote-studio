@@ -326,6 +326,7 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
   const [pct, setPct] = useState(30);
   const [usePercent, setUsePercent] = useState(true);
   const [montantDirect, setMontantDirect] = useState(totals.totalTTC * 0.3);
+  const [factureNumero, setFactureNumero] = useState(() => nextFactureNumberOR(factures));
   const [libelle, setLibelle] = useState(`Acompte sur devis ${quote.numero}`);
   const [dateFacture, setDateFacture] = useState(new Date().toISOString().split("T")[0]);
   const [dateEcheance, setDateEcheance] = useState(() => {
@@ -350,10 +351,9 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
         return { taux: t, baseHT, montantTVA, montantTTC: baseHT + montantTVA };
       });
 
-      const nextNum = nextFactureNumberOR(factures);
       const facture = {
         id: uid(),
-        numero: nextNum,
+        numero: factureNumero,
         type: "acompte" as const,
         devisId: quote.id,
         devisNumero: quote.numero,
@@ -416,6 +416,10 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
               </button>
               <span className="text-sm text-muted-foreground ml-auto font-mono">{formatEUR(montantAcompte)} TTC</span>
             </div>
+          </div>
+          <div>
+            <label className="form-label">N° Facture</label>
+            <input className="form-input" value={factureNumero} onChange={(e) => setFactureNumero(e.target.value)} />
           </div>
           <div>
             <label className="form-label">Libellé de la facture</label>

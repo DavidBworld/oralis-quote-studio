@@ -432,7 +432,11 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
               <h3 className="section-title">Informations facture</h3>
               <div>
                 <label className="form-label">N° Facture</label>
-                <input className="form-input bg-muted/30" value={facture.numero} readOnly />
+                <input
+                  className="form-input"
+                  value={facture.numero}
+                  onChange={(e) => updateField("numero", e.target.value)}
+                />
               </div>
               <div>
                 <label className="form-label">Type</label>

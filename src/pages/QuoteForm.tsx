@@ -2337,7 +2337,8 @@ export default function QuoteForm() {
       try {
         setLoading(true);
         if (!id || id === "nouveau") {
-          const nq = createEmptyQuote([]);
+          const allQuotes = await dbLoadQuotes();
+          const nq = createEmptyQuote(allQuotes);
           nq.conditionsPaiement = settings.company.conditionsPaiement || nq.conditionsPaiement;
           nq.delaiRealisation = settings.company.delaiRealisation || nq.delaiRealisation;
 
@@ -2683,7 +2684,16 @@ export default function QuoteForm() {
       <section className="luxury-card mb-5">
         <h2 className="section-title">Informations du devis</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div><label className="form-label">N° Devis</label><input type="text" value={quote.numero} readOnly className="form-input bg-muted"/></div>
+          <div>
+            <label className="form-label">N° Devis</label>
+            <input
+              type="text"
+              value={quote.numero}
+              onChange={(e) => update({ numero: e.target.value })}
+              readOnly={id !== "nouveau"}
+              className={`form-input ${id !== "nouveau" ? "bg-muted" : ""}`}
+            />
+          </div>
           <div><label className="form-label">Date</label><input type="date" value={quote.date} onChange={(e)=>update({date:e.target.value})} className="form-input"/></div>
           <div><label className="form-label">Validité (jours)</label>
             <select value={quote.validite} onChange={(e)=>update({validite:Number(e.target.value)})} className="form-input">

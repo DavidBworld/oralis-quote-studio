@@ -151,7 +151,8 @@ export function createFactureFromCommande(
   montantTTC: number,
   dateFacture: string,
   dateEcheance: string,
-  modePaiement: string
+  modePaiement: string,
+  factureNumeroCustom?: string
 ): any {
   const totals = calcTotals(commande.lignes);
 
@@ -166,7 +167,7 @@ export function createFactureFromCommande(
     return { taux: t, baseHT, montantTVA: montantTVA as number, montantTTC: baseHT + (montantTVA as number) };
   });
 
-  const factureNumero = nextFactureNumberOR();
+  const factureNumero = factureNumeroCustom || nextFactureNumberOR();
   const factureId = uid();
 
   const facture = {

@@ -13,10 +13,11 @@ import {
   ECHEANCIER_DEFAUT,
   getCommandeTotalFacture, getCommandeResteAFacturer, getProchainEcheancier,
   createFactureFromCommande,
+  nextFactureNumberOR,
   type Commande, type CommandeFacture,
 } from "@/lib/commande-data";
 import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
-import { dbSaveFacture } from "@/lib/supabase-data/factures";
+import { dbSaveFacture, dbLoadFactures } from "@/lib/supabase-data/factures";
 
 // ── localStorage helpers (Bypassed for Supabase) ──
 function loadFactures(): any[] { return []; }
@@ -55,7 +56,20 @@ function CreerFactureModal({ commande, onClose, onDone }: {
   const [dateEcheance, setDateEcheance] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0];
   });
+  const [factureNumero, setFactureNumero] = useState("");
   const [modePaiement, setModePaiement] = useState("Virement");
+
+  useEffect(() => {
+    async function fetchNextNum() {
+      try {
+        const list = await dbLoadFactures();
+        setFactureNumero(nextFactureNumberOR(list));
+      } catch (err) {
+        console.error("Erreur lors de la génération du numéro de facture:", err);
+      }
+    }
+    fetchNextNum();
+  }, []);
 
   const montantFinal = montant;
 
@@ -71,7 +85,7 @@ function CreerFactureModal({ commande, onClose, onDone }: {
 
     try {
       const result = createFactureFromCommande(
-        commande, type, label, pct, montantFinal, dateFacture, dateEcheance, modePaiement
+        commande, type, label, pct, montantFinal, dateFacture, dateEcheance, modePaiement, factureNumero
       );
 
       // 1. Sauvegarder la facture dans Supabase
@@ -167,6 +181,10 @@ function CreerFactureModal({ commande, onClose, onDone }: {
         </div>
 
         <div className="space-y-4">
+          <div>
+            <label className="form-label">N° Facture</label>
+            <input className="form-input" value={factureNumero} onChange={(e) => setFactureNumero(e.target.value)} />
+          </div>
           <div>
             <label className="form-label">Libellé de la facture</label>
             <input className="form-input" value={label} onChange={(e) => setLabel(e.target.value)} />
