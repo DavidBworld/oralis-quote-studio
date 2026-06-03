@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Plus, Trash2, Upload, Camera, Wrench, X, ChevronRight, AlertCircle, CheckCircle2, ArrowLeft, ArrowRight, Users, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -2310,10 +2310,10 @@ export default function QuoteForm() {
   const [adjustmentTTC, setAdjustmentTTC] = useState<string>("");
   const [adjustmentMethod, setAdjustmentMethod] = useState<"proportional" | "line">("proportional");
 
-  const settings = loadSettings();
-  const TVA_RATES = getEnabledTVARates(settings);
+  const settings = useMemo(() => loadSettings(), []);
+  const TVA_RATES = useMemo(() => getEnabledTVARates(settings), [settings]);
   const [defaultTva, setDefaultTva] = useState<number>(TVA_RATES[0] || 20);
-  const catalogDesignations = settings.catalogProduits.map((p) => p.designation);
+  const catalogDesignations = useMemo(() => settings.catalogProduits.map((p) => p.designation), [settings]);
 
   useEffect(() => {
     try {
