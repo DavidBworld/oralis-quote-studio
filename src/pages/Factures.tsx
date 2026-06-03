@@ -14,9 +14,10 @@ import { loadSettings, getLegalMention, defaultComptabilite } from "@/lib/settin
 import { nextFactureNumberOR } from "@/lib/commande-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { jsPDF } from "jspdf";
+import { dbLoadFactures, dbSaveFacture, dbDeleteFacture } from "@/lib/supabase-data/factures";
 
 // ── Facture types ──
-interface Reglement {
+export interface Reglement {
   id: string;
   mode: string;
   libelle: string;
@@ -25,14 +26,14 @@ interface Reglement {
   montant: number;
 }
 
-interface TvaBreakdownItem {
+export interface TvaBreakdownItem {
   taux: number;
   baseHT: number;
   montantTVA: number;
   montantTTC: number;
 }
 
-interface Facture {
+export interface Facture {
   id: string;
   numero: string;
   type: "acompte" | "situation" | "solde" | "avoir";
@@ -71,11 +72,11 @@ interface Facture {
   dateRappel1?: string;
 }
 
-// ── localStorage helpers ──
-function loadFactures(): Facture[] {
-  try { return JSON.parse(localStorage.getItem("oralis_factures") || "[]"); } catch { return []; }
-}
-function saveFactures(f: Facture[]) { localStorage.setItem("oralis_factures", JSON.stringify(f)); }
+// ── localStorage helpers (Bypassed for Supabase) ──
+function loadFactures(): Facture[] { return []; }
+function saveFactures(f: Facture[]) {}
+function initializeSampleFactures() {}
+
 function nextFactureNumber(type: string = "FA"): string {
   const all = loadFactures();
   const y = new Date().getFullYear();
@@ -86,56 +87,6 @@ function nextFactureNumber(type: string = "FA"): string {
     .filter(Boolean);
   const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
   return `ORALIS-${prefix}-${y}-${String(next).padStart(3, "0")}`;
-}
-
-function initializeSampleFactures() {
-  const existing = localStorage.getItem("oralis_factures");
-  if (existing !== null) return;
-  const samples: Facture[] = [
-    {
-      id: "fa-sample-1",
-      numero: "OR2026250",
-      type: "acompte",
-      devisId: "sample1",
-      devisNumero: "ORALIS-2026-001",
-      client: { type: "particulier", prenom: "Jean-Pierre", nom: "Müller", societe: "", email: "jp.muller@email.lu", telephone: "+352 621 123 456", rue: "12 Rue de la Gare", ville: "Luxembourg", codePostal: "1616", pays: "Luxembourg" },
-      lignes: [{ id: "l1", designation: "Pergola Bioclimatique à Lames Orientables", description: "Structure aluminium laqué RAL 7016, 6m x 4m", quantite: 1, prixUnitaireHT: 18500, tva: 17, options: [{ id: "o1", designation: "Motorisation Somfy", prixHT: 1200, tva: 17 }, { id: "o2", designation: "Éclairage LED Intégré", prixHT: 800, tva: 17 }] }],
-      totalHT: 20500,
-      totalTTC: 23985,
-      montantAcompte: 7195.50,
-      montantAcomptePct: 30,
-      libelle: "Acompte sur devis ORALIS-2026-001",
-      dateFacture: "2026-03-12",
-      dateEcheance: "2026-04-11",
-      modePaiement: "Virement",
-      statut: "non_payee",
-      reglements: [],
-      dateCreation: "2026-03-12",
-      tvaBreakdown: [{ taux: 17, baseHT: 20500, montantTVA: 3485, montantTTC: 23985 }],
-    },
-    {
-      id: "fa-sample-2",
-      numero: "OR2026251",
-      type: "acompte",
-      devisId: "sample2",
-      devisNumero: "ORALIS-2026-002",
-      client: { type: "particulier", prenom: "Marie", nom: "Laurent", societe: "", email: "m.laurent@email.fr", telephone: "+33 6 12 34 56 78", rue: "8 Avenue Foch", ville: "Nancy", codePostal: "54000", pays: "France" },
-      lignes: [{ id: "l2", designation: "Jardin d'Hiver & Parois Vitrées", description: "Structure aluminium, 4m x 3m", quantite: 1, prixUnitaireHT: 6666.67, tva: 20, options: [] }],
-      totalHT: 6666.67,
-      totalTTC: 8000,
-      montantAcompte: 2400,
-      montantAcomptePct: 30,
-      libelle: "Acompte sur devis ORALIS-2026-002",
-      dateFacture: "2026-03-05",
-      dateEcheance: "2026-04-04",
-      modePaiement: "Chèque",
-      statut: "payee",
-      reglements: [{ id: "r1", mode: "Chèque", libelle: "Acompte", dateReception: "2026-03-10", dateEnregistrement: "2026-03-10", montant: 2400 }],
-      dateCreation: "2026-03-05",
-      tvaBreakdown: [{ taux: 20, baseHT: 6666.67, montantTVA: 1333.33, montantTTC: 8000 }],
-    },
-  ];
-  saveFactures(samples);
 }
 
 // ── Statut helpers ──
@@ -251,13 +202,16 @@ function FStatutDropdown({ facture, onUpdate }: { facture: Facture; onUpdate: ()
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  const changeStatus = (s: Facture["statut"]) => {
-    const all = loadFactures();
-    const idx = all.findIndex((f) => f.id === facture.id);
-    if (idx >= 0) { all[idx].statut = s; saveFactures(all); }
-    setOpen(false);
-    onUpdate();
-    toast.success(`Statut changé : ${STATUT_FACTURE_LABELS[s]}`);
+  const changeStatus = async (s: Facture["statut"]) => {
+    try {
+      const updatedFacture = { ...facture, statut: s };
+      await dbSaveFacture(updatedFacture);
+      setOpen(false);
+      onUpdate();
+      toast.success(`Statut changé : ${STATUT_FACTURE_LABELS[s]}`);
+    } catch (err) {
+      toast.error("Erreur lors de la mise à jour du statut.");
+    }
   };
 
   const openDropdown = (e: React.MouseEvent) => {
@@ -305,24 +259,34 @@ function ReglementModal({ facture, onClose, onDone }: { facture: Facture; onClos
   const totalRecu = facture.reglements.reduce((s, r) => s + r.montant, 0);
   const restant = facture.montantAcompte - totalRecu;
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!montant || montant <= 0) { toast.error("Montant invalide"); return; }
-    const all = loadFactures();
-    const idx = all.findIndex((f) => f.id === facture.id);
-    if (idx >= 0) {
-      all[idx].reglements.push({ id: uid(), mode, libelle, dateReception, dateEnregistrement: dateEnreg, montant });
-      const newTotal = Math.round(all[idx].reglements.reduce((s, r) => s + r.montant, 0) * 100) / 100;
-      const due     = Math.round(all[idx].montantAcompte * 100) / 100;
+    try {
+      const newReglement = { id: uid(), mode, libelle, dateReception, dateEnregistrement: dateEnreg, montant };
+      const updatedReglements = [...facture.reglements, newReglement];
+      const newTotal = Math.round(updatedReglements.reduce((s, r) => s + r.montant, 0) * 100) / 100;
+      const due = Math.round(facture.montantAcompte * 100) / 100;
+      
+      let newStatut: Facture["statut"] = facture.statut;
       if (solder || newTotal >= due - 0.01) {
-        all[idx].statut = "payee";
+        newStatut = "payee";
       } else if (newTotal > 0) {
-        all[idx].statut = "partiel";
+        newStatut = "partiel";
       }
-      saveFactures(all);
+      
+      const updatedFacture: Facture = {
+        ...facture,
+        reglements: updatedReglements,
+        statut: newStatut
+      };
+      
+      await dbSaveFacture(updatedFacture);
+      toast.success("Règlement enregistré ✓");
+      onDone();
+      onClose();
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement du règlement.");
     }
-    toast.success("Règlement enregistré ✓");
-    onDone();
-    onClose();
   };
 
   return (
@@ -383,26 +347,44 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
     message: "",
     onConfirm: () => {},
   });
+  const [loading, setLoading] = useState(true);
 
-  const reload = useCallback(() => {
-    const all = loadFactures();
-    const found = all.find((f) => f.id === factureId);
-    if (found) setFacture(found);
+  const reload = useCallback(async () => {
+    try {
+      setLoading(true);
+      const all = await dbLoadFactures();
+      const found = all.find((f) => f.id === factureId);
+      if (found) setFacture(found);
+    } catch (err) {
+      toast.error("Erreur lors du chargement de la facture.");
+    } finally {
+      setLoading(false);
+    }
   }, [factureId]);
 
   useEffect(() => { reload(); }, [reload]);
 
-  const updateField = (field: string, value: any) => {
-    const all = loadFactures();
-    const idx = all.findIndex((f) => f.id === factureId);
-    if (idx >= 0) {
-      (all[idx] as any)[field] = value;
-      saveFactures(all);
-      setFacture({ ...all[idx] });
+  const updateField = async (field: string, value: any) => {
+    if (!facture) return;
+    try {
+      const updatedFacture = { ...facture, [field]: value };
+      await dbSaveFacture(updatedFacture);
+      setFacture(updatedFacture);
+    } catch (err) {
+      toast.error("Erreur lors de la mise à jour de la facture.");
     }
   };
 
-  if (!facture) return null;
+  if (loading || !facture) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement de la facture...</p>
+        </div>
+      </div>
+    );
+  }
 
   const totals = calcTotals(facture.lignes);
   const totalRecu = facture.reglements.reduce((s, r) => s + r.montant, 0);
@@ -665,15 +647,29 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
                           setConfirmDelete({
                             isOpen: true,
                             message: "Voulez-vous vraiment supprimer ce règlement ?",
-                            onConfirm: () => {
-                              const all = loadFactures();
-                              const idx = all.findIndex((f) => f.id === facture.id);
-                              if (idx >= 0) {
-                                all[idx].reglements = all[idx].reglements.filter((x) => x.id !== r.id);
-                                const newTotal = all[idx].reglements.reduce((s, x) => s + x.montant, 0);
-                                all[idx].statut = newTotal >= all[idx].montantAcompte ? "payee" : newTotal > 0 ? "partiel" : "non_payee";
-                                saveFactures(all);
+                            onConfirm: async () => {
+                              try {
+                                const updatedReglements = facture.reglements.filter((x) => x.id !== r.id);
+                                const newTotal = Math.round(updatedReglements.reduce((s, x) => s + x.montant, 0) * 100) / 100;
+                                const due = Math.round(facture.montantAcompte * 100) / 100;
+                                
+                                let newStatut: Facture["statut"] = "non_payee";
+                                if (newTotal >= due - 0.01) {
+                                  newStatut = "payee";
+                                } else if (newTotal > 0) {
+                                  newStatut = "partiel";
+                                }
+
+                                const updatedFacture: Facture = {
+                                  ...facture,
+                                  reglements: updatedReglements,
+                                  statut: newStatut
+                                };
+                                await dbSaveFacture(updatedFacture);
+                                toast.success("Règlement supprimé ✓");
                                 reload();
+                              } catch (err) {
+                                toast.error("Erreur lors de la suppression du règlement.");
                               }
                             },
                           });
@@ -741,25 +737,29 @@ export default function Factures() {
     onConfirm: () => {},
   });
   const [rappelModalInvoice, setRappelModalInvoice] = useState<Facture | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const reload = useCallback(() => {
-    initializeSampleFactures();
-    setFactures(loadFactures());
-  }, []);
+  const reload = useCallback(async () => {
+    try {
+      setLoading(true);
+      const all = await dbLoadFactures();
+      
+      // Check overdue invoices and update them in Supabase
+      const updatedList = await Promise.all(all.map(async (f) => {
+        if (f.statut === "non_payee" && daysSince(f.dateEcheance) > 0) {
+          const updated = { ...f, statut: "retard" as const };
+          await dbSaveFacture(updated);
+          return updated;
+        }
+        return f;
+      }));
 
-  // Check overdue
-  useEffect(() => {
-    initializeSampleFactures();
-    const all = loadFactures();
-    let changed = false;
-    all.forEach((f) => {
-      if (f.statut === "non_payee" && daysSince(f.dateEcheance) > 0) {
-        f.statut = "retard";
-        changed = true;
-      }
-    });
-    if (changed) saveFactures(all);
-    setFactures(all);
+      setFactures(updatedList);
+    } catch (err) {
+      toast.error("Erreur lors du chargement des factures.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -824,65 +824,85 @@ export default function Factures() {
   const totalAllTTC = filtered.reduce((s, f) => s + f.montantAcompte, 0);
   const totalAllEncaisse = filtered.reduce((s, f) => s + f.reglements.reduce((a, r) => a + r.montant, 0), 0);
 
-  const handleCtxAction = (action: string, f: Facture, sub?: string) => {
+  const handleCtxAction = async (action: string, f: Facture, sub?: string) => {
     switch (action) {
       case "preview": navigate(`/factures/${f.id}/apercu`); break;
       case "edit": navigate(`/factures/${f.id}`); break;
       case "reglement": setReglementModal(f); break;
       case "duplicate": {
-        const all = loadFactures();
-        const dup: Facture = { ...JSON.parse(JSON.stringify(f)), id: uid(), numero: nextFactureNumberOR(), statut: "non_payee", reglements: [], dateCreation: new Date().toISOString().split("T")[0] };
-        all.push(dup);
-        saveFactures(all);
-        reload();
-        toast.success("Facture dupliquée ✓");
+        try {
+          const nextNum = nextFactureNumberOR(factures);
+          const dup: Facture = {
+            ...JSON.parse(JSON.stringify(f)),
+            id: uid(),
+            numero: nextNum,
+            statut: "non_payee",
+            reglements: [],
+            dateCreation: new Date().toISOString().split("T")[0]
+          };
+          await dbSaveFacture(dup);
+          await reload();
+          toast.success("Facture dupliquée ✓");
+        } catch (err) {
+          toast.error("Erreur lors de la duplication de la facture.");
+        }
         break;
       }
       case "create_situation": {
-        const all = loadFactures();
-        const sit: Facture = {
-          ...JSON.parse(JSON.stringify(f)),
-          id: uid(),
-          numero: nextFactureNumberOR(),
-          type: "situation",
-          statut: "non_payee",
-          reglements: [],
-          dateFacture: new Date().toISOString().split("T")[0],
-          dateEcheance: (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0]; })(),
-          dateCreation: new Date().toISOString().split("T")[0],
-        };
-        all.push(sit);
-        saveFactures(all);
-        reload();
-        toast.success("Facture de situation créée ✓");
+        try {
+          const nextNum = nextFactureNumberOR(factures);
+          const sit: Facture = {
+            ...JSON.parse(JSON.stringify(f)),
+            id: uid(),
+            numero: nextNum,
+            type: "situation",
+            statut: "non_payee",
+            reglements: [],
+            dateFacture: new Date().toISOString().split("T")[0],
+            dateEcheance: (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split("T")[0]; })(),
+            dateCreation: new Date().toISOString().split("T")[0],
+          };
+          await dbSaveFacture(sit);
+          await reload();
+          toast.success("Facture de situation créée ✓");
+        } catch (err) {
+          toast.error("Erreur lors de la création de la situation.");
+        }
         break;
       }
       case "create_avoir": {
-        const all = loadFactures();
-        const avoir: Facture = {
-          ...JSON.parse(JSON.stringify(f)),
-          id: uid(),
-          numero: nextFactureNumberOR(),
-          type: "avoir",
-          statut: "payee",
-          reglements: [],
-          dateFacture: new Date().toISOString().split("T")[0],
-          dateEcheance: new Date().toISOString().split("T")[0],
-          dateCreation: new Date().toISOString().split("T")[0],
-          libelle: `Avoir sur facture ${f.numero}`,
-        };
-        all.push(avoir);
-        saveFactures(all);
-        reload();
-        toast.success("Facture d'annulation créée ✓");
+        try {
+          const nextNum = nextFactureNumberOR(factures);
+          const avoir: Facture = {
+            ...JSON.parse(JSON.stringify(f)),
+            id: uid(),
+            numero: nextNum,
+            type: "avoir",
+            statut: "payee",
+            reglements: [],
+            dateFacture: new Date().toISOString().split("T")[0],
+            dateEcheance: new Date().toISOString().split("T")[0],
+            dateCreation: new Date().toISOString().split("T")[0],
+            libelle: `Avoir sur facture ${f.numero}`,
+          };
+          await dbSaveFacture(avoir);
+          await reload();
+          toast.success("Facture d'annulation créée ✓");
+        } catch (err) {
+          toast.error("Erreur lors de la création de l'avoir.");
+        }
         break;
       }
       case "set_status": {
         if (sub) {
-          const all = loadFactures();
-          const idx = all.findIndex((x) => x.id === f.id);
-          if (idx >= 0) { all[idx].statut = sub as Facture["statut"]; saveFactures(all); reload(); }
-          toast.success(`Statut changé : ${STATUT_FACTURE_LABELS[sub]}`);
+          try {
+            const updated = { ...f, statut: sub as Facture["statut"] };
+            await dbSaveFacture(updated);
+            await reload();
+            toast.success(`Statut changé : ${STATUT_FACTURE_LABELS[sub]}`);
+          } catch (err) {
+            toast.error("Erreur lors du changement de statut.");
+          }
         }
         break;
       }
@@ -890,12 +910,15 @@ export default function Factures() {
       case "delete": {
         setConfirmDelete({
           isOpen: true,
-          message: "Voulez-vous vraiment supprimer cette facture ?",
-          onConfirm: () => {
-            const all = loadFactures().filter((x) => x.id !== f.id);
-            saveFactures(all);
-            reload();
-            toast.success("Facture supprimée");
+          message: `Voulez-vous vraiment supprimer la facture ${f.numero} ? Cette action est irréversible.`,
+          onConfirm: async () => {
+            try {
+              await dbDeleteFacture(f.id);
+              await reload();
+              toast.success("Facture supprimée ✓");
+            } catch (err) {
+              toast.error("Erreur lors de la suppression de la facture.");
+            }
           },
         });
         break;
@@ -1107,18 +1130,18 @@ function RappelModal({
   })();
   const [dateRappel1, setDateRappel1] = useState(facture.dateRappel1 || defaultDateRappel1);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     generateReminderPDF(facture, type, type === 2 ? dateRappel1 : undefined);
 
-    const all = loadFactures();
-    const idx = all.findIndex((f) => f.id === facture.id);
-    if (idx >= 0) {
+    try {
       if (type === 1) {
-        all[idx].dateRappel1 = new Date().toISOString().split("T")[0];
+        const updatedFacture = { ...facture, dateRappel1: new Date().toISOString().split("T")[0] };
+        await dbSaveFacture(updatedFacture);
+        onUpdate();
       }
-      saveFactures(all);
+    } catch (err) {
+      console.error("Erreur lors de l'enregistrement de la relance :", err);
     }
-    onUpdate();
     onClose();
   };
 

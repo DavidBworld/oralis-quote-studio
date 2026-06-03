@@ -3,10 +3,8 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
 import { formatEUR, formatDate, calcTotals, lineMontantHT } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
-
-function loadFactures(): any[] {
-  try { return JSON.parse(localStorage.getItem("oralis_factures") || "[]"); } catch { return []; }
-}
+import { dbLoadFactures } from "@/lib/supabase-data/factures";
+import { toast } from "sonner";
 
 const IBAN = "SAS TOUT POUR MA TERRASSE — IBAN FR76 1695 8000 0129 8680 2762 960";
 
@@ -138,33 +136,51 @@ export default function FacturePreview() {
   const [facture, setFacture]   = useState<any>(null);
   const [settings, setSettings] = useState<any>(null);
   const [logoUrl, setLogoUrl] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const all = loadFactures();
-    const found = all.find((f: any) => f.id === id);
-    if (found) setFacture(found);
-    else navigate("/factures");
-    
-    const loadedSettings = loadSettings();
-    setSettings(loadedSettings);
-
-    if (loadedSettings.logo) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        try {
-          const cropped = cropImageTransparency(img);
-          setLogoUrl(cropped);
-        } catch (e) {
-          setLogoUrl(loadedSettings.logo);
+    async function loadData() {
+      try {
+        setLoading(true);
+        const all = await dbLoadFactures();
+        const found = all.find((f: any) => f.id === id);
+        if (found) {
+          setFacture(found);
+        } else {
+          toast.error("Facture introuvable.");
+          navigate("/factures");
+          return;
         }
-      };
-      img.onerror = () => {
-        setLogoUrl(loadedSettings.logo);
-      };
-      img.src = loadedSettings.logo;
+        
+        const loadedSettings = loadSettings();
+        setSettings(loadedSettings);
+
+        if (loadedSettings.logo) {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            try {
+              const cropped = cropImageTransparency(img);
+              setLogoUrl(cropped);
+            } catch (e) {
+              setLogoUrl(loadedSettings.logo);
+            }
+          };
+          img.onerror = () => {
+            setLogoUrl(loadedSettings.logo);
+          };
+          img.src = loadedSettings.logo;
+        }
+      } catch (err) {
+        console.error("Erreur chargement facture :", err);
+        toast.error("Erreur de chargement de la facture.");
+        navigate("/factures");
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [id]);
+    loadData();
+  }, [id, navigate]);
 
   // Auto-print when opened via the "Imprimer" button from FactureDetail
   useEffect(() => {
@@ -174,7 +190,16 @@ export default function FacturePreview() {
     }
   }, [facture, settings, location.state]);
 
-  if (!facture || !settings) return null;
+  if (loading || !facture || !settings) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement de l'aperçu...</p>
+        </div>
+      </div>
+    );
+  }
 
   const totals = calcTotals(facture.lignes);
   const c = settings.company;

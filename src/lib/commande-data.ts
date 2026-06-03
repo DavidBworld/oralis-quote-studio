@@ -83,9 +83,9 @@ export function nextCommandeNumber(): string {
 
 // ── Numérotation facture: OR2026250, OR2026251... ──
 
-export function nextFactureNumberOR(): string {
+export function nextFactureNumberOR(factures?: any[]): string {
   try {
-    const allFactures = JSON.parse(localStorage.getItem("oralis_factures") || "[]");
+    const allFactures = factures || JSON.parse(localStorage.getItem("oralis_factures") || "[]");
     const y = new Date().getFullYear().toString().slice(-2); // "26"
     const prefix = `OR${new Date().getFullYear()}`;
     const nums = allFactures
