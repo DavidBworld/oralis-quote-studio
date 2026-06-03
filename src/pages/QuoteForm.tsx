@@ -335,7 +335,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         state.poteauxSupp,
         state.longueurPoteauxSupp,
         state.optionsSuppIds || [],
-        state.couleurLamesId
+        state.couleurLamesId,
+        state.typePose
       );
       setResultat(r); setCalcError(null);
     } catch (e) {
@@ -344,7 +345,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   }, [
     modele, state.largeur, state.profondeur, state.toitureId, state.couleurId,
     state.coefficient, state.hauteurPoteaux, state.poteauxSupp, state.longueurPoteauxSupp,
-    state.optionsSuppIds, state.couleurLamesId, state.lamesOrientation, step
+    state.optionsSuppIds, state.couleurLamesId, state.lamesOrientation, state.typePose, step
   ]);
 
   // Recalcul live pour parois coulissantes
@@ -410,7 +411,10 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
   // Poteaux calculés en live (pergolas uniquement)
   const poteauxCalc = (modele && modele.typeModele !== "coulissant" && modele.typeModele !== "paroi_fixe" && modele.typeModele !== "paroi_avec_grille")
-    ? calculerPoteaux((modele as ModelePergola).reglesPoteau, state.largeur, state.profondeur)
+    ? (isPrime
+        ? (state.typePose === "Autoportante" ? 4 : 2)
+        : calculerPoteaux((modele as ModelePergola).reglesPoteau, state.largeur, state.profondeur)
+      )
     : 0;
 
   const labels = getLabelsModele(modele?.typeModele);
@@ -994,13 +998,18 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                   </div>
                 )}
 
-                {/* Poteaux calculés automatiquement */}
-                {labels.showPoteaux && modele.reglesPoteau.length > 0 && poteauxCalc > 0 && (
+                {/* Poteaux calculés automatiquement / prévus */}
+                {labels.showPoteaux && (isPrime || modele.reglesPoteau.length > 0) && poteauxCalc > 0 && (
                   <div className="flex items-center gap-3 bg-accent/5 border border-accent/20 rounded-lg px-4 py-2.5 mb-3">
                     <Users size={15} className="text-accent shrink-0"/>
                     <div>
                       <span className="text-[13px] font-semibold text-accent">{poteauxCalc} poteaux</span>
-                      <span className="text-[12px] text-muted-foreground ml-2">calculés automatiquement pour {formatVal(isPerp ? state.profondeur : state.largeur)} de largeur</span>
+                      <span className="text-[12px] text-muted-foreground ml-2">
+                        {isPrime 
+                          ? `prévus pour une pergola ${state.typePose === "Autoportante" ? "autoportante (4 poteaux)" : "adossée (2 poteaux)"}`
+                          : `calculés automatiquement pour ${formatVal(isPerp ? state.profondeur : state.largeur)} de largeur`
+                        }
+                      </span>
                     </div>
                   </div>
                 )}

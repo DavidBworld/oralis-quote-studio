@@ -483,7 +483,8 @@ export function calculerPrix(
   poteauxSupp: number = 0,
   longueurPoteauxSupp: number = 2500,
   optionsSuppIds: string[] = [],
-  couleurLamesId?: string
+  couleurLamesId?: string,
+  typePose?: string
 ): ResultatCalcul {
   const { prix, largeurGrille, profondeurGrille } = determinerPrixBase(
     modele.grille, largeur, profondeur
@@ -510,7 +511,11 @@ export function calculerPrix(
   
   const couleurLames = couleurLamesId ? modele.couleurs.find((c) => c.id === couleurLamesId) : undefined;
   const surchargeCouleurHT = calcOptionSurcharge(couleur) + (couleurLames ? calcOptionSurcharge(couleurLames) : 0);
-  const nombrePoteaux = calculerPoteaux(modele.reglesPoteau, largeur, profondeur);
+
+  const isPrime = modele.isMBPrime || modele.nom.toLowerCase().includes("prime");
+  const nombrePoteaux = isPrime
+    ? (typePose === "Autoportante" ? 4 : 2)
+    : calculerPoteaux(modele.reglesPoteau, largeur, profondeur);
 
   // Calcule automatique surcharge poteaux (section/tarif configurable, achat par ml)
   // S'applique UNIQUEMENT aux poteaux supplémentaires avec leur propre longueur configurée

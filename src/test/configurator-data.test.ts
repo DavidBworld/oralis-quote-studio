@@ -698,6 +698,20 @@ describe("MB PRIME model configuration and pricing", () => {
     expect(result3.prixVenteHT).toBe(5180); // 3700 * 1.4
   });
 
+  it("should calculate correct number of posts based on pose type for MB PRIME", () => {
+    const model = blankModeleMBPrime();
+    const standardToitureId = model.toitures[0].id;
+    const structureColorId = model.couleurs[0].id;
+
+    // Case 1: Autoportante -> should have 4 posts
+    const resultAutoportante = calculerPrix(model, 4000, 3000, standardToitureId, structureColorId, 1.4, 2500, 0, 2500, [], structureColorId, "Autoportante");
+    expect(resultAutoportante.nombrePoteaux).toBe(4);
+
+    // Case 2: Adossée au mur -> should have 2 posts
+    const resultAdossee = calculerPrix(model, 4000, 3000, standardToitureId, structureColorId, 1.4, 2500, 0, 2500, [], structureColorId, "Adossée au mur");
+    expect(resultAdossee.nombrePoteaux).toBe(2);
+  });
+
   it("should generate description for MB PRIME correctly", () => {
     const model = blankModeleMBPrime();
     const desc = genererDescription(model.templateDescription, {
