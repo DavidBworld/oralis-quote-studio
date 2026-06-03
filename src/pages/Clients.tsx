@@ -7,12 +7,14 @@ import {
 } from "lucide-react";
 import {
   type Client, type Interaction, type OpportuniteItem, type PhotoItem,
-  loadClients, saveClients, initializeClients, emptyClient, nextClientCode,
+  emptyClient, nextClientCode,
   PIPELINE_STAGES, INTERACTION_TYPES, PHOTO_CATEGORIES,
   PROFIL_LABELS, STATUT_CLIENT_LABELS,
 } from "@/lib/client-data";
 import { loadQuotes, formatEUR, formatDate, calcTotals, STATUT_LABELS, uid } from "@/lib/quote-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { dbLoadClients, dbSaveClient, dbDeleteClient } from "@/lib/supabase-data/clients";
+import { toast } from "sonner";
 
 const statusClassMap: Record<Client["statut"], string> = {
   prospect: "status-envoye",
@@ -70,10 +72,22 @@ export default function Clients() {
     onConfirm: () => {},
   });
 
-  useEffect(() => {
-    initializeClients();
-    setClients(loadClients());
+  const [loading, setLoading] = useState(true);
+
+  const fetchClients = useCallback(async () => {
+    try {
+      const data = await dbLoadClients();
+      setClients(data);
+    } catch (err: any) {
+      toast.error("Erreur lors du chargement des clients.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
 
   // Close context menu on click outside
   useEffect(() => {
@@ -106,46 +120,72 @@ export default function Clients() {
     .filter((c) => !showAdvanced || paysFilter === "tous" || c.pays === paysFilter)
     .filter((c) => !showAdvanced || tvaFilter === "tous" || c.tvaDefaut === Number(tvaFilter));
 
-  const updateClient = (updated: Client) => {
-    const all = loadClients().map((c) => (c.id === updated.id ? updated : c));
-    saveClients(all);
-    setClients(all);
+  const updateClient = async (updated: Client) => {
+    try {
+      await dbSaveClient(updated);
+      toast.success("Client enregistré.");
+      await fetchClients();
+    } catch (err: any) {
+      toast.error("Erreur lors de l'enregistrement du client.");
+    }
   };
 
   const deleteClient = (clientId: string) => {
     setConfirmDelete({
       isOpen: true,
       message: "Voulez-vous vraiment supprimer ce client ?",
-      onConfirm: () => {
-        const all = loadClients().filter((c) => c.id !== clientId);
-        saveClients(all);
-        setClients(all);
-        if (id === clientId) navigate("/clients");
+      onConfirm: async () => {
+        try {
+          await dbDeleteClient(clientId);
+          toast.success("Client supprimé.");
+          await fetchClients();
+          if (id === clientId) navigate("/clients");
+        } catch (err: any) {
+          toast.error("Erreur lors de la suppression du client.");
+        }
       },
     });
   };
 
-  const toggleFavori = (clientId: string) => {
-    const all = loadClients().map((c) =>
-      c.id === clientId ? { ...c, favori: !c.favori } : c
-    );
-    saveClients(all);
-    setClients(all);
+  const toggleFavori = async (clientId: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) return;
+    const updated = { ...client, favori: !client.favori };
+    try {
+      await dbSaveClient(updated);
+      await fetchClients();
+    } catch (err: any) {
+      toast.error("Erreur lors de la modification des favoris.");
+    }
   };
 
-  const addNewClient = () => {
-    const all = loadClients();
-    const newC = emptyClient(all);
-    all.push(newC);
-    saveClients(all);
-    setClients(all);
-    navigate(`/clients/${newC.id}`);
+  const addNewClient = async () => {
+    const newC = emptyClient(clients);
+    try {
+      await dbSaveClient(newC);
+      toast.success("Client créé.");
+      await fetchClients();
+      navigate(`/clients/${newC.id}`);
+    } catch (err: any) {
+      toast.error("Erreur lors de la création du client.");
+    }
   };
 
   const handleContextMenu = (e: React.MouseEvent, client: Client) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, client });
   };
+
+  if (loading && !selectedClient) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement des clients...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (selectedClient) {
     return (
