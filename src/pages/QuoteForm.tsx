@@ -292,6 +292,37 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     const widthForCalc = isPerp ? state.profondeur : state.largeur;
     const depthForCalc = isPerp ? state.largeur : state.profondeur;
 
+    // MB Prime validation: slat dimension must match the pitch exactly
+    if (isPrime) {
+      const slatDimVal = isPerp ? state.largeur : state.profondeur;
+      const pasDeLames = mp.grille.profondeurs;
+      if (!pasDeLames.includes(slatDimVal)) {
+        const sorted = [...pasDeLames].sort((a, b) => a - b);
+        let lower: number | null = null;
+        let upper: number | null = null;
+        for (const val of sorted) {
+          if (val < slatDimVal) lower = val;
+          if (val > slatDimVal && upper === null) upper = val;
+        }
+        
+        let msg = isPerp
+          ? `La largeur de la pergola doit correspondre au pas de lame (${slatDimVal} mm invalide).`
+          : `La profondeur de la pergola doit correspondre au pas de lame (${slatDimVal} mm invalide).`;
+        
+        if (lower !== null && upper !== null) {
+          msg += ` Choisissez ${lower} mm ou ${upper} mm.`;
+        } else if (lower !== null) {
+          msg += ` Choisissez ${lower} mm.`;
+        } else if (upper !== null) {
+          msg += ` Choisissez ${upper} mm.`;
+        }
+        
+        setCalcError(msg);
+        setResultat(null);
+        return;
+      }
+    }
+
     try {
       const r = calculerPrix(
         mp,
@@ -842,6 +873,33 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
             const gridProfondeurs = isPerp ? modele.grille.largeurs : modele.grille.profondeurs;
             const matchedLargeur = isPerp ? resultat?.profondeurGrille : resultat?.largeurGrille;
             const matchedProfondeur = isPerp ? resultat?.largeurGrille : resultat?.profondeurGrille;
+
+            const pasDeLames = (modele as ModelePergola).grille.profondeurs;
+
+            const boundsLargeur = (() => {
+              if (!isPrime || !isPerp || pasDeLames.includes(state.largeur)) return null;
+              const sorted = [...pasDeLames].sort((a, b) => a - b);
+              let lower: number | null = null;
+              let upper: number | null = null;
+              for (const val of sorted) {
+                if (val < state.largeur) lower = val;
+                if (val > state.largeur && upper === null) upper = val;
+              }
+              return { lower, upper };
+            })();
+
+            const boundsProfondeur = (() => {
+              if (!isPrime || isPerp || pasDeLames.includes(state.profondeur)) return null;
+              const sorted = [...pasDeLames].sort((a, b) => a - b);
+              let lower: number | null = null;
+              let upper: number | null = null;
+              for (const val of sorted) {
+                if (val < state.profondeur) lower = val;
+                if (val > state.profondeur && upper === null) upper = val;
+              }
+              return { lower, upper };
+            })();
+
             return (
               <div>
                 <h3 className="font-semibold text-[14px] mb-4">Dimensions (mm)</h3>
@@ -854,6 +912,14 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     <p className="text-[11px] text-muted-foreground mt-1">
                       → {formatVal(state.largeur)} — Grille : {gridLargeurs.map((l)=> isPrime ? `${l} mm` : `${(l/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
                     </p>
+                    {boundsLargeur && (
+                      <p className="text-[12px] text-destructive mt-1.5 font-medium">
+                        ⚠️ Doit correspondre au pas de lame :{" "}
+                        {boundsLargeur.lower !== null && `${boundsLargeur.lower} mm`}
+                        {boundsLargeur.lower !== null && boundsLargeur.upper !== null && " ou "}
+                        {boundsLargeur.upper !== null && `${boundsLargeur.upper} mm`}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="form-label">{dim2Label} (mm)</label>
@@ -863,6 +929,14 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                     <p className="text-[11px] text-muted-foreground mt-1">
                       → {formatVal(state.profondeur)} — Grille : {gridProfondeurs.map((p)=> isPrime ? `${p} mm` : `${(p/1000).toFixed(2).replace(".",",")}m`).join(" / ")}
                     </p>
+                    {boundsProfondeur && (
+                      <p className="text-[12px] text-destructive mt-1.5 font-medium">
+                        ⚠️ Doit correspondre au pas de lame :{" "}
+                        {boundsProfondeur.lower !== null && `${boundsProfondeur.lower} mm`}
+                        {boundsProfondeur.lower !== null && boundsProfondeur.upper !== null && " ou "}
+                        {boundsProfondeur.upper !== null && `${boundsProfondeur.upper} mm`}
+                      </p>
+                    )}
                   </div>
                 </div>
 
