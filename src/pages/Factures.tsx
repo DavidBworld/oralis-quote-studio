@@ -74,7 +74,6 @@ export interface Facture {
 
 // ── localStorage helpers (Bypassed for Supabase) ──
 function loadFactures(): Facture[] { return []; }
-function saveFactures(f: Facture[]) {}
 function initializeSampleFactures() {}
 
 function nextFactureNumber(type: string = "FA"): string {
