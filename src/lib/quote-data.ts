@@ -252,8 +252,8 @@ export function getSampleQuote(): Quote {
 }
 
 export function initializeStorage() {
-  const existing = loadQuotes();
-  if (existing.length === 0) {
+  const existing = localStorage.getItem(STORAGE_KEY);
+  if (existing === null) {
     saveQuotes([getSampleQuote()]);
   }
 }

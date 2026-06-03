@@ -140,7 +140,7 @@ export default function Settings() {
           "oralis_factures",
           "oralis_devis_favoris"
         ];
-        keysToClear.forEach((k) => localStorage.removeItem(k));
+        keysToClear.forEach((k) => localStorage.setItem(k, "[]"));
         toast.success("Données de test supprimées avec succès ! Rechargement...");
         setTimeout(() => {
           window.location.reload();

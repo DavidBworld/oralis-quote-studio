@@ -156,8 +156,8 @@ export const STATUT_CLIENT_LABELS: Record<Client["statut"], string> = {
 };
 
 export function initializeClients() {
-  const existing = loadClients();
-  if (existing.length === 0) {
+  const existing = localStorage.getItem(STORAGE_KEY);
+  if (existing === null) {
     saveClients(getSampleClients());
   }
 }

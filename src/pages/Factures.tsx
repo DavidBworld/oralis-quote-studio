@@ -89,8 +89,8 @@ function nextFactureNumber(type: string = "FA"): string {
 }
 
 function initializeSampleFactures() {
-  const existing = loadFactures();
-  if (existing.length > 0) return;
+  const existing = localStorage.getItem("oralis_factures");
+  if (existing !== null) return;
   const samples: Facture[] = [
     {
       id: "fa-sample-1",
