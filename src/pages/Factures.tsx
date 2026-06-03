@@ -239,6 +239,8 @@ function FactureContextMenu({ ctx, onClose, onAction }: {
 function FStatutDropdown({ facture, onUpdate }: { facture: Facture; onUpdate: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -256,13 +258,28 @@ function FStatutDropdown({ facture, onUpdate }: { facture: Facture; onUpdate: ()
     toast.success(`Statut changé : ${STATUT_FACTURE_LABELS[s]}`);
   };
 
+  const openDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const dropdownHeight = 130; // approximate height of 3 items
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = (spaceBelow < dropdownHeight && rect.top > dropdownHeight)
+        ? rect.top - dropdownHeight - 6
+        : rect.bottom + 6;
+      setDropPos({ top, left: rect.left });
+    }
+    setOpen(!open);
+  };
+
   return (
     <div className="relative inline-block" ref={ref}>
-      <button onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+      <button ref={btnRef} onClick={openDropdown}
         className={`inline-flex items-center gap-1 px-3 py-1 text-[11px] font-semibold tracking-wide ${statutClass[facture.statut]} cursor-pointer`}
       >{STATUT_FACTURE_LABELS[facture.statut]}<ChevronDown size={10} /></button>
       {open && (
-        <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 w-[170px] bg-card border border-border rounded-lg py-1 shadow-[var(--shadow-elevated)]">
+        <div className="fixed z-50 w-[170px] bg-card border border-border rounded-lg py-1 shadow-[var(--shadow-elevated)]"
+          style={{ top: dropPos.top, left: dropPos.left }}>
           {(["non_payee", "partiel", "payee"] as const).map((s) => (
             <button key={s} className={`w-full text-left px-3 py-1.5 text-[12px] font-body hover:bg-accent/[0.08] ${facture.statut === s ? "font-semibold text-accent" : ""}`}
               onClick={(e) => { e.stopPropagation(); changeStatus(s); }}

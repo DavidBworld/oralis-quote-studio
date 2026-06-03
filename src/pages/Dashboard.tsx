@@ -175,7 +175,12 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
     e.stopPropagation();
     if (btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      setDropPos({ top: rect.bottom + 6, left: rect.left });
+      const dropdownHeight = 180; // approximate height of the 4-item dropdown
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const top = (spaceBelow < dropdownHeight && rect.top > dropdownHeight)
+        ? rect.top - dropdownHeight - 6
+        : rect.bottom + 6;
+      setDropPos({ top, left: rect.left });
     }
     setOpen(!open);
   };
