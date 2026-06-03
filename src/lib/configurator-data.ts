@@ -177,7 +177,7 @@ export function blankModeleMBPrime(): ModelePergola {
     templateDescription: `{{nom}} sur mesure
 Configuration : Pergola {{type_pose}} — {{orientation_lames}}
 Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})
-Couverture : Toit en lames aluminium plates
+Couverture : {{toiture}}
 Couleur structure : {{couleur}}
 Couleur lames : {{couleur_lames}}
 Motorisation : Piloté par SOMFY avec télécommande (compris)
@@ -235,6 +235,13 @@ function migrateModeles(modeles: AnyModele[]): AnyModele[] {
       copy.optionsSupp = [];
       migrated = true;
     }
+
+    const isPrime = copy.isMBPrime || copy.nom.toLowerCase().includes("prime");
+    if (isPrime && copy.templateDescription && copy.templateDescription.includes("Toit en lames aluminium plates")) {
+      copy.templateDescription = copy.templateDescription.replace("Toit en lames aluminium plates", "{{toiture}}");
+      migrated = true;
+    }
+
     const maxLarg = Math.max(...(copy.grille?.largeurs ?? [0]));
     if (maxLarg > 0 && maxLarg < 2000) {
       migrated = true;

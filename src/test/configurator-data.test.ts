@@ -730,7 +730,7 @@ describe("MB PRIME model configuration and pricing", () => {
     expect(desc).toContain("MB PRIME sur mesure");
     expect(desc).toContain("Configuration : Pergola Autoportante");
     expect(desc).toContain("Dimensions : Largeur 4000 mm × Profondeur 3000 mm — 2 poteaux (hauteur 2500 mm)");
-    expect(desc).toContain("Couverture : Toit en lames aluminium plates");
+    expect(desc).toContain("Couverture : Lames aluminium plates");
     expect(desc).toContain("Couleur structure : RAL 7016 Anthracite");
     expect(desc).toContain("Couleur lames : Blanc RAL 9016");
     expect(desc).toContain("Motorisation : Piloté par SOMFY avec télécommande (compris)");
