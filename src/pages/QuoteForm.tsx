@@ -10,7 +10,7 @@ import {
 } from "@/lib/quote-data";
 import { loadSettings, getEnabledTVARates, getLegalMention } from "@/lib/settings-data";
 import {
-  loadModeles, calculerPrix, calculerPoteaux, genererDescription,
+  calculerPrix, calculerPoteaux, genererDescription,
   formatMM, formatCoef, formatDimDevis, getLabelsModele,
   calculerPrixCoulissant, genererDescriptionCoulissant,
   ABAQUE_COULISSANT, type AbaquePanneau,
@@ -19,6 +19,7 @@ import {
   type ModelePergola, type ResultatCalcul, type ModeleCoulissant, type ResultatCoulissant, type ModeleParoiFixe, type ResultatParoiFixe, type ModeleParoiGrille, type ResultatParoiGrille, type AnyModele,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import { dbLoadModeles } from "@/lib/supabase-data/modeles";
 
 const CATEGORIES = [
   "Pergola bioclimatique",
@@ -138,23 +139,61 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   onApply: (data: { designation: string; description: string; prixVenteHT: number; prixAchatHT: number; image?: string }, state: WizardState) => void;
   onClose: () => void;
 }) {
-  const modeles = loadModeles();
-  const [step, setStep] = useState<WizardStep>(() => {
-    if (!initialState) return 1;
-    const found = modeles.find((m) => m.id === initialState.modeleId);
-    if (!found) return 1;
-    if (found.typeModele === "coulissant" || found.typeModele === "paroi_fixe" || found.typeModele === "paroi_avec_grille") {
-      return 3;
+  const [modeles, setModeles] = useState<AnyModele[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function getModeles() {
+      try {
+        const list = await dbLoadModeles();
+        setModeles(list);
+      } catch (err) {
+        toast.error("Erreur lors du chargement des modèles.");
+      } finally {
+        setLoading(false);
+      }
     }
-    return 4;
+    getModeles();
+  }, []);
+
+  const [step, setStep] = useState<WizardStep>(1);
+  const [state, setState] = useState<WizardState>({
+    modeleId: "",
+    toitureId: "",
+    couleurId: "",
+    largeur: 4000,
+    profondeur: 3000,
+    coefficient: 1.4,
+    hauteurPoteaux: 2500,
+    poteauxSupp: 0,
+    longueurPoteauxSupp: 2500,
+    moteur: "",
+    optionsSuppIds: [],
+    optionsSuppQtys: {},
+    vantaux: 3,
+    tarifPanneauId: "",
+    couleurCoulissant: "Anthracite RAL 7016",
+    optionsCoulissantIds: [],
+    largeurVerre: 90,
+    hauteurVerre: 200,
+    typeParoi: "Aluminium 12 lattes (192 cm de haut)",
+    typeParoiId: "",
+    largeurParoi: 100,
+    hauteurParoi: 192,
+    prixAchatBaseHT: 0,
+    couleurLamesId: "",
+    typePose: "Adossée au mur",
+    lamesOrientation: "parallèles",
   });
-  
-  const [state, setState] = useState<WizardState>(() => {
+
+  useEffect(() => {
+    if (loading || modeles.length === 0) return;
+
     if (initialState) {
-      const modelExists = modeles.some((m) => m.id === initialState.modeleId);
-      if (modelExists) {
-        const found = modeles.find((m) => m.id === initialState.modeleId);
-        return {
+      const found = modeles.find((m) => m.id === initialState.modeleId);
+      if (found) {
+        setStep(found.typeModele === "coulissant" || found.typeModele === "paroi_fixe" || found.typeModele === "paroi_avec_grille" ? 3 : 4);
+        setState({
           ...initialState,
           largeur: initialState.largeur || 4000,
           profondeur: initialState.profondeur || 3000,
@@ -178,39 +217,43 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           couleurLamesId: initialState.couleurLamesId || found?.couleurs?.[0]?.id || "",
           typePose: initialState.typePose || "Adossée au mur",
           lamesOrientation: initialState.lamesOrientation || "parallèles",
-        };
+        });
+        return;
       }
     }
+
     const defaultModele = modeles[0];
-    return {
-      modeleId: defaultModele?.id || "",
-      toitureId: defaultModele?.toitures?.[0]?.id || "",
-      couleurId: defaultModele?.couleurs?.[0]?.id || "",
-      largeur: 4000,
-      profondeur: 3000,
-      coefficient: defaultModele?.margeDefaut || 1.4,
-      hauteurPoteaux: 2500,
-      poteauxSupp: 0,
-      longueurPoteauxSupp: 2500,
-      moteur: (defaultModele?.typeModele === "screen" || defaultModele?.typeModele === "volet") ? "Moteur Somfy" : "",
-      optionsSuppIds: [],
-      optionsSuppQtys: {},
-      vantaux: defaultModele?.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).vantauxMin : 3,
-      tarifPanneauId: defaultModele?.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).tarifsPanneau[0]?.id : "",
-      couleurCoulissant: "Anthracite RAL 7016",
-      optionsCoulissantIds: [],
-      largeurVerre: 90,
-      hauteurVerre: 200,
-      typeParoi: "Aluminium 12 lattes (192 cm de haut)",
-      typeParoiId: defaultModele?.typeModele === "paroi_avec_grille" ? (defaultModele as ModeleParoiGrille).typesParoi[0]?.id : "",
-      largeurParoi: 100,
-      hauteurParoi: 192,
-      prixAchatBaseHT: 0,
-      couleurLamesId: defaultModele?.couleurs?.[0]?.id || "",
-      typePose: "Adossée au mur",
-      lamesOrientation: "parallèles",
-    };
-  });
+    if (defaultModele && !state.modeleId) {
+      setState({
+        modeleId: defaultModele.id,
+        toitureId: defaultModele.toitures?.[0]?.id || "",
+        couleurId: defaultModele.couleurs?.[0]?.id || "",
+        largeur: 4000,
+        profondeur: 3000,
+        coefficient: defaultModele.margeDefaut || 1.4,
+        hauteurPoteaux: 2500,
+        poteauxSupp: 0,
+        longueurPoteauxSupp: 2500,
+        moteur: (defaultModele.typeModele === "screen" || defaultModele.typeModele === "volet") ? "Moteur Somfy" : "",
+        optionsSuppIds: [],
+        optionsSuppQtys: {},
+        vantaux: defaultModele.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).vantauxMin : 3,
+        tarifPanneauId: defaultModele.typeModele === "coulissant" ? (defaultModele as ModeleCoulissant).tarifsPanneau[0]?.id : "",
+        couleurCoulissant: "Anthracite RAL 7016",
+        optionsCoulissantIds: [],
+        largeurVerre: 90,
+        hauteurVerre: 200,
+        typeParoi: "Aluminium 12 lattes (192 cm de haut)",
+        typeParoiId: defaultModele.typeModele === "paroi_avec_grille" ? (defaultModele as ModeleParoiGrille).typesParoi[0]?.id : "",
+        largeurParoi: 100,
+        hauteurParoi: 192,
+        prixAchatBaseHT: 0,
+        couleurLamesId: defaultModele.couleurs?.[0]?.id || "",
+        typePose: "Adossée au mur",
+        lamesOrientation: "parallèles",
+      });
+    }
+  }, [loading, modeles]);
 
   const isFirstRender = useRef(true);
   const [calcError, setCalcError] = useState<string | null>(null);
@@ -592,6 +635,17 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         { n: 3 as WizardStep, label: "Dimensions" },
         { n: 4 as WizardStep, label: "Prix" },
       ];
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="bg-card border border-border rounded-xl shadow-elevated w-full max-w-2xl min-h-[300px] flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement des modèles...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">

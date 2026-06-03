@@ -255,7 +255,7 @@ Fabrication entièrement sur mesure`,
   };
 }
 
-function migrateModeles(modeles: AnyModele[]): AnyModele[] {
+export function migrateModeles(modeles: AnyModele[]): AnyModele[] {
   let migrated = false;
   const fixed = modeles.map((m) => {
     if (m.typeModele === "coulissant") {

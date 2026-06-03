@@ -7,13 +7,14 @@ import {
 import { toast } from "sonner";
 import { formatEUR, uid } from "@/lib/quote-data";
 import {
-  loadModeles, saveModeles, blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, blankModeleParoiGrille, blankModeleMBPrime, blankModeleAdaptAir, getLabelsModele, blankOption,
+  blankModele, blankModeleScreen, blankModeleCoulissant, blankModeleParoiFixe, blankModeleParoiGrille, blankModeleMBPrime, blankModeleAdaptAir, getLabelsModele, blankOption,
   parseExcelGrid, validateGrille, formatMM, formatCoef,
   TEMPLATE_DEFAUT, VARIABLES_DISPONIBLES,
   type ModelePergola, type ModeleCoulissant, type ModeleParoiFixe, type ModeleParoiGrille, type AnyModele, type OptionConfigurable, type GrilleTarif, type ReglePoteau, type TarifPanneau,
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadFournisseurs, dbSaveFournisseur, dbDeleteFournisseur } from "@/lib/supabase-data/fournisseurs";
+import { dbLoadModeles, dbSaveModele, dbDeleteModele } from "@/lib/supabase-data/modeles";
 
 // ── processImageFile ───────────────────────────────────────────────────────────
 
@@ -2605,8 +2606,15 @@ function ModeleEditorModal({
 
 // ── GrilleTarifsTab ────────────────────────────────────────────────────────────
 
-function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
-  const [modeles, setModeles] = useState<AnyModele[]>([]);
+function GrilleTarifsTab({
+  fournisseurs,
+  modeles,
+  onReloadModeles,
+}: {
+  fournisseurs: Fournisseur[];
+  modeles: AnyModele[];
+  onReloadModeles: () => Promise<void>;
+}) {
   const [editingModele, setEditingModele] = useState<AnyModele | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     isOpen: boolean;
@@ -2618,42 +2626,56 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
     onConfirm: () => {},
   });
 
-  useEffect(() => setModeles(loadModeles()), []);
-
-  const save = (list: AnyModele[]) => {
-    saveModeles(list);
-    setModeles(list);
-  };
-
-  const handleMove = (index: number, direction: -1 | 1) => {
+  const handleMove = async (index: number, direction: -1 | 1) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= modeles.length) return;
-    const newModeles = [...modeles];
-    const temp = newModeles[index];
-    newModeles[index] = newModeles[targetIndex];
-    newModeles[targetIndex] = temp;
-    save(newModeles);
+    
+    const modelA = modeles[index];
+    const modelB = modeles[targetIndex];
+    
+    const timeA = (modelA as any).createdAt;
+    const timeB = (modelB as any).createdAt;
+    
+    if (timeA && timeB) {
+      try {
+        await dbSaveModele(modelA, timeB);
+        await dbSaveModele(modelB, timeA);
+        await onReloadModeles();
+        toast.success("Ordre mis à jour !");
+      } catch (err) {
+        toast.error("Erreur lors de la réorganisation.");
+      }
+    }
   };
 
-  const handleSaveModele = (m: AnyModele) => {
-    const idx = modeles.findIndex((x) => x.id === m.id);
-    if (idx >= 0) save(modeles.map((x) => (x.id === m.id ? m : x)));
-    else save([...modeles, m]);
-    setEditingModele(null);
+  const handleSaveModele = async (m: AnyModele) => {
+    try {
+      await dbSaveModele(m);
+      toast.success("Modèle enregistré !");
+      await onReloadModeles();
+      setEditingModele(null);
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement du modèle.");
+    }
   };
 
   const handleDelete = (id: string) => {
     setConfirmDelete({
       isOpen: true,
       message: "Voulez-vous vraiment supprimer ce modèle et ses tarifs ?",
-      onConfirm: () => {
-        save(modeles.filter((m) => m.id !== id));
-        toast.success("Modèle supprimé");
+      onConfirm: async () => {
+        try {
+          await dbDeleteModele(id);
+          toast.success("Modèle supprimé !");
+          await onReloadModeles();
+        } catch (err) {
+          toast.error("Erreur lors de la suppression du modèle.");
+        }
       },
     });
   };
 
-  const handleDuplicate = (m: AnyModele) => {
+  const handleDuplicate = async (m: AnyModele) => {
     let duplicated: AnyModele;
     if (m.typeModele === "coulissant") {
       duplicated = {
@@ -2701,9 +2723,15 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
         reglesPoteau: m.reglesPoteau.map((r) => ({ ...r })),
       } as ModelePergola;
     }
-    save([...modeles, duplicated]);
-    setEditingModele(duplicated);
-    toast.success("Modèle dupliqué ! Modifiez-le ci-dessous.");
+    
+    try {
+      await dbSaveModele(duplicated);
+      toast.success("Modèle dupliqué ! Modifiez-le ci-dessous.");
+      await onReloadModeles();
+      setEditingModele(duplicated);
+    } catch (err) {
+      toast.error("Erreur lors de la duplication du modèle.");
+    }
   };
 
   return (
@@ -3006,6 +3034,7 @@ function GrilleTarifsTab({ fournisseurs }: { fournisseurs: Fournisseur[] }) {
 
 export default function Fournisseurs() {
   const [fournisseurs, setFournisseurs] = useState<Fournisseur[]>([]);
+  const [modeles, setModeles] = useState<AnyModele[]>([]);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("toutes");
   const [activeTab, setActiveTab] = useState<"fournisseurs" | "grilles">("fournisseurs");
@@ -3023,10 +3052,14 @@ export default function Fournisseurs() {
 
   const reload = useCallback(async () => {
     try {
-      const data = await dbLoadFournisseurs();
-      setFournisseurs(data);
+      const [fData, mData] = await Promise.all([
+        dbLoadFournisseurs(),
+        dbLoadModeles()
+      ]);
+      setFournisseurs(fData);
+      setModeles(mData);
     } catch (err) {
-      toast.error("Erreur lors du chargement des fournisseurs.");
+      toast.error("Erreur lors du chargement des données.");
     } finally {
       setLoading(false);
     }
@@ -3098,7 +3131,7 @@ export default function Fournisseurs() {
   const totalProduits = fournisseurs.reduce((s, f) => s + f.produits.length, 0);
   const allPrix = fournisseurs.flatMap((f) => f.produits.map((p) => p.prixVenteHT)).filter(Boolean);
   const prixMoyen = allPrix.length ? allPrix.reduce((a, b) => a + b, 0) / allPrix.length : 0;
-  const nModeles = loadModeles().length;
+  const nModeles = modeles.length;
 
   return (
     <div className="p-6 lg:p-8 w-full">
@@ -3224,7 +3257,13 @@ export default function Fournisseurs() {
         </>
       )}
 
-      {activeTab === "grilles" && <GrilleTarifsTab fournisseurs={fournisseurs} />}
+      {activeTab === "grilles" && (
+        <GrilleTarifsTab
+          fournisseurs={fournisseurs}
+          modeles={modeles}
+          onReloadModeles={reload}
+        />
+      )}
       <ConfirmModal
         isOpen={confirmDelete.isOpen}
         message={confirmDelete.message}
