@@ -27,6 +27,7 @@ export async function dbLoadQuotes(): Promise<Quote[]> {
     paymentConditionId: row.payment_condition_id || "",
     delaiRealisation: row.delai_realisation || "",
     notes: row.notes || "",
+    delai: row.delai || "",
   }));
 }
 
@@ -52,6 +53,7 @@ export async function dbSaveQuote(quote: Quote): Promise<void> {
     payment_condition_id: quote.paymentConditionId,
     delai_realisation: quote.delaiRealisation,
     notes: quote.notes,
+    delai: quote.delai,
   };
 
   const { error } = await supabase

@@ -2702,6 +2702,16 @@ export default function QuoteForm() {
           <div><label className="form-label">Expiration</label><input type="text" readOnly value={formatDate(expiryDate(quote.date,quote.validite))} className="form-input bg-muted"/></div>
         </div>
         <div className="mt-4 flex flex-wrap gap-4 items-end">
+          <div className="w-64">
+            <label className="form-label">Délai</label>
+            <input
+              type="text"
+              value={quote.delai || ""}
+              onChange={(e) => update({ delai: e.target.value })}
+              placeholder="Ex: De 8 à 10 semaines"
+              className="form-input bg-white text-foreground"
+            />
+          </div>
           <div className="w-48">
             <label className="form-label">Statut</label>
             <select value={quote.statut} onChange={(e)=>update({statut:e.target.value as Quote["statut"]})} className="form-input">

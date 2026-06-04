@@ -120,7 +120,7 @@ function PageHeader({ quote, c, devisNumero, logo }: { quote: Quote; c: any; dev
         <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
           <div>Votre contact : <strong>David BOILON</strong></div>
           {quote.notes && <div>Référence : {quote.notes}</div>}
-          {quote.delaiRealisation && <div>Délai : {quote.delaiRealisation}</div>}
+          {(quote.delai || quote.delaiRealisation) && <div>Délai : {quote.delai || quote.delaiRealisation}</div>}
           <div style={{ fontWeight: 600, marginTop: 4 }}>Offre valable 1 mois hors promotion</div>
         </div>
       </div>

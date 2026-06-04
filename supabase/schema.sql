@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS public.devis (
     conditions_paiement TEXT,
     payment_condition_id TEXT,
     delai_realisation TEXT,
+    delai TEXT,
     notes TEXT,
     favori BOOLEAN DEFAULT false, -- fusion de oralis_devis_favoris
     created_at TIMESTAMPTZ DEFAULT NOW(),

@@ -48,6 +48,7 @@ export interface Quote {
   paymentConditionId?: string;
   delaiRealisation: string;
   notes: string;
+  delai?: string;
 }
 
 // Catalogs
@@ -217,6 +218,7 @@ export function createEmptyQuote(quotes: Quote[]): Quote {
     paymentConditionId: "std-50-45-5",
     delaiRealisation: "6 à 8 semaines",
     notes: "",
+    delai: "De 8 à 10 semaines",
   };
 }
 
