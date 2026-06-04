@@ -24,7 +24,23 @@ export async function dbLoadModeles(): Promise<AnyModele[]> {
   });
 
   // Run data migrations on loaded models
-  return migrateModeles(rawList);
+  const migrated = migrateModeles(rawList);
+
+  // Sort by 'ordre' property if it exists, fallback to database createdAt order
+  migrated.sort((a, b) => {
+    const orderA = a.ordre !== undefined ? a.ordre : Number.MAX_SAFE_INTEGER;
+    const orderB = b.ordre !== undefined ? b.ordre : Number.MAX_SAFE_INTEGER;
+    
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    
+    const timeA = new Date((a as any).createdAt || 0).getTime();
+    const timeB = new Date((b as any).createdAt || 0).getTime();
+    return timeA - timeB;
+  });
+
+  return migrated;
 }
 
 /**
@@ -56,6 +72,44 @@ export async function dbSaveModele(modele: AnyModele, createdAt?: string): Promi
 
   if (error) {
     console.error("Erreur lors de l'enregistrement du modèle dans Supabase :", error);
+    throw error;
+  }
+}
+
+/**
+ * Insère ou met à jour plusieurs modèles dans Supabase en une seule requête de batch.
+ */
+export async function dbSaveModeles(modeles: AnyModele[], timestamps?: Record<string, string>): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    throw new Error("Aucun utilisateur authentifié pour enregistrer les modèles.");
+  }
+
+  const dbRows = modeles.map((m) => {
+    const cleanModele = { ...m };
+    delete (cleanModele as any).createdAt;
+
+    const row: any = {
+      id: cleanModele.id,
+      user_id: user.id,
+      data: cleanModele,
+    };
+
+    if (timestamps && timestamps[cleanModele.id]) {
+      row.created_at = timestamps[cleanModele.id];
+    } else if ((m as any).createdAt) {
+      row.created_at = (m as any).createdAt;
+    }
+
+    return row;
+  });
+
+  const { error } = await supabase
+    .from("modeles")
+    .upsert(dbRows, { onConflict: "id" });
+
+  if (error) {
+    console.error("Erreur lors de l'enregistrement des modèles dans Supabase :", error);
     throw error;
   }
 }

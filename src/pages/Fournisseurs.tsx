@@ -14,7 +14,7 @@ import {
 } from "@/lib/configurator-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadFournisseurs, dbSaveFournisseur, dbDeleteFournisseur } from "@/lib/supabase-data/fournisseurs";
-import { dbLoadModeles, dbSaveModele, dbDeleteModele } from "@/lib/supabase-data/modeles";
+import { dbLoadModeles, dbSaveModele, dbSaveModeles, dbDeleteModele } from "@/lib/supabase-data/modeles";
 
 // ── processImageFile ───────────────────────────────────────────────────────────
 
@@ -2668,21 +2668,34 @@ function GrilleTarifsTab({
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= modeles.length) return;
     
-    const modelA = modeles[index];
-    const modelB = modeles[targetIndex];
+    // Copy the modeles array and swap the elements at the specified indices
+    const newModeles = [...modeles];
+    const temp = newModeles[index];
+    newModeles[index] = newModeles[targetIndex];
+    newModeles[targetIndex] = temp;
     
-    const timeA = (modelA as any).createdAt;
-    const timeB = (modelB as any).createdAt;
+    // Assign sequential 'ordre' values to ALL elements based on their new index
+    const updatedModeles = newModeles.map((m, i) => {
+      const copy = { ...m };
+      copy.ordre = i;
+      return copy;
+    });
     
-    if (timeA && timeB) {
-      try {
-        await dbSaveModele(modelA, timeB);
-        await dbSaveModele(modelB, timeA);
-        await onReloadModeles();
-        toast.success("Ordre mis à jour !");
-      } catch (err) {
-        toast.error("Erreur lors de la réorganisation.");
-      }
+    try {
+      // For the two swapped elements, we also swap their database created_at timestamps to keep them aligned
+      const timeA = (modeles[index] as any).createdAt;
+      const timeB = (modeles[targetIndex] as any).createdAt;
+      
+      const timestamps: Record<string, string> = {};
+      if (timeB) timestamps[modeles[index].id] = timeB;
+      if (timeA) timestamps[modeles[targetIndex].id] = timeA;
+      
+      await dbSaveModeles(updatedModeles, timestamps);
+      
+      await onReloadModeles();
+      toast.success("Ordre mis à jour !");
+    } catch (err) {
+      toast.error("Erreur lors de la réorganisation.");
     }
   };
 

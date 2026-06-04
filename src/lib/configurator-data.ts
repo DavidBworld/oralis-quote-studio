@@ -53,6 +53,7 @@ export interface ModelePergola {
   isMBPrime?: boolean;            // flag optionnel pour identifier le modèle MB PRIME
   isAdaptAir?: boolean;           // flag optionnel pour identifier le modèle Adapt AIR
   descriptionGenerale?: string;   // descriptif général facultatif du modèle
+  ordre?: number;                 // ordre de tri du modèle
 }
 
 export interface TarifPanneau {
@@ -78,6 +79,7 @@ export interface ModeleCoulissant {
   templateDescription: string;
   image?: string;                 // image optionnelle du modèle
   descriptionGenerale?: string;   // descriptif général facultatif du modèle
+  ordre?: number;                 // ordre de tri du modèle
 }
 
 export interface ModeleParoiFixe {
@@ -92,6 +94,7 @@ export interface ModeleParoiFixe {
   templateDescription: string;
   image?: string;
   descriptionGenerale?: string;   // descriptif général facultatif du modèle
+  ordre?: number;                 // ordre de tri du modèle
 }
 
 export interface ModeleParoiGrille {
@@ -113,6 +116,7 @@ export interface ModeleParoiGrille {
   templateDescription: string;
   image?: string;
   descriptionGenerale?: string;   // descriptif général facultatif du modèle
+  ordre?: number;                 // ordre de tri du modèle
 }
 
 export type AnyModele = ModelePergola | ModeleCoulissant | ModeleParoiFixe | ModeleParoiGrille;
