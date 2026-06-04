@@ -10,6 +10,8 @@ import {
 } from "@/lib/quote-data";
 import { loadSettings, type AppSettings } from "@/lib/settings-data";
 import { dbLoadQuotes } from "@/lib/supabase-data/devis";
+import { dbLoadModeles } from "@/lib/supabase-data/modeles";
+import { type AnyModele } from "@/lib/configurator-data";
 import { toast } from "sonner";
 
 // ── CGV text ──────────────────────────────────────────────────────────────────
@@ -248,6 +250,7 @@ export default function QuotePreview() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [modeles, setModeles] = useState<AnyModele[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -265,9 +268,14 @@ export default function QuotePreview() {
             console.error("Error parsing preview quote from localStorage", e);
           }
         }
+        const [allQuotes, loadedModeles] = await Promise.all([
+          found ? Promise.resolve([]) : dbLoadQuotes(),
+          dbLoadModeles(),
+        ]);
+        setModeles(loadedModeles);
+
         if (!found) {
-          const all = await dbLoadQuotes();
-          found = all.find((q) => q.id === id);
+          found = allQuotes.find((q) => q.id === id);
         }
 
         if (found) {
@@ -332,7 +340,36 @@ export default function QuotePreview() {
 
   // Base HT per TVA rate
   const baseHTByRate: Record<number, number> = {};
-  quote.lignes.forEach(l => {
+  
+  let lastModelKey = "";
+  const linesWithGroupFlags = (quote?.lignes || []).map((line) => {
+    const model = line.configuratorState?.modeleId 
+      ? modeles.find(m => m.id === line.configuratorState.modeleId) 
+      : undefined;
+    
+    let modelKey = "";
+    let descriptionGenerale = "";
+    
+    if (model) {
+      modelKey = `${model.fournisseurId}_${model.nom}`;
+      descriptionGenerale = (model as any).descriptionGenerale || "";
+    }
+    
+    const showGroupDescription = descriptionGenerale && (modelKey !== lastModelKey);
+    if (modelKey) {
+      lastModelKey = modelKey;
+    } else {
+      lastModelKey = "";
+    }
+    
+    return {
+      ...line,
+      _showGroupDescription: !!showGroupDescription,
+      _descriptionGenerale: descriptionGenerale,
+    };
+  });
+
+  linesWithGroupFlags.forEach(l => {
     const ht = lineMontantHT(l);
     baseHTByRate[l.tva] = (baseHTByRate[l.tva] ?? 0) + ht;
   });
@@ -356,6 +393,11 @@ export default function QuotePreview() {
   // Fonction d'estimation de la hauteur d'une ligne de produit pour la pagination
   function estimerHauteurLigne(line: any): number {
     let height = 40; // Hauteur minimale (désignation, prix...)
+    if (line._showGroupDescription && line._descriptionGenerale) {
+      const descLinesFromBreaks = line._descriptionGenerale.split("\n").length;
+      const descLinesFromLength = Math.ceil(line._descriptionGenerale.length / 75);
+      height += Math.max(descLinesFromBreaks, descLinesFromLength) * 15 + 20;
+    }
     if (line.description) {
       const linesFromBreaks = line.description.split("\n").length;
       const linesFromLength = Math.ceil(line.description.length / 55);
@@ -375,7 +417,7 @@ export default function QuotePreview() {
   let currentHeight = 0;
   const MAX_PAGE_HEIGHT = 580; // pixels maximum par page de produits
 
-  quote.lignes.forEach((line) => {
+  linesWithGroupFlags.forEach((line) => {
     const lineHt = estimerHauteurLigne(line);
     if (currentPage.length > 0 && currentHeight + lineHt > MAX_PAGE_HEIGHT) {
       pagesProduits.push(currentPage);
@@ -547,6 +589,14 @@ export default function QuotePreview() {
           <ProductTable>
             {lignesPage.map((line) => (
               <React.Fragment key={line.id}>
+                {line._showGroupDescription && line._descriptionGenerale && (
+                  <tr style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
+                    <td colSpan={6} style={{ padding: "10px 8px", borderBottom: "1px solid #eee", fontSize: 11, color: "#333", backgroundColor: "#f9f9f9" }}>
+                      <div className="font-semibold text-accent mb-1">Descriptif général :</div>
+                      <div style={{ whiteSpace: "pre-line", lineHeight: 1.5 }}>{line._descriptionGenerale}</div>
+                    </td>
+                  </tr>
+                )}
                 <tr style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
                   <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
                     {line.image ? (

@@ -52,6 +52,7 @@ export interface ModelePergola {
   tarifPoteauSuppHT?: number;     // prix d'achat par ml pour poteaux supp
   isMBPrime?: boolean;            // flag optionnel pour identifier le modèle MB PRIME
   isAdaptAir?: boolean;           // flag optionnel pour identifier le modèle Adapt AIR
+  descriptionGenerale?: string;   // descriptif général facultatif du modèle
 }
 
 export interface TarifPanneau {
@@ -76,6 +77,7 @@ export interface ModeleCoulissant {
   couleurs: OptionConfigurable[]; // Couleurs / Finitions
   templateDescription: string;
   image?: string;                 // image optionnelle du modèle
+  descriptionGenerale?: string;   // descriptif général facultatif du modèle
 }
 
 export interface ModeleParoiFixe {
@@ -89,6 +91,7 @@ export interface ModeleParoiFixe {
   couleurs: OptionConfigurable[]; // Couleurs / Finitions
   templateDescription: string;
   image?: string;
+  descriptionGenerale?: string;   // descriptif général facultatif du modèle
 }
 
 export interface ModeleParoiGrille {
@@ -109,6 +112,7 @@ export interface ModeleParoiGrille {
   couleurs: OptionConfigurable[];
   templateDescription: string;
   image?: string;
+  descriptionGenerale?: string;   // descriptif général facultatif du modèle
 }
 
 export type AnyModele = ModelePergola | ModeleCoulissant | ModeleParoiFixe | ModeleParoiGrille;

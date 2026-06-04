@@ -1599,6 +1599,15 @@ function ModeleCoulissantEditorModal({
           {tab === "description" && (
             <div className="space-y-4">
               <div>
+                <label className="form-label">Descriptif général</label>
+                <textarea
+                  value={draft.descriptionGenerale || ""}
+                  onChange={(e) => setDraft({ ...draft, descriptionGenerale: e.target.value })}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed h-20 resize-y"
+                  placeholder="Description générale facultative apparaissant une seule fois au-dessus de ces lignes de devis..."
+                />
+              </div>
+              <div>
                 <label className="form-label">Template de description pour le devis</label>
                 <textarea
                   value={draft.templateDescription}
@@ -1830,6 +1839,15 @@ function ModeleParoiFixeEditorModal({
 
           {tab === "description" && (
             <div className="space-y-4">
+              <div>
+                <label className="form-label">Descriptif général</label>
+                <textarea
+                  value={draft.descriptionGenerale || ""}
+                  onChange={(e) => setDraft({ ...draft, descriptionGenerale: e.target.value })}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed h-20 resize-y"
+                  placeholder="Description générale facultative apparaissant une seule fois au-dessus de ces lignes de devis..."
+                />
+              </div>
               <div>
                 <label className="form-label">Template de description pour le devis</label>
                 <textarea
@@ -2283,6 +2301,15 @@ function ModeleParoiGrilleEditorModal({
           {tab === "description" && (
             <div className="space-y-4">
               <div>
+                <label className="form-label">Descriptif général</label>
+                <textarea
+                  value={draft.descriptionGenerale || ""}
+                  onChange={(e) => setDraft({ ...draft, descriptionGenerale: e.target.value })}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed h-20 resize-y"
+                  placeholder="Description générale facultative apparaissant une seule fois au-dessus de ces lignes de devis..."
+                />
+              </div>
+              <div>
                 <label className="form-label">Template de description pour le devis</label>
                 <textarea
                   value={draft.templateDescription}
@@ -2584,10 +2611,21 @@ function ModeleEditorModal({
             />
           )}
           {tab === "description" && (
-            <TemplateEditor
-              value={draft.templateDescription}
-              onChange={(v) => setDraft({ ...draft, templateDescription: v })}
-            />
+            <div className="space-y-4">
+              <div>
+                <label className="form-label">Descriptif général</label>
+                <textarea
+                  value={draft.descriptionGenerale || ""}
+                  onChange={(e) => setDraft({ ...draft, descriptionGenerale: e.target.value })}
+                  className="form-input w-full font-mono text-[12px] leading-relaxed h-20 resize-y"
+                  placeholder="Description générale facultative apparaissant une seule fois au-dessus de ces lignes de devis..."
+                />
+              </div>
+              <TemplateEditor
+                value={draft.templateDescription}
+                onChange={(v) => setDraft({ ...draft, templateDescription: v })}
+              />
+            </div>
           )}
         </div>
 
