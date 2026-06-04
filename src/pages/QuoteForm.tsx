@@ -2690,8 +2690,8 @@ export default function QuoteForm() {
               type="text"
               value={quote.numero}
               onChange={(e) => update({ numero: e.target.value })}
-              readOnly={id !== "nouveau"}
-              className={`form-input ${id !== "nouveau" ? "bg-muted" : ""}`}
+              readOnly={!!id && id !== "nouveau"}
+              className={`form-input ${(!!id && id !== "nouveau") ? "bg-muted" : "bg-white text-foreground"}`}
             />
           </div>
           <div><label className="form-label">Date</label><input type="date" value={quote.date} onChange={(e)=>update({date:e.target.value})} className="form-input"/></div>
