@@ -253,8 +253,23 @@ export default function QuotePreview() {
     async function loadData() {
       try {
         setLoading(true);
-        const all = await dbLoadQuotes();
-        const found = all.find((q) => q.id === id);
+        let found: Quote | undefined;
+        const temp = localStorage.getItem("oralis_preview_quote");
+        if (temp) {
+          try {
+            const parsed = JSON.parse(temp);
+            if (parsed.id === id) {
+              found = parsed;
+            }
+          } catch (e) {
+            console.error("Error parsing preview quote from localStorage", e);
+          }
+        }
+        if (!found) {
+          const all = await dbLoadQuotes();
+          found = all.find((q) => q.id === id);
+        }
+
         if (found) {
           setQuote(found);
         } else {

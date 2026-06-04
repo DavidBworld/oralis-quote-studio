@@ -2375,8 +2375,23 @@ export default function QuoteForm() {
           }
           setQuote(nq);
         } else {
-          const all = await dbLoadQuotes();
-          const found = all.find((q) => q.id === id);
+          let found: Quote | undefined;
+          const temp = localStorage.getItem("oralis_preview_quote");
+          if (temp) {
+            try {
+              const parsed = JSON.parse(temp);
+              if (parsed.id === id) {
+                found = parsed;
+              }
+            } catch (e) {
+              console.error("Error parsing preview quote from localStorage", e);
+            }
+          }
+          if (!found) {
+            const all = await dbLoadQuotes();
+            found = all.find((q) => q.id === id);
+          }
+          
           if (found) {
             setQuote(found);
             if (found.lignes && found.lignes.length > 0) {
@@ -2651,6 +2666,7 @@ export default function QuoteForm() {
     try {
       await dbSaveQuote(quote);
       toast.success("Devis enregistré !");
+      localStorage.removeItem("oralis_preview_quote");
       if (redirectAfter) {
         navigate("/");
       }
@@ -2966,16 +2982,17 @@ export default function QuoteForm() {
           {saving ? "Sauvegarde..." : "Sauvegarder"}
         </button>
         <button
-          onClick={async () => {
-            const success = await save(false);
-            if (success) {
-              navigate(`/devis/${quote.id}/apercu`);
+          onClick={() => {
+            if (quote.lignes.length === 0) {
+              toast.error("Le devis doit contenir au moins une ligne.");
+              return;
             }
+            localStorage.setItem("oralis_preview_quote", JSON.stringify(quote));
+            navigate(`/devis/${quote.id}/apercu`);
           }}
-          disabled={saving}
           className="btn-outline-gold"
         >
-          {saving ? "Sauvegarde..." : "Aperçu PDF"}
+          Aperçu PDF
         </button>
         <button onClick={() => navigate("/")} className="btn-ghost">Retour au tableau de bord</button>
       </div>
