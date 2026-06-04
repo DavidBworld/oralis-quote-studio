@@ -2,12 +2,11 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { Mail, Lock, LogIn, UserPlus } from "lucide-react";
+import { Mail, Lock, LogIn } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,27 +23,13 @@ export default function Login() {
 
     setLoading(true);
     try {
-      if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        if (data.user && !data.session) {
-          toast.success("Inscription réussie ! Un e-mail de confirmation vous a été envoyé.");
-        } else if (data.session) {
-          toast.success("Compte créé et connecté avec succès !");
-          navigate(from, { replace: true });
-        }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast.success("Connexion réussie !");
-        navigate(from, { replace: true });
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      toast.success("Connexion réussie !");
+      navigate(from, { replace: true });
     } catch (err: any) {
       toast.error(err.message || "Une erreur est survenue lors de l'authentification.");
     } finally {
@@ -66,22 +51,11 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Form Title & Toggle */}
+        {/* Form Title */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold text-foreground">
-            {isSignUp ? "Créer un compte" : "Se connecter"}
+            Se connecter
           </h2>
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setEmail("");
-              setPassword("");
-            }}
-            className="text-xs text-accent hover:underline flex items-center gap-1"
-          >
-            {isSignUp ? "Déjà un compte ? Connexion" : "Nouveau ? Créer un compte"}
-          </button>
         </div>
 
         {/* Input Form */}
@@ -126,11 +100,6 @@ export default function Login() {
             >
               {loading ? (
                 <div className="w-5 h-5 rounded-full border-2 border-accent-foreground border-t-transparent animate-spin"></div>
-              ) : isSignUp ? (
-                <>
-                  <UserPlus size={16} />
-                  <span>S'inscrire</span>
-                </>
               ) : (
                 <>
                   <LogIn size={16} />
