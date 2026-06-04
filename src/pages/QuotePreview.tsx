@@ -487,7 +487,7 @@ export default function QuotePreview() {
               </>
             )}
             <div style={{ fontSize: 11, color: "#444", lineHeight: 1.7 }}>
-              <div><strong>ORALIS</strong></div>
+              <div><strong>{c.nom}</strong></div>
               <div>{c.rue}</div>
               <div>{c.codePostal} {c.ville.toUpperCase()}</div>
               <div>E-mail : {c.email}</div>
