@@ -2918,7 +2918,7 @@ export default function QuoteForm() {
       {/* Section E — Terms */}
       <section className="luxury-card mb-5">
         <h2 className="section-title">Conditions commerciales</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="form-label">Formule de règlement</label>
             <select
@@ -2952,15 +2952,6 @@ export default function QuoteForm() {
               type="text"
               value={quote.conditionsPaiement}
               onChange={(e) => update({ conditionsPaiement: e.target.value })}
-              className="form-input"
-            />
-          </div>
-          <div>
-            <label className="form-label">Délai de réalisation</label>
-            <input
-              type="text"
-              value={quote.delaiRealisation}
-              onChange={(e) => update({ delaiRealisation: e.target.value })}
               className="form-input"
             />
           </div>
