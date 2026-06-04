@@ -544,7 +544,7 @@ export default function Dashboard() {
   const deleteQuote = (q: Quote) => {
     setConfirmDelete({
       isOpen: true,
-      message: `Voulez-vous vraiment supprimer le devis ${q.numero} ? Cette action est irréversible.`,
+      message: "Êtes-vous sûr de vouloir supprimer ce devis ?",
       onConfirm: async () => {
         try {
           await dbDeleteQuote(q.id);
@@ -827,6 +827,13 @@ export default function Dashboard() {
                           title="Dupliquer"
                         >
                           <Copy size={14} className="text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={() => deleteQuote(q)}
+                          className="p-2 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>

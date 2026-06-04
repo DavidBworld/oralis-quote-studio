@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, Eye, Pencil, Copy, FileText, ArrowRightCircle } from "lucide-react";
+import { Search, Plus, Eye, Pencil, Copy, FileText, ArrowRightCircle, Trash2 } from "lucide-react";
 import {
   formatEUR,
   formatDate,
@@ -9,13 +9,14 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
-import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
+import { dbLoadQuotes, dbSaveQuote, dbDeleteQuote } from "@/lib/supabase-data/devis";
 import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
 import { useCallback } from "react";
 import {
   createCommandeFromDevis,
 } from "@/lib/commande-data";
 import { toast } from "sonner";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 const statusClass: Record<Quote["statut"], string> = {
   brouillon: "status-brouillon",
@@ -41,6 +42,15 @@ export default function QuotesList() {
   const [convertModal, setConvertModal] = useState<Quote | null>(null);
   const [convertRef, setConvertRef] = useState("");
   const [loading, setLoading] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    message: "",
+    onConfirm: () => {},
+  });
 
   const hasCmdForQuote = (qId: string) => commandes.some((c: any) => c.devisId === qId);
 
@@ -103,6 +113,22 @@ export default function QuotesList() {
     } catch (err) {
       toast.error("Erreur lors de la duplication du devis.");
     }
+  };
+
+  const deleteQuote = (q: Quote) => {
+    setConfirmDelete({
+      isOpen: true,
+      message: "Êtes-vous sûr de vouloir supprimer ce devis ?",
+      onConfirm: async () => {
+        try {
+          await dbDeleteQuote(q.id);
+          toast.success("Devis supprimé ✓");
+          await fetchQuotes();
+        } catch (err) {
+          toast.error("Erreur lors de la suppression du devis.");
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -270,6 +296,13 @@ export default function QuotesList() {
                         >
                           <Copy size={16} className="text-muted-foreground" />
                         </button>
+                        <button
+                          onClick={() => deleteQuote(q)}
+                          className="p-2 rounded hover:bg-destructive/10 text-destructive transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -309,6 +342,15 @@ export default function QuotesList() {
           </div>
         </div>
       )}
+      <ConfirmModal
+        isOpen={confirmDelete.isOpen}
+        message={confirmDelete.message}
+        onConfirm={() => {
+          setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} });
+          confirmDelete.onConfirm();
+        }}
+        onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
+      />
     </div>
   );
 }
