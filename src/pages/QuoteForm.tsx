@@ -838,8 +838,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                   </div>
                 )}
 
-                {/* Orientation choice for pergolas (excluding Adapt AIR) */}
-                {!isAdaptAir && modele.typeModele === "pergola" && (
+                {/* Orientation choice for pergolas (excluding Adapt AIR), strictly for PRIME and ADVANCED models */}
+                {!isAdaptAir && modele.typeModele === "pergola" && (modele.nom.toLowerCase().includes("prime") || modele.nom.toLowerCase().includes("advanced")) && (
                   <div className="md:col-span-2 pt-4 border-t border-border">
                     <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">Orientation des lames</label>
                     <div className="grid grid-cols-2 gap-2 max-w-sm">

@@ -732,8 +732,18 @@ export function genererDescription(
     }
   }
 
-  if (!isAdaptAir && ctx.lamesOrientation && !resultTemplate.includes("{{orientation_lames}}")) {
-    resultTemplate = resultTemplate + "\nOrientation des lames : {{orientation_lames}}";
+  const showLamesOrientation = ctx.nom.toLowerCase().includes("prime") || ctx.nom.toLowerCase().includes("advanced");
+
+  if (showLamesOrientation) {
+    if (!isAdaptAir && ctx.lamesOrientation && !resultTemplate.includes("{{orientation_lames}}")) {
+      resultTemplate = resultTemplate + "\nOrientation des lames : {{orientation_lames}}";
+    }
+  } else {
+    // Suppress any mention of orientation_lames for non-PRIME/non-ADVANCED models
+    resultTemplate = resultTemplate
+      .split("\n")
+      .filter(line => !line.includes("{{orientation_lames}}") && !line.includes("Orientation des lames"))
+      .join("\n");
   }
 
   let desc = resultTemplate
