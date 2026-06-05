@@ -80,6 +80,9 @@ export interface ModeleCoulissant {
   image?: string;                 // image optionnelle du modèle
   descriptionGenerale?: string;   // descriptif général facultatif du modèle
   ordre?: number;                 // ordre de tri du modèle
+  isCustomDimension?: boolean;
+  grillesVantaux?: Record<number, { largeurs: number[]; prixAchatHT: number[] }>;
+  surchargesHauteur?: { limite: number; surcharge: number }[];
 }
 
 export interface ModeleParoiFixe {
@@ -969,12 +972,45 @@ export function calculerPrixCoulissant(
   tarifPanneauId: string,
   optionsSelectionnees: string[],  // ids des options choisies
   couleurId: string,               // id de la couleur choisie
-  coefficient: number
+  coefficient: number,
+  largeur?: number,
+  hauteur?: number
 ): ResultatCoulissant {
-  const tarif = modele.tarifsPanneau.find(t => t.id === tarifPanneauId);
-  if (!tarif) throw new Error("Tarif panneau introuvable");
-  
-  const prixBase = nombreVantaux * tarif.prixHT;
+  let prixBase = 0;
+  let prixPanneau = 0;
+
+  if (modele.isCustomDimension) {
+    if (largeur === undefined || hauteur === undefined) {
+      throw new Error("La largeur et la hauteur sont requises pour ce modèle.");
+    }
+    const grille = modele.grillesVantaux?.[nombreVantaux];
+    if (!grille) {
+      throw new Error(`Aucune grille tarifaire pour ${nombreVantaux} vantaux.`);
+    }
+    const colIdx = grille.largeurs.findIndex((w) => w >= largeur);
+    if (colIdx === -1) {
+      throw new Error(`Largeur ${largeur} mm hors grille (max: ${Math.max(...grille.largeurs)} mm)`);
+    }
+    let prixAchatBase = grille.prixAchatHT[colIdx];
+    
+    // Surcharges hauteur cumulatives
+    let surchargeH = 0;
+    if (modele.surchargesHauteur) {
+      for (const s of modele.surchargesHauteur) {
+        if (hauteur > s.limite) {
+          surchargeH += s.surcharge;
+        }
+      }
+    }
+    prixBase = prixAchatBase + surchargeH;
+    prixPanneau = 0; // Pas de prix par panneau individuel
+  } else {
+    const tarif = modele.tarifsPanneau.find(t => t.id === tarifPanneauId);
+    if (!tarif) throw new Error("Tarif panneau introuvable");
+    
+    prixBase = nombreVantaux * tarif.prixHT;
+    prixPanneau = tarif.prixHT;
+  }
   
   const surcharges = modele.options
     .filter(o => optionsSelectionnees.includes(o.id))
@@ -990,7 +1026,7 @@ export function calculerPrixCoulissant(
   
   return {
     nombreVantaux,
-    prixPanneau: tarif.prixHT,
+    prixPanneau,
     prixAchatBaseHT: prixBase,
     surchargesHT: surcharges,
     surchargeCouleurHT: surchargeCouleur,
@@ -1010,6 +1046,8 @@ export function genererDescriptionCoulissant(
     largeurVerre?: number;
     hauteurVerre?: number;
     hauteurEncastrement?: string;
+    largeur?: number;
+    hauteur?: number;
   }
 ): string {
   const optionsText = ctx.options.length > 0
@@ -1026,10 +1064,10 @@ export function genererDescriptionCoulissant(
     .replace(/\{\{largeur_verre\}\}/g, ctx.largeurVerre ? String(ctx.largeurVerre) : "")
     .replace(/\{\{hauteur_verre\}\}/g, ctx.hauteurVerre ? String(ctx.hauteurVerre) : "")
     .replace(/\{\{hauteur_encastrement\}\}/g, ctx.hauteurEncastrement ? String(ctx.hauteurEncastrement) : "")
+    .replace(/\{\{largeur\}\}/g, ctx.largeur ? String(ctx.largeur) : "")
+    .replace(/\{\{hauteur\}\}/g, ctx.hauteur ? String(ctx.hauteur) : "")
     .trim();
 
-
-  
   // Remove empty line if options_texte is empty or clean up excess newlines
   desc = desc.replace(/\n\n+/g, "\n");
   

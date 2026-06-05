@@ -646,6 +646,96 @@ describe("ModeleCoulissant calculations & description", () => {
     expect(desc).toBe("Configuration : 3 vantaux coulissants\nVerre : Verre clair standard");
   });
 
+  it("should calculate pricing and description for custom dimension sliding models correctly", () => {
+    const customModel: ModeleCoulissant = {
+      id: "baie-custom-test",
+      typeModele: "coulissant",
+      nom: "Baie Coulissante MB",
+      nomFournisseur: "PAROIS COULISSANTES MB",
+      fournisseurId: "test-supplier-id",
+      fournisseurNom: "MB",
+      margeDefaut: 2.7,
+      vantauxMin: 2,
+      vantauxMax: 4,
+      isCustomDimension: true,
+      grillesVantaux: {
+        2: {
+          largeurs: [2000, 2500, 3000, 3500, 4000],
+          prixAchatHT: [883, 1027, 1170, 1314, 1458]
+        },
+        4: {
+          largeurs: [3000, 4000, 5000, 6000, 7000],
+          prixAchatHT: [1291, 1486, 1645, 1743, 1841]
+        }
+      },
+      surchargesHauteur: [
+        { limite: 2299, surcharge: 150 },
+        { limite: 2499, surcharge: 150 }
+      ],
+      tarifsPanneau: [
+        {
+          id: "standard-442",
+          label: "Verre de sécurité retardateur d'effraction 44.2",
+          prixHT: 0,
+          description: "Inclus de série"
+        }
+      ],
+      options: [
+        { id: "opt-ventilation", nom: "Grille de ventilation", surchargeHT: 210, surchargePct: 0 },
+        { id: "opt-poignees", nom: "Poignées intégrées", surchargeHT: 45, surchargePct: 0 }
+      ],
+      couleurs: [
+        { id: "col-ral9016", nom: "RAL 9016 Blanc", surchargeHT: 0, surchargePct: 0 }
+      ],
+      templateDescription:
+`{{nom}} sur mesure
+Configuration : {{vantaux}} vantaux coulissants
+Dimensions : Largeur {{largeur}} mm × Hauteur {{hauteur}} mm
+Verre : Verre de sécurité retardateur d'effraction 44.2
+Couleur structure : {{couleur}}
+Fabrication entièrement sur mesure`
+    };
+
+    // Test 1: 4 panels, width 3450 (rounds up to 4000 -> 1486), height 2200 (no height surcharge)
+    const result1 = calculerPrixCoulissant(customModel, 4, "standard-442", [], "col-ral9016", 2.7, 3450, 2200);
+    expect(result1.prixAchatBaseHT).toBe(1486);
+    expect(result1.prixAchatTotalHT).toBe(1486);
+    expect(result1.prixVenteHT).toBe(Math.round(1486 * 2.7 * 100) / 100); // 4012.2
+
+    // Test 2: 2 panels, width 2450 (rounds up to 2500 -> 1027), height 2350 (height > 2299 -> +150 surcharge)
+    const result2 = calculerPrixCoulissant(customModel, 2, "standard-442", [], "col-ral9016", 2.7, 2450, 2350);
+    expect(result2.prixAchatBaseHT).toBe(1027 + 150); // 1177
+    expect(result2.prixAchatTotalHT).toBe(1177);
+
+    // Test 3: 2 panels, width 2450, height 2550 (height > 2499 -> cumulative +300 surcharge)
+    const result3 = calculerPrixCoulissant(customModel, 2, "standard-442", [], "col-ral9016", 2.7, 2450, 2550);
+    expect(result3.prixAchatBaseHT).toBe(1027 + 300); // 1327
+    expect(result3.prixAchatTotalHT).toBe(1327);
+
+    // Test 4: 4 panels, width 3450 (1486), height 2200, with options (ventilation +210, poignées +45 = +255)
+    const result4 = calculerPrixCoulissant(customModel, 4, "standard-442", ["opt-ventilation", "opt-poignees"], "col-ral9016", 2.7, 3450, 2200);
+    expect(result4.prixAchatBaseHT).toBe(1486);
+    expect(result4.surchargesHT).toBe(255);
+    expect(result4.prixAchatTotalHT).toBe(1486 + 255); // 1741
+    expect(result4.prixVenteHT).toBe(Math.round(1741 * 2.7 * 100) / 100); // 4700.7
+
+    // Test 5: Description generation
+    const desc = genererDescriptionCoulissant(customModel, {
+      vantaux: 4,
+      tarifPanneau: "Verre de sécurité retardateur d'effraction 44.2",
+      couleur: "RAL 9016 Blanc",
+      options: ["Grille de ventilation", "Poignées intégrées"],
+      largeur: 3450,
+      hauteur: 2200
+    });
+
+    expect(desc).toContain("Baie Coulissante MB sur mesure");
+    expect(desc).toContain("Configuration : 4 vantaux coulissants");
+    expect(desc).toContain("Dimensions : Largeur 3450 mm × Hauteur 2200 mm");
+    expect(desc).toContain("Verre : Verre de sécurité retardateur d'effraction 44.2");
+    expect(desc).toContain("Couleur structure : RAL 9016 Blanc");
+  });
+
   it("should validate abacus definitions", () => {
     expect(ABAQUE_COULISSANT.length).toBe(13);
     const abac190 = ABAQUE_COULISSANT.find(a => a.hauteurVerre === 190);

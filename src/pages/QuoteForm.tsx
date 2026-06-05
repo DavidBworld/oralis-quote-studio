@@ -206,7 +206,19 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           moteur: initialState.moteur !== undefined ? initialState.moteur : ((found?.typeModele === "screen" || found?.typeModele === "volet") ? "Moteur Somfy" : ""),
           optionsSuppIds: initialState.optionsSuppIds || [],
           optionsSuppQtys: initialState.optionsSuppQtys || {},
-          vantaux: initialState.vantaux || (found?.typeModele === "coulissant" ? (found as ModeleCoulissant).vantauxMin : 3),
+          vantaux: (() => {
+            if (found?.typeModele === "coulissant") {
+              const mc = found as ModeleCoulissant;
+              const allowed = mc.isCustomDimension && mc.grillesVantaux
+                ? Object.keys(mc.grillesVantaux).map(Number).sort((a, b) => a - b)
+                : Array.from({ length: mc.vantauxMax - mc.vantauxMin + 1 }, (_, i) => mc.vantauxMin + i);
+              if (initialState.vantaux && allowed.includes(initialState.vantaux)) {
+                return initialState.vantaux;
+              }
+              return allowed[0] || mc.vantauxMin || 2;
+            }
+            return initialState.vantaux || 3;
+          })(),
           tarifPanneauId: initialState.tarifPanneauId || (found?.typeModele === "coulissant" ? (found as ModeleCoulissant).tarifsPanneau[0]?.id : ""),
           couleurCoulissant: initialState.couleurCoulissant || "Anthracite RAL 7016",
           optionsCoulissantIds: initialState.optionsCoulissantIds || [],
@@ -288,12 +300,20 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         setState((s) => ({
           ...s,
           coefficient: mc.margeDefaut,
-          vantaux: mc.vantauxMin,
+          vantaux: (() => {
+            if (mc.isCustomDimension && mc.grillesVantaux) {
+              const allowed = Object.keys(mc.grillesVantaux).map(Number).sort((a, b) => a - b);
+              return allowed[0] || mc.vantauxMin || 2;
+            }
+            return mc.vantauxMin;
+          })(),
           tarifPanneauId: mc.tarifsPanneau[0]?.id || "",
           couleurId: mc.couleurs?.[0]?.id || "",
           optionsCoulissantIds: [],
           largeurVerre: 90,
           hauteurVerre: 200,
+          largeur: s.largeur || 4000,
+          profondeur: s.profondeur || 3000,
         }));
       } else if (modele.typeModele === "paroi_fixe") {
         const mf = modele as ModeleParoiFixe;
@@ -414,13 +434,15 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         state.tarifPanneauId || "",
         state.optionsCoulissantIds || [],
         state.couleurId || "",
-        state.coefficient
+        state.coefficient,
+        state.largeur,
+        state.profondeur
       );
       setResultatCoulissant(r);
     } catch {
       setResultatCoulissant(null);
     }
-  }, [modele, state.vantaux, state.tarifPanneauId, state.optionsCoulissantIds, state.couleurId, state.coefficient, step]);
+  }, [modele, state.vantaux, state.tarifPanneauId, state.optionsCoulissantIds, state.couleurId, state.coefficient, state.largeur, state.profondeur, step]);
 
   // Recalcul live pour parois fixes
   useEffect(() => {
@@ -478,7 +500,13 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
   const canNext = () => {
     if (step === 1) return !!modele;
     if (modele?.typeModele === "coulissant") {
-      if (step === 2) return !!state.tarifPanneauId;
+      if (step === 2) {
+        const mc = modele as ModeleCoulissant;
+        if (mc.isCustomDimension) {
+          return !!state.largeur && state.largeur > 0 && !!state.profondeur && state.profondeur > 0;
+        }
+        return !!state.tarifPanneauId;
+      }
       return false;
     }
     if (modele?.typeModele === "paroi_fixe") {
@@ -531,9 +559,11 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         tarifPanneau: tarif?.label || "—",
         couleur: couleurNom,
         options: opts,
-        largeurVerre: state.largeurVerre,
-        hauteurVerre: state.hauteurVerre,
-        hauteurEncastrement: encastrementStr,
+        largeurVerre: mc.isCustomDimension ? undefined : state.largeurVerre,
+        hauteurVerre: mc.isCustomDimension ? undefined : state.hauteurVerre,
+        hauteurEncastrement: mc.isCustomDimension ? undefined : encastrementStr,
+        largeur: state.largeur,
+        hauteur: state.profondeur,
       });
 
       onApply({ designation, description, prixVenteHT: resultatCoulissant.prixVenteHT, prixAchatHT: resultatCoulissant.prixAchatTotalHT, image: mc.image }, state);
@@ -1290,7 +1320,18 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           {step === 2 && modele && modele.typeModele === "coulissant" && (() => {
             const mc = modele as ModeleCoulissant;
             const buttons = [];
-            for (let v = mc.vantauxMin; v <= mc.vantauxMax; v++) {
+            
+            const allowedVantaux = mc.isCustomDimension
+              ? (mc.grillesVantaux ? Object.keys(mc.grillesVantaux).map(Number).sort((a, b) => a - b) : [2, 4])
+              : (() => {
+                  const arr = [];
+                  for (let v = mc.vantauxMin; v <= mc.vantauxMax; v++) {
+                    arr.push(v);
+                  }
+                  return arr;
+                })();
+
+            for (const v of allowedVantaux) {
               buttons.push(
                 <button
                   key={v}
@@ -1318,104 +1359,137 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
-                    Type de verre
-                  </label>
-                  <div className="space-y-2">
-                    {mc.tarifsPanneau.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setState({ ...state, tarifPanneauId: t.id })}
-                        className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
-                          state.tarifPanneauId === t.id
-                            ? "border-accent bg-accent/5 shadow-sm"
-                            : "border-border hover:border-accent/40 hover:bg-muted/30"
-                        }`}
-                      >
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-semibold text-sm">{t.label}</span>
-                          <span className="font-mono text-accent text-xs font-bold">{t.prixHT} € / panneau</span>
-                        </div>
-                        {t.description && (
-                          <p className="text-xs text-muted-foreground leading-relaxed">{t.description}</p>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Dimensions du verre (Abaque) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-muted/20 border border-border">
+                {!mc.isCustomDimension && (
                   <div>
                     <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
-                      Largeur du panneau de verre
+                      Type de verre
                     </label>
-                    <div className="flex gap-2">
-                      {[82, 90, 98, 103].map((w) => {
-                        const hVal = state.hauteurVerre || 200;
-                        const abacForH = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === hVal);
-                        const isAllowed = abacForH ? abacForH.largeursPermises.includes(w) : true;
-                        const isSelected = state.largeurVerre === w;
-                        return (
-                          <button
-                            key={w}
-                            type="button"
-                            onClick={() => {
-                              let nextH = state.hauteurVerre || 200;
-                              const abacForNewW = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === nextH);
-                              if (abacForNewW && !abacForNewW.largeursPermises.includes(w)) {
-                                nextH = 200; // Fallback
-                              }
-                              setState({ ...state, largeurVerre: w, hauteurVerre: nextH });
-                            }}
-                            className={`flex-1 py-2 text-xs font-semibold rounded border transition-all text-center ${
-                              isSelected
-                                ? "bg-accent text-accent-foreground border-accent shadow-sm"
-                                : isAllowed
-                                ? "border-border text-muted-foreground hover:border-accent/40 bg-card"
-                                : "border-border/30 text-muted-foreground/30 bg-muted/10 cursor-not-allowed"
-                            }`}
-                            title={!isAllowed ? "Non disponible pour la hauteur sélectionnée" : ""}
-                          >
-                            {w} cm
-                          </button>
-                        );
-                      })}
+                    <div className="space-y-2">
+                      {mc.tarifsPanneau.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setState({ ...state, tarifPanneauId: t.id })}
+                          className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
+                            state.tarifPanneauId === t.id
+                              ? "border-accent bg-accent/5 shadow-sm"
+                              : "border-border hover:border-accent/40 hover:bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold text-sm">{t.label}</span>
+                            <span className="font-mono text-accent text-xs font-bold">{t.prixHT} € / panneau</span>
+                          </div>
+                          {t.description && (
+                            <p className="text-xs text-muted-foreground leading-relaxed">{t.description}</p>
+                          )}
+                        </button>
+                      ))}
                     </div>
                   </div>
+                )}
 
-                  <div>
-                    <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
-                      Hauteur du panneau (et Encastrement)
-                    </label>
-                    <select
-                      value={state.hauteurVerre || 200}
-                      onChange={(e) => {
-                        const hVal = parseInt(e.target.value) || 200;
-                        let nextW = state.largeurVerre || 90;
-                        const abacForNewH = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === hVal);
-                        if (abacForNewH && !abacForNewH.largeursPermises.includes(nextW)) {
-                          nextW = 90; // Fallback
-                        }
-                        setState({ ...state, hauteurVerre: hVal, largeurVerre: nextW });
-                      }}
-                      className="form-input w-full font-body text-sm"
-                    >
-                      {ABAQUE_COULISSANT.map((abaque) => {
-                        const wVal = state.largeurVerre || 90;
-                        const isAllowed = abaque.largeursPermises.includes(wVal);
-                        if (!isAllowed) return null; // Filtre les hauteurs autorisées pour la largeur courante
-                        return (
-                          <option key={abaque.hauteurVerre} value={abaque.hauteurVerre}>
-                            {abaque.hauteurVerre} cm (Encastrement : {abaque.encastrementMin} - {abaque.encastrementMax} cm)
-                          </option>
-                        );
-                      })}
-                    </select>
+                {/* Dimensions */}
+                {mc.isCustomDimension ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-muted/20 border border-border">
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Largeur totale (mm)
+                      </label>
+                      <input
+                        type="number"
+                        min={100}
+                        step={10}
+                        value={state.largeur || 4000}
+                        onChange={(e) => setState({ ...state, largeur: parseInt(e.target.value) || 0 })}
+                        className="form-input w-full font-mono text-lg text-center"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Hauteur totale (mm)
+                      </label>
+                      <input
+                        type="number"
+                        min={100}
+                        step={10}
+                        value={state.profondeur || 3000}
+                        onChange={(e) => setState({ ...state, profondeur: parseInt(e.target.value) || 0 })}
+                        className="form-input w-full font-mono text-lg text-center"
+                      />
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-muted/20 border border-border">
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Largeur du panneau de verre
+                      </label>
+                      <div className="flex gap-2">
+                        {[82, 90, 98, 103].map((w) => {
+                          const hVal = state.hauteurVerre || 200;
+                          const abacForH = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === hVal);
+                          const isAllowed = abacForH ? abacForH.largeursPermises.includes(w) : true;
+                          const isSelected = state.largeurVerre === w;
+                          return (
+                            <button
+                              key={w}
+                              type="button"
+                              onClick={() => {
+                                let nextH = state.hauteurVerre || 200;
+                                const abacForNewW = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === nextH);
+                                if (abacForNewW && !abacForNewW.largeursPermises.includes(w)) {
+                                  nextH = 200; // Fallback
+                                }
+                                setState({ ...state, largeurVerre: w, hauteurVerre: nextH });
+                              }}
+                              className={`flex-1 py-2 text-xs font-semibold rounded border transition-all text-center ${
+                                isSelected
+                                  ? "bg-accent text-accent-foreground border-accent shadow-sm"
+                                  : isAllowed
+                                  ? "border-border text-muted-foreground hover:border-accent/40 bg-card"
+                                  : "border-border/30 text-muted-foreground/30 bg-muted/10 cursor-not-allowed"
+                              }`}
+                              title={!isAllowed ? "Non disponible pour la hauteur sélectionnée" : ""}
+                            >
+                              {w} cm
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Hauteur du panneau (et Encastrement)
+                      </label>
+                      <select
+                        value={state.hauteurVerre || 200}
+                        onChange={(e) => {
+                          const hVal = parseInt(e.target.value) || 200;
+                          let nextW = state.largeurVerre || 90;
+                          const abacForNewH = ABAQUE_COULISSANT.find((a) => a.hauteurVerre === hVal);
+                          if (abacForNewH && !abacForNewH.largeursPermises.includes(nextW)) {
+                            nextW = 90; // Fallback
+                          }
+                          setState({ ...state, hauteurVerre: hVal, largeurVerre: nextW });
+                        }}
+                        className="form-input w-full font-body text-sm"
+                      >
+                        {ABAQUE_COULISSANT.map((abaque) => {
+                          const wVal = state.largeurVerre || 90;
+                          const isAllowed = abaque.largeursPermises.includes(wVal);
+                          if (!isAllowed) return null;
+                          return (
+                            <option key={abaque.hauteurVerre} value={abaque.hauteurVerre}>
+                              {abaque.hauteurVerre} cm (Encastrement : {abaque.encastrementMin} - {abaque.encastrementMax} cm)
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -1755,90 +1829,111 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           })()}
 
           {/* Étape 3 — Prix (uniquement pour coulissant) */}
-          {step === 3 && modele && modele.typeModele === "coulissant" && resultatCoulissant && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="font-semibold text-[14px] mb-4">Détail du chiffrage</h3>
-                <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2.5 text-[13px]">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Panneaux (Base d'achat)</span>
-                    <span className="font-mono">
-                      {state.vantaux} × {resultatCoulissant.prixPanneau}€ = <span className="font-semibold">{formatEUR(resultatCoulissant.prixAchatBaseHT)}</span>
-                    </span>
-                  </div>
-                  {resultatCoulissant.surchargesHT > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Surcharges options</span>
-                      <span className="font-mono text-[hsl(40_80%_45%)] font-semibold">+{formatEUR(resultatCoulissant.surchargesHT)}</span>
-                    </div>
-                  )}
-                  {resultatCoulissant.surchargeCouleurHT && resultatCoulissant.surchargeCouleurHT > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Surcharge couleur</span>
-                      <span className="font-mono text-[hsl(40_80%_45%)] font-semibold">+{formatEUR(resultatCoulissant.surchargeCouleurHT)}</span>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between border-t border-border pt-2 font-medium">
-                    <span className="text-muted-foreground">Prix achat total HT</span>
-                    <span className="font-mono font-semibold">{formatEUR(resultatCoulissant.prixAchatTotalHT)}</span>
-                  </div>
-                  <div className="flex justify-between text-[11px] text-muted-foreground">
-                    <span>Marge appliquée</span>
-                    <span className="font-mono">{formatCoef(resultatCoulissant.coefficient)}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <label className="form-label">Coefficient de marge — {formatCoef(state.coefficient)}</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={5}
-                    step={0.05}
-                    value={state.coefficient}
-                    onChange={(e) => setState({ ...state, coefficient: parseFloat(e.target.value) || 1.0 })}
-                    className="form-input w-40 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col justify-between">
+          {step === 3 && modele && modele.typeModele === "coulissant" && resultatCoulissant && (() => {
+            const mc = modele as ModeleCoulissant;
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="font-semibold text-[14px] mb-4">Prix de vente final</h3>
-                  <div className="bg-accent/10 border border-accent/30 rounded-lg px-5 py-4 flex flex-col items-center justify-center text-center">
-                    <span className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Prix de vente HT conseillé</span>
-                    <span className="font-display text-3xl font-bold text-accent font-mono">{formatEUR(resultatCoulissant.prixVenteHT)}</span>
-                    <span className="text-[10px] text-muted-foreground mt-1.5 italic">
-                      (achat : {formatEUR(resultatCoulissant.prixAchatTotalHT)} × marge {state.coefficient.toFixed(2)})
-                    </span>
+                  <h3 className="font-semibold text-[14px] mb-4">Détail du chiffrage</h3>
+                  <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-2.5 text-[13px]">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {mc.isCustomDimension ? "Prix de base (Grille)" : "Panneaux (Base d'achat)"}
+                      </span>
+                      <span className="font-mono">
+                        {mc.isCustomDimension ? (
+                          <span className="font-semibold">{formatEUR(resultatCoulissant.prixAchatBaseHT)}</span>
+                        ) : (
+                          <span>
+                            {state.vantaux} × {resultatCoulissant.prixPanneau}€ = <span className="font-semibold">{formatEUR(resultatCoulissant.prixAchatBaseHT)}</span>
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {resultatCoulissant.surchargesHT > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Surcharges options</span>
+                        <span className="font-mono text-[hsl(40_80%_45%)] font-semibold">+{formatEUR(resultatCoulissant.surchargesHT)}</span>
+                      </div>
+                    )}
+                    {resultatCoulissant.surchargeCouleurHT && resultatCoulissant.surchargeCouleurHT > 0 ? (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Surcharge couleur</span>
+                        <span className="font-mono text-[hsl(40_80%_45%)] font-semibold">+{formatEUR(resultatCoulissant.surchargeCouleurHT)}</span>
+                      </div>
+                    ) : null}
+                    <div className="flex justify-between border-t border-border pt-2 font-medium">
+                      <span className="text-muted-foreground">Prix achat total HT</span>
+                      <span className="font-mono font-semibold">{formatEUR(resultatCoulissant.prixAchatTotalHT)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <span>Marge appliquée</span>
+                      <span className="font-mono">{formatCoef(resultatCoulissant.coefficient)}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="form-label">Coefficient de marge — {formatCoef(state.coefficient)}</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={5}
+                      step={0.05}
+                      value={state.coefficient}
+                      onChange={(e) => setState({ ...state, coefficient: parseFloat(e.target.value) || 1.0 })}
+                      className="form-input w-40 font-mono"
+                    />
                   </div>
                 </div>
 
-                {/* Preview de la désignation et de la description */}
-                <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
-                  <div className="font-semibold text-foreground text-[12px] mb-1">
-                    {modele.nom.toLowerCase().includes("paroi") || modele.nom.toLowerCase().includes("couliss") ? "" : "Parois coulissantes "}
-                    {modele.nom} — {state.vantaux} vantaux
+                <div className="flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-semibold text-[14px] mb-4">Prix de vente final</h3>
+                    <div className="bg-accent/10 border border-accent/30 rounded-lg px-5 py-4 flex flex-col items-center justify-center text-center">
+                      <span className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wider">Prix de vente HT conseillé</span>
+                      <span className="font-display text-3xl font-bold text-accent font-mono">{formatEUR(resultatCoulissant.prixVenteHT)}</span>
+                      <span className="text-[10px] text-muted-foreground mt-1.5 italic">
+                        (achat : {formatEUR(resultatCoulissant.prixAchatTotalHT)} × marge {state.coefficient.toFixed(2)})
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
-                    {(() => {
-                      const mc = modele as ModeleCoulissant;
-                      const tarif = mc.tarifsPanneau.find(t => t.id === state.tarifPanneauId);
-                      const opts = mc.options
-                        .filter(o => (state.optionsCoulissantIds || []).includes(o.id))
-                        .map(o => o.nom);
-                      return genererDescriptionCoulissant(mc, {
-                        vantaux: state.vantaux || 3,
-                        tarifPanneau: tarif?.label || "—",
-                        couleur: state.couleurCoulissant || "—",
-                        options: opts,
-                      });
-                    })()}
+
+                  {/* Preview de la désignation et de la description */}
+                  <div className="bg-muted/20 border border-border rounded p-3 text-[11px] mt-4">
+                    <div className="font-semibold text-foreground text-[12px] mb-1">
+                      {mc.nom.toLowerCase().includes("paroi") || mc.nom.toLowerCase().includes("couliss") ? "" : "Parois coulissantes "}
+                      {mc.nom} — {state.vantaux} vantaux
+                    </div>
+                    <div className="text-muted-foreground whitespace-pre-line leading-relaxed max-h-[120px] overflow-y-auto pr-1">
+                      {(() => {
+                        const tarif = mc.tarifsPanneau.find(t => t.id === state.tarifPanneauId);
+                        const opts = mc.options
+                          .filter(o => (state.optionsCoulissantIds || []).includes(o.id))
+                          .map(o => o.nom);
+                        const selectedColor = mc.couleurs?.find(c => c.id === state.couleurId);
+                        const couleurNom = selectedColor ? selectedColor.nom : "—";
+                        return genererDescriptionCoulissant(mc, {
+                          vantaux: state.vantaux || 3,
+                          tarifPanneau: tarif?.label || "—",
+                          couleur: couleurNom,
+                          options: opts,
+                          largeurVerre: mc.isCustomDimension ? undefined : state.largeurVerre,
+                          hauteurVerre: mc.isCustomDimension ? undefined : state.hauteurVerre,
+                          hauteurEncastrement: mc.isCustomDimension ? undefined : (
+                            ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)
+                              ? `${ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)!.encastrementMin} - ${ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)!.encastrementMax}`
+                              : ""
+                          ),
+                          largeur: state.largeur,
+                          hauteur: state.profondeur,
+                        });
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Étape 3 — Prix (uniquement pour paroi fixe) */}
           {step === 3 && modele && modele.typeModele === "paroi_fixe" && resultatParoiFixe && (
