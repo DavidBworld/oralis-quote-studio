@@ -107,7 +107,82 @@ const IBAN = "SAS TOUT POUR MA TERRASSE — IBAN FR76 1695 8000 0129 8680 2762 9
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function PageHeader({ quote, c, devisNumero, logo }: { quote: Quote; c: any; devisNumero: string; logo?: string }) {
+// ── Static Translations ──────────────────────────────────────────────────────
+const TRANSLATIONS: Record<string, Record<string, string>> = {
+  FR: {
+    devis: "Devis",
+    totalHT: "Total HT",
+    tva: "TVA",
+    totalTTC: "Total TTC",
+    conditionsPaiement: "Conditions de paiement",
+    delai: "Délai",
+    date: "Date",
+    client: "Client",
+    validite: "Validité",
+  },
+  EN: {
+    devis: "Quote",
+    totalHT: "Subtotal excl. VAT",
+    tva: "VAT",
+    totalTTC: "Total incl. VAT",
+    conditionsPaiement: "Payment terms",
+    delai: "Lead time",
+    date: "Date",
+    client: "Client",
+    validite: "Valid until",
+  },
+  DE: {
+    devis: "Angebot",
+    totalHT: "Nettobetrag",
+    tva: "MwSt.",
+    totalTTC: "Gesamtbetrag inkl. MwSt.",
+    conditionsPaiement: "Zahlungsbedingungen",
+    delai: "Lieferzeit",
+    date: "Datum",
+    client: "Kunde",
+    validite: "Gültig bis",
+  },
+  IT: {
+    devis: "Preventivo",
+    totalHT: "Totale netto",
+    tva: "IVA",
+    totalTTC: "Totale IVA incl.",
+    conditionsPaiement: "Condizioni di pagamento",
+    delai: "Tempi di consegna",
+    date: "Data",
+    client: "Cliente",
+    validite: "Validità",
+  },
+  PT: {
+    devis: "Orçamento",
+    totalHT: "Total líquido",
+    tva: "IVA",
+    totalTTC: "Total com IVA",
+    conditionsPaiement: "Condições de pagamento",
+    delai: "Prazo de entrega",
+    date: "Data",
+    client: "Cliente",
+    validite: "Validade",
+  },
+};
+
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+function PageHeader({
+  quote,
+  c,
+  devisNumero,
+  logo,
+  translateText,
+  t
+}: {
+  quote: Quote;
+  c: any;
+  devisNumero: string;
+  logo?: string;
+  translateText: (str: string | undefined) => string;
+  t: (key: keyof typeof TRANSLATIONS["FR"]) => string;
+}) {
   return (
     <div className="flex justify-between items-start mb-0 gap-4">
       {/* Left: Logo or ORALIS block */}
@@ -120,23 +195,23 @@ function PageHeader({ quote, c, devisNumero, logo }: { quote: Quote; c: any; dev
           </div>
         )}
         <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
-          <div>Votre contact : <strong>David BOILON</strong></div>
-          {quote.notes && <div>Référence : {quote.notes}</div>}
-          {(quote.delai || quote.delaiRealisation) && <div>Délai : {quote.delai || quote.delaiRealisation}</div>}
-          <div style={{ fontWeight: 600, marginTop: 4 }}>Offre valable 1 mois hors promotion</div>
+          <div>{translateText("Votre contact :")} <strong>David BOILON</strong></div>
+          {quote.notes && <div>{translateText("Référence :")} {translateText(quote.notes)}</div>}
+          {(quote.delai || quote.delaiRealisation) && <div>{t("delai")} : {translateText(quote.delai || quote.delaiRealisation)}</div>}
+          <div style={{ fontWeight: 600, marginTop: 4 }}>{translateText("Offre valable 1 mois hors promotion")}</div>
         </div>
       </div>
       {/* Right: Contact + Devis num + Client */}
       <div style={{ textAlign: "right", fontSize: 11, color: "#555", lineHeight: 1.7 }}>
         <div style={{ border: "1px solid #ddd", borderRadius: 4, padding: "4px 10px", marginBottom: 8, display: "inline-block" }}>
-          <strong>Contact</strong><br />
+          <strong>{translateText("Contact")}</strong><br />
           Tél. : {c.telephone}<br />
           Email : {c.email}<br />
           Site : www.{c.siteWeb}
         </div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>DEVIS N° {devisNumero}</div>
-          <div>Date : {formatDate(quote.date)}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{t("devis").toUpperCase()} N° {devisNumero}</div>
+          <div>{t("date")} : {formatDate(quote.date)}</div>
         </div>
         <div style={{ marginTop: 8, textAlign: "right" }}>
           <strong style={{ fontSize: 13, color: "#111" }}>
@@ -148,14 +223,14 @@ function PageHeader({ quote, c, devisNumero, logo }: { quote: Quote; c: any; dev
           {quote.client.pays && <span style={{ fontWeight: 600 }}>{quote.client.pays.toUpperCase()}</span>}
         </div>
         <div style={{ marginTop: 6, fontSize: 10, color: "#888" }}>
-          Devis n° {devisNumero} du {formatDate(quote.date)}
+          {t("devis")} n° {devisNumero} {translateText("du")} {formatDate(quote.date)}
         </div>
       </div>
     </div>
   );
 }
 
-function PageFooter({ c }: { c: any }) {
+function PageFooter({ c, translateText }: { c: any; translateText: (str: string | undefined) => string }) {
   return (
     <div style={{
       position: "absolute",
@@ -178,22 +253,22 @@ function PageFooter({ c }: { c: any }) {
         SIRET : {c.siret} — Code APE : 4791B<br />
         NUMÉRO DE TVA : {c.tvaIntra}
       </div>
-      <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 14, opacity: 0.7 }}>CRÉATEUR D'ESPACES EXTÉRIEURS</div>
+      <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 14, opacity: 0.7 }}>{translateText("CRÉATEUR D'ESPACES EXTÉRIEURS")}</div>
     </div>
   );
 }
 
-function ProductTable({ children }: { children: React.ReactNode }) {
+function ProductTable({ children, translateText }: { children: React.ReactNode; translateText: (str: string | undefined) => string }) {
   return (
     <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 12 }}>
       <thead>
         <tr style={{ borderBottom: "2px solid #1a1a1a", borderTop: "2px solid #1a1a1a" }}>
-          <th style={{ textAlign: "left", padding: "6px 8px", width: 90, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>Visuel</th>
-          <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>Désignation</th>
-          <th style={{ textAlign: "center", padding: "6px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Qté</th>
-          <th style={{ textAlign: "right", padding: "6px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Pu HT</th>
-          <th style={{ textAlign: "right", padding: "6px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>Total HT</th>
-          <th style={{ textAlign: "center", padding: "6px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>TVA</th>
+          <th style={{ textAlign: "left", padding: "6px 8px", width: 90, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{translateText("Visuel")}</th>
+          <th style={{ textAlign: "left", padding: "6px 8px", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{translateText("Désignation")}</th>
+          <th style={{ textAlign: "center", padding: "6px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{translateText("Qté")}</th>
+          <th style={{ textAlign: "right", padding: "6px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{translateText("Pu HT")}</th>
+          <th style={{ textAlign: "right", padding: "6px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{translateText("Total HT")}</th>
+          <th style={{ textAlign: "center", padding: "6px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{translateText("TVA")}</th>
         </tr>
       </thead>
       <tbody>{children}</tbody>
@@ -251,6 +326,26 @@ export default function QuotePreview() {
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [modeles, setModeles] = useState<AnyModele[]>([]);
+
+  // States for translation
+  const [currentLang, setCurrentLang] = useState<"FR" | "EN" | "DE" | "IT" | "PT">("FR");
+  const [translating, setTranslating] = useState(false);
+  const [translationsCache, setTranslationsCache] = useState<Record<string, { letterBody: string[]; translations: Record<string, string> }>>({});
+
+  const translateText = (str: string | undefined): string => {
+    if (!str) return "";
+    if (currentLang === "FR") return str;
+    const cache = translationsCache[currentLang];
+    if (cache && cache.translations[str] !== undefined) {
+      return cache.translations[str];
+    }
+    return str;
+  };
+
+  const t = (key: keyof typeof TRANSLATIONS["FR"]) => {
+    return TRANSLATIONS[currentLang]?.[key] || TRANSLATIONS["FR"][key];
+  };
+
 
   useEffect(() => {
     async function loadData() {
@@ -390,6 +485,168 @@ export default function QuotePreview() {
   // Numero for display (OR2026xxx format from devis number)
   const devisNumeroDisplay = quote.numero.replace("ORALIS-", "ORA").replace(/-/g, "");
 
+  const handleLangChange = async (lang: "FR" | "EN" | "DE" | "IT" | "PT") => {
+    if (lang === "FR") {
+      setCurrentLang("FR");
+      return;
+    }
+
+    if (translationsCache[lang]) {
+      setCurrentLang(lang);
+      return;
+    }
+
+    setTranslating(true);
+    try {
+      const letterParagraphs = [
+        "Madame, Monsieur,",
+        "Vous nous avez confié l'analyse de votre projet et nous vous en remercions chaleureusement. Vous trouverez en pièce jointe le devis correspondant. Ce document présente de manière claire et détaillée tous les éléments que nous avons définis ensemble. Les illustrations qu'il contient vous aideront à visualiser les produits que nous vous proposons, et nous sommes convaincus qu'elles vous permettront également de confirmer les excellents choix que vous avez faits.",
+        `Pour toute information supplémentaire, qu'elle soit d'ordre technique ou commercial, n'hésitez pas à nous contacter par email à ${c.email} ou à appeler votre conseiller au ${c.telephone}.`,
+        "Dans l'attente de notre prochain échange, veuillez recevoir, Madame, Monsieur, mes salutations les plus distinguées."
+      ];
+
+      const textsToTranslate = new Set<string>();
+
+      // Add general descriptions and line details
+      linesWithGroupFlags.forEach((l) => {
+        if (l._descriptionGenerale) {
+          textsToTranslate.add(l._descriptionGenerale);
+        }
+        if (l.designation) {
+          textsToTranslate.add(l.designation);
+        }
+        if (l.description) {
+          textsToTranslate.add(l.description);
+        }
+        l.options.forEach((o) => {
+          if (o.designation) {
+            textsToTranslate.add(o.designation);
+          }
+        });
+      });
+
+      // Add payment terms steps
+      steps.forEach((s) => {
+        if (s.label) {
+          textsToTranslate.add(s.label);
+        }
+      });
+
+      // Add payment condition text if present
+      if (quote.conditionsPaiement) {
+        textsToTranslate.add(quote.conditionsPaiement);
+      }
+
+      // Add delay
+      const delaiVal = quote.delai || quote.delaiRealisation;
+      if (delaiVal) {
+        textsToTranslate.add(delaiVal);
+      }
+
+      // Add notes (Reference)
+      if (quote.notes) {
+        textsToTranslate.add(quote.notes);
+      }
+
+      // Standard static/UI texts to translate via DeepL to keep PDF coherent
+      textsToTranslate.add("Votre contact :");
+      textsToTranslate.add("Offre valable 1 mois hors promotion");
+      textsToTranslate.add("Votre expert conseil");
+      textsToTranslate.add("Bon pour accord");
+      textsToTranslate.add("Je déclare avoir pris connaissance et accepté les conditions générales de vente ci-jointes.");
+      textsToTranslate.add("Fait à : ");
+      textsToTranslate.add("le : ");
+      textsToTranslate.add("Signature (précédée de la mention : «lu et approuvé, devis reçu avant l'exécution de la commande») :");
+      textsToTranslate.add("Contact");
+      textsToTranslate.add("Détail TVA");
+      textsToTranslate.add("Base HT");
+      textsToTranslate.add("Montant TVA");
+      textsToTranslate.add("Règlement :");
+      textsToTranslate.add("Acompte");
+      textsToTranslate.add("Solde");
+      textsToTranslate.add("Visuel");
+      textsToTranslate.add("Désignation");
+      textsToTranslate.add("Qté");
+      textsToTranslate.add("Pu HT");
+      textsToTranslate.add("Total TVA");
+      textsToTranslate.add("Nos prix sont établis sur la base des taux de TVA en vigueur à la date de la remise de l'offre. Toute variation ultérieure de ces taux, imposés par la loi, sera répercutée sur ces prix.");
+      textsToTranslate.add("du");
+      textsToTranslate.add("CRÉATEUR D'ESPACES EXTÉRIEURS");
+      textsToTranslate.add("sur");
+      textsToTranslate.add("Référence :");
+      textsToTranslate.add("Descriptif général :");
+      textsToTranslate.add("Créateur d'espaces extérieurs");
+
+      const dynamicTextsArray = Array.from(textsToTranslate);
+      const textsList = [...letterParagraphs, ...dynamicTextsArray];
+
+      const apiKey = import.meta.env.VITE_DEEPL_API_KEY;
+      if (!apiKey) {
+        throw new Error("Clé API DeepL manquante.");
+      }
+
+      const response = await fetch("https://api-free.deepl.com/v2/translate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `DeepL-Auth-Key ${apiKey}`,
+        },
+        body: JSON.stringify({
+          text: textsList,
+          target_lang: lang,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Erreur API DeepL: ${response.status} ${errText}`);
+      }
+
+      const data = await response.json();
+      const translatedTexts = (data.translations || []).map((t: any) => t.text);
+
+      if (translatedTexts.length !== textsList.length) {
+        throw new Error("Nombre de traductions retournées incorrect.");
+      }
+
+      const letterBody = translatedTexts.slice(0, letterParagraphs.length);
+      const translations: Record<string, string> = {};
+      dynamicTextsArray.forEach((original, idx) => {
+        translations[original] = translatedTexts[letterParagraphs.length + idx];
+      });
+
+      setTranslationsCache((prev) => ({
+        ...prev,
+        [lang]: { letterBody, translations },
+      }));
+      setCurrentLang(lang);
+      toast.success(`Devis traduit en ${lang} !`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Erreur lors de la traduction : ${err.message || "Erreur inconnue"}`);
+      setCurrentLang("FR");
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const getLetterParagraphs = () => {
+    const defaultParagraphs = [
+      "Madame, Monsieur,",
+      "Vous nous avez confié l'analyse de votre projet et nous vous en remercions chaleureusement. Vous trouverez en pièce jointe le devis correspondant. Ce document présente de manière claire et détaillée tous les éléments que nous avons définis ensemble. Les illustrations qu'il contient vous aideront à visualiser les produits que nous vous proposons, et nous sommes convaincus qu'elles vous permettront également de confirmer les excellents choix que vous avez faits.",
+      `Pour toute information supplémentaire, qu'elle soit d'ordre technique ou commercial, n'hésitez pas à nous contacter par email à ${c.email} ou à appeler votre conseiller au ${c.telephone}.`,
+      "Dans l'attente de notre prochain échange, veuillez recevoir, Madame, Monsieur, mes salutations les plus distinguées."
+    ];
+    if (currentLang === "FR") {
+      return defaultParagraphs;
+    }
+    const cache = translationsCache[currentLang];
+    if (cache && cache.letterBody && cache.letterBody.length === 4) {
+      return cache.letterBody;
+    }
+    return defaultParagraphs;
+  };
+
   // Fonction d'estimation de la hauteur d'une ligne de produit pour la pagination
   function estimerHauteurLigne(line: any): number {
     let height = 40; // Hauteur minimale (désignation, prix...)
@@ -451,6 +708,35 @@ export default function QuotePreview() {
         <div className="flex-1" />
         <span className="text-sm font-medium text-muted-foreground">{quote.numero} — {quote.client.prenom} {quote.client.nom}</span>
         <div className="flex-1" />
+
+        {/* Language Selector */}
+        <div className="flex items-center gap-1 bg-muted/60 p-1 rounded border border-border/80 mr-2">
+          {(["FR", "EN", "DE", "IT", "PT"] as const).map((lang) => {
+            const flag = lang === "FR" ? "🇫🇷" : lang === "EN" ? "🇬🇧" : lang === "DE" ? "🇩🇪" : lang === "IT" ? "🇮🇹" : "🇵🇹";
+            return (
+              <button
+                key={lang}
+                onClick={() => handleLangChange(lang)}
+                className={`px-2 py-1 text-xs rounded transition-all font-semibold ${
+                  currentLang === lang
+                    ? "bg-accent text-accent-foreground shadow-sm font-bold"
+                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+                disabled={translating}
+              >
+                {flag} {lang}
+              </button>
+            );
+          })}
+        </div>
+
+        {translating && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse mr-4">
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-accent border-t-transparent animate-spin"></div>
+            <span>Traduction...</span>
+          </div>
+        )}
+
         <button
           onClick={() => navigate(`/devis/${quote.id}`)}
           className="btn-outline-gold text-xs"
@@ -482,7 +768,7 @@ export default function QuotePreview() {
                   ORALIS
                 </div>
                 <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 2, color: "#555", textTransform: "uppercase", marginBottom: 12 }}>
-                  Créateur d'espaces extérieurs
+                  {translateText("CRÉATEUR D'ESPACES EXTÉRIEURS")}
                 </div>
               </>
             )}
@@ -523,7 +809,7 @@ export default function QuotePreview() {
                 <div><strong>E-Mail : </strong><span style={{ textDecoration: "underline" }}>{quote.client.email}</span></div>
               )}
               <div style={{ marginTop: 8 }}>
-                St MAX, le {formatFullDate(quote.date)}
+                St MAX, {translateText("le")} {formatFullDate(quote.date)}
               </div>
             </div>
           </div>
@@ -548,33 +834,22 @@ export default function QuotePreview() {
 
         {/* Letter body */}
         <div style={{ fontSize: 12, lineHeight: 1.9, color: "#222", marginBottom: 24 }}>
-          <p style={{ marginBottom: 16 }}>Madame, Monsieur,</p>
-          <p style={{ marginBottom: 12, textAlign: "justify" }}>
-            Vous nous avez confié l'analyse de votre projet et nous vous en remercions chaleureusement. Vous
-            trouverez en pièce jointe le devis correspondant. Ce document présente de manière claire et détaillée
-            tous les éléments que nous avons définis ensemble. Les illustrations qu'il contient vous aideront à
-            visualiser les produits que nous vous proposons, et nous sommes convaincus qu'elles vous permettront
-            également de confirmer les excellents choix que vous avez faits.
-          </p>
-          <p style={{ marginBottom: 12, textAlign: "justify" }}>
-            Pour toute information supplémentaire, qu'elle soit d'ordre technique ou commercial, n'hésitez pas à
-            nous contacter par email à {c.email} ou à appeler votre conseiller au {c.telephone}.
-          </p>
-          <p style={{ textAlign: "justify" }}>
-            Dans l'attente de notre prochain échange, veuillez recevoir, Madame, Monsieur, mes salutations les plus
-            distinguées.
-          </p>
+          {getLetterParagraphs().map((p, idx) => (
+            <p key={idx} style={{ marginBottom: idx === 0 ? 16 : idx === 3 ? 0 : 12, textAlign: idx === 0 || idx === 3 ? "left" : "justify" }}>
+              {p}
+            </p>
+          ))}
         </div>
 
         {/* Signature */}
         <div style={{ textAlign: "right", fontSize: 12, color: "#333", marginBottom: 16 }}>
           <div style={{ fontWeight: 600 }}>David BOILON</div>
-          <div style={{ color: "#777" }}>Votre expert conseil</div>
+          <div style={{ color: "#777" }}>{translateText("Votre expert conseil")}</div>
         </div>
 
         {/* Page number */}
         <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-          1 sur {totalPages}
+          1 {translateText("sur")} {totalPages}
         </div>
       </div>
 
@@ -584,16 +859,16 @@ export default function QuotePreview() {
       {pagesProduits.map((lignesPage, pIdx) => (
         <div key={pIdx} className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
 
-          <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} />
+          <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} translateText={translateText} t={t} />
 
-          <ProductTable>
+          <ProductTable translateText={translateText}>
             {lignesPage.map((line) => (
               <React.Fragment key={line.id}>
                 {line._showGroupDescription && line._descriptionGenerale && (
                   <tr style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
                     <td colSpan={6} style={{ padding: "10px 8px", borderBottom: "1px solid #eee", fontSize: 11, color: "#333", backgroundColor: "#f9f9f9" }}>
-                      <div className="font-semibold text-accent mb-1">Descriptif général :</div>
-                      <div style={{ whiteSpace: "pre-line", lineHeight: 1.5 }}>{line._descriptionGenerale}</div>
+                      <div className="font-semibold text-accent mb-1">{translateText("Descriptif général :")}</div>
+                      <div style={{ whiteSpace: "pre-line", lineHeight: 1.5 }}>{translateText(line._descriptionGenerale)}</div>
                     </td>
                   </tr>
                 )}
@@ -625,16 +900,16 @@ export default function QuotePreview() {
                     )}
                   </td>
                   <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
-                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{line.designation || "—"}</div>
+                    <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 4 }}>{translateText(line.designation) || "—"}</div>
                     {line.description && (
                       <div style={{ fontSize: 10, color: "#666", marginBottom: 6, lineHeight: 1.5, whiteSpace: "pre-line" }}>
-                        {line.description}
+                        {translateText(line.description)}
                       </div>
                     )}
                     {line.options && line.options.length > 0 && (
                       <ul style={{ margin: "4px 0 0 0", padding: "0 0 0 16px", fontSize: 10, color: "#444", lineHeight: 1.6 }}>
                         {line.options.map(opt => (
-                          <li key={opt.id}>{opt.designation} — {formatEUR(opt.prixHT)}</li>
+                          <li key={opt.id}>{translateText(opt.designation)} — {formatEUR(opt.prixHT)}</li>
                         ))}
                       </ul>
                     )}
@@ -656,9 +931,9 @@ export default function QuotePreview() {
             ))}
           </ProductTable>
 
-          <PageFooter c={c} />
+          <PageFooter c={c} translateText={translateText} />
           <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-            {2 + pIdx} sur {totalPages}
+            {2 + pIdx} {translateText("sur")} {totalPages}
           </div>
         </div>
       ))}
@@ -668,7 +943,7 @@ export default function QuotePreview() {
       ══════════════════════════════════════════════════════ */}
       <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
 
-        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} />
+        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} translateText={translateText} t={t} />
 
         {/* ── TVA detail table ── */}
         <div style={{ marginTop: 24, display: "flex", gap: 24, alignItems: "flex-start" }}>
@@ -678,7 +953,7 @@ export default function QuotePreview() {
               <thead>
                 <tr style={{ background: "#f5f5f5" }}>
                   <td style={{ padding: "6px 10px", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
-                    Détail TVA
+                    {translateText("Détail TVA")}
                   </td>
                   {tvaColumns.map(r => (
                     <td key={r} style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
@@ -687,7 +962,7 @@ export default function QuotePreview() {
                   ))}
                 </tr>
                 <tr>
-                  <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>Base HT</td>
+                  <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{translateText("Base HT")}</td>
                   {tvaColumns.map(r => (
                     <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
                       {formatEUR(baseHTByRate[r] ?? 0)}
@@ -695,7 +970,7 @@ export default function QuotePreview() {
                   ))}
                 </tr>
                 <tr>
-                  <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd" }}>Montant TVA</td>
+                  <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd" }}>{translateText("Montant TVA")}</td>
                   {tvaColumns.map(r => (
                     <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd" }}>
                       {formatEUR(totals.tvaMap[r] ?? 0)}
@@ -708,13 +983,13 @@ export default function QuotePreview() {
             {/* Payment conditions */}
             <div style={{ marginTop: 12, border: "1px solid #ddd", padding: "10px 12px", fontSize: 11, lineHeight: 1.8 }}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                Règlement : {quote.conditionsPaiement || steps.map(s => `${s.pct}% ${s.label}`).join(", ")}
+                {translateText("Règlement :")} {translateText(quote.conditionsPaiement) || steps.map(s => `${s.pct}% ${translateText(s.label)}`).join(", ")}
               </div>
               {calculatedPayments.map((p, idx) => {
                 const isSolde = p.type === "solde";
                 const label = isSolde 
-                  ? `Solde prévu (${p.pct}%) ${p.label ? p.label : ""}` 
-                  : `Acompte (${p.pct}%) ${p.label ? p.label : ""}`;
+                  ? `${translateText("Solde")} (${p.pct}%) ${p.label ? translateText(p.label) : ""}` 
+                  : `${translateText("Acompte")} (${p.pct}%) ${p.label ? translateText(p.label) : ""}`;
                 return (
                   <div key={p.id || idx}>
                     {idx === 0 ? (
@@ -732,8 +1007,7 @@ export default function QuotePreview() {
 
             {/* Disclaimer */}
             <div style={{ marginTop: 10, fontSize: 10, color: "#555", lineHeight: 1.5 }}>
-              Nos prix sont établis sur la base des taux de TVA en vigueur à la date de la remise de l'offre.
-              Toute variation ultérieure de ces taux, imposés par la loi, sera répercutée sur ces prix.
+              {translateText("Nos prix sont établis sur la base des taux de TVA en vigueur à la date de la remise de l'offre. Toute variation ultérieure de ces taux, imposés par la loi, sera répercutée sur ces prix.")}
             </div>
           </div>
 
@@ -741,15 +1015,15 @@ export default function QuotePreview() {
           <div style={{ width: 200, flexShrink: 0 }}>
             <div style={{ border: "1px solid #ddd", overflow: "hidden", borderRadius: 4 }}>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
-                <span>Total HT :</span>
+                <span>{t("totalHT")} :</span>
                 <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.sousTotal)}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
-                <span>Total TVA :</span>
+                <span>Total {t("tva")} :</span>
                 <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTVA)}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#1a1a1a", color: "#fff", fontSize: 14, fontWeight: 700 }}>
-                <span>Total TTC :</span>
+                <span>{t("totalTTC")} :</span>
                 <span style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTTC)}</span>
               </div>
             </div>
@@ -760,34 +1034,34 @@ export default function QuotePreview() {
         <div style={{ marginTop: 20, border: "1px solid #ddd", padding: "12px 16px", fontSize: 11 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <div style={{ width: 12, height: 12, border: "1px solid #333", flexShrink: 0 }} />
-            <span>Je déclare avoir pris connaissance et accepté les conditions générales de vente ci-jointes.</span>
+            <span>{translateText("Je déclare avoir pris connaissance et accepté les conditions générales de vente ci-jointes.")}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, marginTop: 8 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, marginBottom: 20 }}>Bon pour accord</div>
+              <div style={{ fontWeight: 700, marginBottom: 20 }}>{translateText("Bon pour accord")}</div>
               <div style={{ display: "flex", gap: 24 }}>
                 <div>
-                  <span>Fait à : </span>
+                  <span>{translateText("Fait à : ")}</span>
                   <span style={{ borderBottom: "1px solid #333", display: "inline-block", width: 100 }} />
                 </div>
                 <div>
-                  <span>le : </span>
+                  <span>{translateText("le : ")}</span>
                   <span style={{ borderBottom: "1px solid #333", display: "inline-block", width: 80 }} />
                 </div>
               </div>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, color: "#555", marginBottom: 20 }}>
-                Signature (précédée de la mention : «lu et approuvé, devis reçu avant l'exécution de la commande») :
+                {translateText("Signature (précédée de la mention : «lu et approuvé, devis reçu avant l'exécution de la commande») :")}
               </div>
               <div style={{ borderBottom: "1px solid #333", height: 40 }} />
             </div>
           </div>
         </div>
 
-        <PageFooter c={c} />
+        <PageFooter c={c} translateText={translateText} />
         <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-          {2 + pagesProduits.length} sur {totalPages}
+          {2 + pagesProduits.length} {translateText("sur")} {totalPages}
         </div>
       </div>
 
@@ -800,7 +1074,7 @@ export default function QuotePreview() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 20, fontWeight: 900, letterSpacing: 3 }}>ORALIS</div>
           <div style={{ fontSize: 10, color: "#555", textAlign: "right" }}>
-            <div style={{ fontWeight: 600 }}>CRÉATEUR D'ESPACES EXTÉRIEURS</div>
+            <div style={{ fontWeight: 600 }}>{translateText("CRÉATEUR D'ESPACES EXTÉRIEURS")}</div>
             <div>{c.rue} — {c.codePostal} {c.ville.toUpperCase()}</div>
           </div>
         </div>
@@ -841,12 +1115,12 @@ export default function QuotePreview() {
               ORALIS
             </div>
             <div style={{ fontSize: "7pt", letterSpacing: 2, color: "#555", textTransform: "uppercase", marginTop: 1 }}>
-              Créateur d'espaces extérieurs
+              {translateText("Créateur d'espaces extérieurs")}
             </div>
           </div>
         </div>
         <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
-          {3 + pagesProduits.length} sur {totalPages}
+          {3 + pagesProduits.length} {translateText("sur")} {totalPages}
         </div>
       </div>
 
