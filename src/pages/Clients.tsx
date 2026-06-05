@@ -577,7 +577,7 @@ function TabCoordonnees({ form, setForm, onSave, onBack }: { form: Client; setFo
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="form-label">Prénom *</label>
+              <label className="form-label">Prénom</label>
               <input value={form.prenom} onChange={(e) => set("prenom", e.target.value)} className="form-input" />
             </div>
             <div>
