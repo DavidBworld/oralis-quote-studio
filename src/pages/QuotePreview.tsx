@@ -478,10 +478,16 @@ export default function QuotePreview() {
     { id: "step-3", type: "solde" as const, label: "à la fin des travaux", pct: 5 }
   ];
   const steps = selectedCond?.steps && selectedCond.steps.length > 0 ? selectedCond.steps : defaultSteps;
-  const calculatedPayments = steps.map((step) => {
-    const amount = Math.round(totals.totalTTC * (step.pct / 100) * 100) / 100;
-    return { ...step, amount };
-  });
+  const calculatedPayments = (quote.montantsPaiement && quote.montantsPaiement.length > 0)
+    ? quote.montantsPaiement.map((m) => ({
+        label: m.label,
+        pct: m.pourcentage,
+        amount: m.montant
+      }))
+    : steps.map((step) => {
+        const amount = Math.round(totals.totalTTC * (step.pct / 100) * 100) / 100;
+        return { ...step, amount };
+      });
 
   // Numero for display (OR2026xxx format from devis number)
   const devisNumeroDisplay = quote.numero.replace("ORALIS-", "ORA").replace(/-/g, "");
@@ -1060,12 +1066,12 @@ export default function QuotePreview() {
                 {translateText("Règlement :")} {translateText(quote.conditionsPaiement) || steps.map(s => `${s.pct}% ${translateText(s.label)}`).join(", ")}
               </div>
               {calculatedPayments.map((p, idx) => {
-                const isSolde = p.type === "solde";
+                const isSolde = idx === calculatedPayments.length - 1;
                 const label = isSolde 
                   ? `${translateText("Solde")} (${p.pct}%) ${p.label ? translateText(p.label) : ""}` 
                   : `${translateText("Acompte")} (${p.pct}%) ${p.label ? translateText(p.label) : ""}`;
                 return (
-                  <div key={p.id || idx}>
+                  <div key={idx}>
                     {idx === 0 ? (
                       <strong>{label} : {formatEUR(p.amount)}</strong>
                     ) : (

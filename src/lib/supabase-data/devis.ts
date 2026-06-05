@@ -28,6 +28,7 @@ export async function dbLoadQuotes(): Promise<Quote[]> {
     delaiRealisation: row.delai_realisation || "",
     notes: row.notes || "",
     delai: row.delai || "",
+    montantsPaiement: row.montants_paiement || [],
   }));
 }
 
@@ -54,6 +55,7 @@ export async function dbSaveQuote(quote: Quote): Promise<void> {
     delai_realisation: quote.delaiRealisation,
     notes: quote.notes,
     delai: quote.delai,
+    montants_paiement: quote.montantsPaiement || [],
   };
 
   const { error } = await supabase

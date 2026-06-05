@@ -30,6 +30,7 @@ export async function dbLoadCommandes(): Promise<Commande[]> {
     totalTTC: Number(row.total_ttc || 0),
     factures: row.factures || [],
     notes: row.notes || "",
+    montantsPaiement: row.montants_paiement || [],
   }));
 }
 
@@ -58,6 +59,7 @@ export async function dbSaveCommande(commande: Commande): Promise<void> {
     total_ttc: commande.totalTTC,
     factures: commande.factures,
     notes: commande.notes,
+    montants_paiement: commande.montantsPaiement || [],
   };
 
   const { error } = await supabase

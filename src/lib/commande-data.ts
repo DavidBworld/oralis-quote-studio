@@ -1,4 +1,4 @@
-import { uid, type Quote, type QuoteLine, calcTotals, formatEUR, formatDate } from "@/lib/quote-data";
+import { uid, type Quote, type QuoteLine, calcTotals, formatEUR, formatDate, type PaymentStepAmount } from "@/lib/quote-data";
 
 // ── Types ──
 
@@ -27,6 +27,7 @@ export interface Commande {
   totalTTC: number;
   factures: CommandeFacture[];
   notes: string;
+  montantsPaiement?: PaymentStepAmount[];
 }
 
 // ── Labels ──
@@ -111,8 +112,24 @@ export function getCommandeResteAFacturer(commande: Commande): number {
   return commande.totalTTC - getCommandeTotalFacture(commande);
 }
 
-export function getProchainEcheancier(commande: Commande): typeof ECHEANCIER_DEFAUT[number] | null {
+export function getProchainEcheancier(commande: Commande): { type: "acompte_commande" | "acompte_livraison" | "solde" | "intermediaire", label: string, pct: number, montant?: number } | null {
   const facturesCreees = commande.factures.length;
+  if (commande.montantsPaiement && commande.montantsPaiement.length > 0) {
+    if (facturesCreees < commande.montantsPaiement.length) {
+      const step = commande.montantsPaiement[facturesCreees];
+      const type = facturesCreees === 0 
+        ? "acompte_commande" 
+        : (facturesCreees === commande.montantsPaiement.length - 1 ? "solde" : "acompte_livraison");
+      return {
+        type,
+        label: step.label,
+        pct: step.pourcentage,
+        montant: step.montant
+      };
+    }
+    return null;
+  }
+
   if (facturesCreees < ECHEANCIER_DEFAUT.length) {
     return ECHEANCIER_DEFAUT[facturesCreees];
   }
@@ -138,6 +155,7 @@ export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, 
     totalTTC: totals.totalTTC,
     factures: [],
     notes: "",
+    montantsPaiement: quote.montantsPaiement,
   };
 }
 

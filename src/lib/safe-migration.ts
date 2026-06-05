@@ -256,6 +256,7 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
         delai_realisation: q.delaiRealisation,
         notes: q.notes,
         favori: favorisList.includes(q.id),
+        montants_paiement: q.montantsPaiement || [],
       };
 
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -290,6 +291,7 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
       total_ttc: c.totalTTC,
       factures: c.factures || [],
       notes: c.notes,
+      montants_paiement: c.montantsPaiement || [],
     }));
 
     const { error } = await supabase.from("commandes").upsert(commandesToInsert);

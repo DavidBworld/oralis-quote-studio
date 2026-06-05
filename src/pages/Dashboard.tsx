@@ -324,9 +324,13 @@ function ConvertCommandeModal({ quote, commandes, onClose, onDone }: { quote: Qu
 // ── Facture Acompte Modal ──
 function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quote; factures: any[]; onClose: () => void; onDone: () => void }) {
   const totals = calcTotals(quote.lignes);
-  const [pct, setPct] = useState(30);
-  const [usePercent, setUsePercent] = useState(true);
-  const [montantDirect, setMontantDirect] = useState(totals.totalTTC * 0.3);
+  const hasCustomPayments = quote.montantsPaiement && quote.montantsPaiement.length > 0;
+  const initialPct = hasCustomPayments ? quote.montantsPaiement[0].pourcentage : 30;
+  const initialMontant = hasCustomPayments ? quote.montantsPaiement[0].montant : totals.totalTTC * 0.3;
+
+  const [pct, setPct] = useState(initialPct);
+  const [usePercent, setUsePercent] = useState(!hasCustomPayments);
+  const [montantDirect, setMontantDirect] = useState(initialMontant);
   const [factureNumero, setFactureNumero] = useState(() => nextFactureNumberOR(factures));
   const [libelle, setLibelle] = useState(`Acompte sur devis ${quote.numero}`);
   const [dateFacture, setDateFacture] = useState(new Date().toISOString().split("T")[0]);

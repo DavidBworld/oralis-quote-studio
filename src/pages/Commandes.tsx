@@ -52,6 +52,9 @@ function CreerFactureModal({ commande, onClose, onDone }: {
     if (defaultType === "solde") {
       return resteAFacturer;
     }
+    if (prochaine && prochaine.montant !== undefined) {
+      return prochaine.montant;
+    }
     return Math.round(commande.totalTTC * defaultPct / 100 * 100) / 100;
   });
   const [dateFacture, setDateFacture] = useState(new Date().toISOString().split("T")[0]);
@@ -159,9 +162,13 @@ function CreerFactureModal({ commande, onClose, onDone }: {
         <div className="mb-5">
           <p className="form-label mb-2">Échéancier</p>
           <div className="flex gap-1">
-            {ECHEANCIER_DEFAUT.map((e, i) => {
+            {(commande.montantsPaiement && commande.montantsPaiement.length > 0
+              ? commande.montantsPaiement.map((m) => ({ pct: m.pourcentage, label: m.label, montant: m.montant }))
+              : ECHEANCIER_DEFAUT
+            ).map((e, i) => {
               const done = i < commande.factures.length;
               const current = i === commande.factures.length;
+              const expectedAmount = (e as any).montant !== undefined ? (e as any).montant : (commande.totalTTC * e.pct / 100);
               return (
                 <div
                   key={i}
@@ -174,8 +181,15 @@ function CreerFactureModal({ commande, onClose, onDone }: {
                   }`}
                 >
                   <div>{e.pct}%</div>
-                  <div className="text-[9px] font-normal mt-0.5">{e.label.replace("Acompte à la ", "").replace("Solde fin de ", "")}</div>
-                  {done && <div className="text-[9px] mt-0.5">✓ {formatEUR(commande.factures[i].montantTTC)}</div>}
+                  <div className="text-[9px] font-normal mt-0.5" title={e.label}>
+                    {e.label.replace("Acompte à la ", "").replace("Solde fin de ", "")}
+                  </div>
+                  <div className="text-[9px] font-mono mt-0.5">{formatEUR(expectedAmount)}</div>
+                  {done && commande.factures[i] && (
+                    <div className="text-[9px] mt-0.5 text-emerald-600">
+                      ✓ {formatEUR(commande.factures[i].montantTTC)}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -338,10 +352,14 @@ function CommandeDetail({ commande, onBack, onReload }: {
       <div className="luxury-card mb-6">
         <h3 className="section-title">Échéancier de facturation</h3>
         <div className="flex gap-2 mb-4">
-          {ECHEANCIER_DEFAUT.map((e, i) => {
+          {(commande.montantsPaiement && commande.montantsPaiement.length > 0
+            ? commande.montantsPaiement.map((m) => ({ pct: m.pourcentage, label: m.label, montant: m.montant }))
+            : ECHEANCIER_DEFAUT
+          ).map((e, i) => {
             const done = i < commande.factures.length;
             const current = i === commande.factures.length;
             const fact = commande.factures[i];
+            const expectedAmount = (e as any).montant !== undefined ? (e as any).montant : (commande.totalTTC * e.pct / 100);
             return (
               <div
                 key={i}
@@ -360,8 +378,8 @@ function CommandeDetail({ commande, onBack, onReload }: {
                   {done && <span className="text-[10px] text-[hsl(var(--success))] font-semibold">✓</span>}
                 </div>
                 <p className="text-[11px] font-medium">{e.label}</p>
-                <p className="text-[11px] text-muted-foreground font-mono mt-1">
-                  {done ? formatEUR(fact.montantTTC) : formatEUR(commande.totalTTC * e.pct / 100)}
+                <p className="text-[11px] text-muted-foreground font-mono mt-1 font-semibold">
+                  {done && fact ? formatEUR(fact.montantTTC) : formatEUR(expectedAmount)}
                 </p>
                 {done && fact && (
                   <button
@@ -385,10 +403,10 @@ function CommandeDetail({ commande, onBack, onReload }: {
         </div>
 
         {/* Factures intermédiaires */}
-        {commande.factures.length > ECHEANCIER_DEFAUT.length && (
+        {commande.factures.length > (commande.montantsPaiement && commande.montantsPaiement.length > 0 ? commande.montantsPaiement.length : ECHEANCIER_DEFAUT.length) && (
           <div className="border-t border-border pt-3 mt-3">
             <p className="form-label mb-2">Factures intermédiaires</p>
-            {commande.factures.slice(ECHEANCIER_DEFAUT.length).map((f) => (
+            {commande.factures.slice(commande.montantsPaiement && commande.montantsPaiement.length > 0 ? commande.montantsPaiement.length : ECHEANCIER_DEFAUT.length).map((f) => (
               <div key={f.factureId} className="flex items-center justify-between py-1.5 text-sm">
                 <span className="font-mono text-[13px]">{f.numero}</span>
                 <span className="text-muted-foreground">{f.label}</span>

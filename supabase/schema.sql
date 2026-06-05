@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS public.devis (
     delai TEXT,
     notes TEXT,
     favori BOOLEAN DEFAULT false, -- fusion de oralis_devis_favoris
+    montants_paiement JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (user_id, local_id)
@@ -110,6 +111,7 @@ CREATE TABLE IF NOT EXISTS public.commandes (
     total_ttc NUMERIC,
     factures JSONB DEFAULT '[]'::jsonb,
     notes TEXT,
+    montants_paiement JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

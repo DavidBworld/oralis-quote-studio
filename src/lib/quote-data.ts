@@ -36,6 +36,12 @@ export interface QuoteClient {
   pays: string;
 }
 
+export interface PaymentStepAmount {
+  label: string;
+  pourcentage: number;
+  montant: number;
+}
+
 export interface Quote {
   id: string;
   numero: string;
@@ -49,6 +55,7 @@ export interface Quote {
   delaiRealisation: string;
   notes: string;
   delai?: string;
+  montantsPaiement?: PaymentStepAmount[];
 }
 
 // Catalogs

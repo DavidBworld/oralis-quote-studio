@@ -2598,6 +2598,81 @@ export default function QuoteForm() {
       return { ...prev, client: { ...prev.client, ...resolvedPatch } };
     });
   };
+
+  useEffect(() => {
+    if (!quote) return;
+    const totals = calcTotals(quote.lignes);
+    const selectedCond = settings?.paymentConditionsList?.find(c => c.id === quote.paymentConditionId);
+    
+    if (selectedCond) {
+      const steps = selectedCond.steps;
+      const needsInit = !quote.montantsPaiement || 
+                        quote.montantsPaiement.length !== steps.length ||
+                        quote.montantsPaiement.some((m, idx) => m.label !== steps[idx].label || m.pourcentage !== steps[idx].pct);
+      
+      if (needsInit) {
+        const newMontants = steps.map((s, idx) => {
+          if (idx === steps.length - 1) {
+            const othersSum = steps.slice(0, -1).reduce((sum, step) => sum + Math.round(totals.totalTTC * (step.pct / 100) * 100) / 100, 0);
+            return {
+              label: s.label,
+              pourcentage: s.pct,
+              montant: Math.round((totals.totalTTC - othersSum) * 100) / 100
+            };
+          }
+          return {
+            label: s.label,
+            pourcentage: s.pct,
+            montant: Math.round(totals.totalTTC * (s.pct / 100) * 100) / 100
+          };
+        });
+        update({ montantsPaiement: newMontants });
+      } else {
+        const currentSum = quote.montantsPaiement.reduce((sum, m) => sum + m.montant, 0);
+        if (Math.abs(currentSum - totals.totalTTC) > 0.01) {
+          const newMontants = steps.map((s, idx) => {
+            if (idx === steps.length - 1) {
+              const othersSum = steps.slice(0, -1).reduce((sum, step) => sum + Math.round(totals.totalTTC * (step.pct / 100) * 100) / 100, 0);
+              return {
+                label: s.label,
+                pourcentage: s.pct,
+                montant: Math.round((totals.totalTTC - othersSum) * 100) / 100
+              };
+            }
+            return {
+              label: s.label,
+              pourcentage: s.pct,
+              montant: Math.round(totals.totalTTC * (s.pct / 100) * 100) / 100
+            };
+          });
+          update({ montantsPaiement: newMontants });
+        }
+      }
+    } else {
+      if (quote.montantsPaiement && quote.montantsPaiement.length > 0) {
+        update({ montantsPaiement: [] });
+      }
+    }
+  }, [quote?.paymentConditionId, totals.totalTTC]);
+
+  const handlePaymentAmountChange = (index: number, val: number) => {
+    if (!quote.montantsPaiement) return;
+    const newMontants = [...quote.montantsPaiement];
+    newMontants[index] = {
+      ...newMontants[index],
+      montant: val
+    };
+    
+    const lastIdx = newMontants.length - 1;
+    if (lastIdx >= 0 && index !== lastIdx) {
+      const othersSum = newMontants.slice(0, -1).reduce((sum, m) => sum + m.montant, 0);
+      newMontants[lastIdx] = {
+        ...newMontants[lastIdx],
+        montant: Math.round((totals.totalTTC - othersSum) * 100) / 100
+      };
+    }
+    update({ montantsPaiement: newMontants });
+  };
   const updateLine = (lineId: string, patch: Partial<QuoteLine>) => {
     let finalPatch = { ...patch };
     if (patch.designation !== undefined) {
