@@ -162,8 +162,8 @@ function CreerFactureModal({ commande, onClose, onDone }: {
         <div className="mb-5">
           <p className="form-label mb-2">Échéancier</p>
           <div className="flex gap-1">
-            {(commande.montantsPaiement && commande.montantsPaiement.length > 0
-              ? commande.montantsPaiement.map((m) => ({ pct: m.pourcentage, label: m.label, montant: m.montant }))
+            {((commande.montantsPaiement || []).length > 0
+              ? (commande.montantsPaiement || []).map((m) => ({ pct: m.pourcentage, label: m.label, montant: m.montant }))
               : ECHEANCIER_DEFAUT
             ).map((e, i) => {
               const done = i < commande.factures.length;
@@ -352,8 +352,8 @@ function CommandeDetail({ commande, onBack, onReload }: {
       <div className="luxury-card mb-6">
         <h3 className="section-title">Échéancier de facturation</h3>
         <div className="flex gap-2 mb-4">
-          {(commande.montantsPaiement && commande.montantsPaiement.length > 0
-            ? commande.montantsPaiement.map((m) => ({ pct: m.pourcentage, label: m.label, montant: m.montant }))
+          {((commande.montantsPaiement || []).length > 0
+            ? (commande.montantsPaiement || []).map((m) => ({ pct: m.pourcentage, label: m.label, montant: m.montant }))
             : ECHEANCIER_DEFAUT
           ).map((e, i) => {
             const done = i < commande.factures.length;
@@ -403,10 +403,10 @@ function CommandeDetail({ commande, onBack, onReload }: {
         </div>
 
         {/* Factures intermédiaires */}
-        {commande.factures.length > (commande.montantsPaiement && commande.montantsPaiement.length > 0 ? commande.montantsPaiement.length : ECHEANCIER_DEFAUT.length) && (
+        {commande.factures.length > ((commande.montantsPaiement || []).length > 0 ? (commande.montantsPaiement || []).length : ECHEANCIER_DEFAUT.length) && (
           <div className="border-t border-border pt-3 mt-3">
             <p className="form-label mb-2">Factures intermédiaires</p>
-            {commande.factures.slice(commande.montantsPaiement && commande.montantsPaiement.length > 0 ? commande.montantsPaiement.length : ECHEANCIER_DEFAUT.length).map((f) => (
+            {commande.factures.slice((commande.montantsPaiement || []).length > 0 ? (commande.montantsPaiement || []).length : ECHEANCIER_DEFAUT.length).map((f) => (
               <div key={f.factureId} className="flex items-center justify-between py-1.5 text-sm">
                 <span className="font-mono text-[13px]">{f.numero}</span>
                 <span className="text-muted-foreground">{f.label}</span>

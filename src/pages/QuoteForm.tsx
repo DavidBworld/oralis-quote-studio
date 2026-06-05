@@ -2599,16 +2599,18 @@ export default function QuoteForm() {
     });
   };
 
+  const totals = quote ? calcTotals(quote.lignes) : { sousTotal: 0, totalTVA: 0, totalTTC: 0, tvaMap: {} as Record<number, number> };
+
   useEffect(() => {
     if (!quote) return;
-    const totals = calcTotals(quote.lignes);
     const selectedCond = settings?.paymentConditionsList?.find(c => c.id === quote.paymentConditionId);
     
     if (selectedCond) {
-      const steps = selectedCond.steps;
+      const steps = selectedCond.steps || [];
+      const montants = quote.montantsPaiement || [];
       const needsInit = !quote.montantsPaiement || 
-                        quote.montantsPaiement.length !== steps.length ||
-                        quote.montantsPaiement.some((m, idx) => m.label !== steps[idx].label || m.pourcentage !== steps[idx].pct);
+                        montants.length !== steps.length ||
+                        montants.some((m, idx) => m.label !== steps[idx].label || m.pourcentage !== steps[idx].pct);
       
       if (needsInit) {
         const newMontants = steps.map((s, idx) => {
@@ -2628,7 +2630,7 @@ export default function QuoteForm() {
         });
         update({ montantsPaiement: newMontants });
       } else {
-        const currentSum = quote.montantsPaiement.reduce((sum, m) => sum + m.montant, 0);
+        const currentSum = montants.reduce((sum, m) => sum + m.montant, 0);
         if (Math.abs(currentSum - totals.totalTTC) > 0.01) {
           const newMontants = steps.map((s, idx) => {
             if (idx === steps.length - 1) {
@@ -2649,15 +2651,16 @@ export default function QuoteForm() {
         }
       }
     } else {
-      if (quote.montantsPaiement && quote.montantsPaiement.length > 0) {
+      if ((quote.montantsPaiement || []).length > 0) {
         update({ montantsPaiement: [] });
       }
     }
   }, [quote?.paymentConditionId, totals.totalTTC]);
 
   const handlePaymentAmountChange = (index: number, val: number) => {
-    if (!quote.montantsPaiement) return;
-    const newMontants = [...quote.montantsPaiement];
+    const montants = quote.montantsPaiement || [];
+    if (montants.length === 0) return;
+    const newMontants = [...montants];
     newMontants[index] = {
       ...newMontants[index],
       montant: val
@@ -2914,7 +2917,7 @@ export default function QuoteForm() {
     }
   };
 
-  const totals = calcTotals(quote.lignes);
+  // totals is now declared at component-level scope before useEffect
 
   const productLines = quote.lignes.filter(l => (l.categorie || "").toLowerCase() !== "pose");
   const totalAchatProduits = productLines.reduce((acc, l) => acc + ((l.prixAchatHT || 0) * l.quantite), 0);

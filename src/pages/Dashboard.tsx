@@ -324,9 +324,10 @@ function ConvertCommandeModal({ quote, commandes, onClose, onDone }: { quote: Qu
 // ── Facture Acompte Modal ──
 function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quote; factures: any[]; onClose: () => void; onDone: () => void }) {
   const totals = calcTotals(quote.lignes);
-  const hasCustomPayments = quote.montantsPaiement && quote.montantsPaiement.length > 0;
-  const initialPct = hasCustomPayments ? quote.montantsPaiement[0].pourcentage : 30;
-  const initialMontant = hasCustomPayments ? quote.montantsPaiement[0].montant : totals.totalTTC * 0.3;
+  const montants = quote.montantsPaiement || [];
+  const hasCustomPayments = montants.length > 0;
+  const initialPct = hasCustomPayments ? montants[0].pourcentage : 30;
+  const initialMontant = hasCustomPayments ? montants[0].montant : totals.totalTTC * 0.3;
 
   const [pct, setPct] = useState(initialPct);
   const [usePercent, setUsePercent] = useState(!hasCustomPayments);

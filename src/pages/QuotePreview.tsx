@@ -478,8 +478,8 @@ export default function QuotePreview() {
     { id: "step-3", type: "solde" as const, label: "à la fin des travaux", pct: 5 }
   ];
   const steps = selectedCond?.steps && selectedCond.steps.length > 0 ? selectedCond.steps : defaultSteps;
-  const calculatedPayments = (quote.montantsPaiement && quote.montantsPaiement.length > 0)
-    ? quote.montantsPaiement.map((m) => ({
+  const calculatedPayments = ((quote.montantsPaiement || []).length > 0)
+    ? (quote.montantsPaiement || []).map((m) => ({
         label: m.label,
         pct: m.pourcentage,
         amount: m.montant
