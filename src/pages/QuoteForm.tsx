@@ -505,6 +505,12 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
         if (mc.isCustomDimension) {
           return !!state.largeur && state.largeur > 0 && !!state.profondeur && state.profondeur > 0;
         }
+        const selectedTarif = mc.tarifsPanneau.find(t => t.id === state.tarifPanneauId);
+        const isSurMesure = selectedTarif?.label.toLowerCase().includes("sur mesure");
+        if (isSurMesure) {
+          return !!state.largeur && state.largeur > 0 && state.largeur <= 1030 &&
+                 !!state.profondeur && state.profondeur > 0 && state.profondeur <= 2700;
+        }
         return !!state.tarifPanneauId;
       }
       return false;
@@ -554,14 +560,15 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
 
       const hasPrefix = mc.nom.toLowerCase().includes("paroi") || mc.nom.toLowerCase().includes("couliss");
       const designation = `${hasPrefix ? "" : "Parois coulissantes "}${mc.nom} — ${state.vantaux} vantaux`;
+      const isSurMesure = tarif?.label.toLowerCase().includes("sur mesure");
       const description = genererDescriptionCoulissant(mc, {
         vantaux: state.vantaux || 3,
         tarifPanneau: tarif?.label || "—",
         couleur: couleurNom,
         options: opts,
-        largeurVerre: mc.isCustomDimension ? undefined : state.largeurVerre,
-        hauteurVerre: mc.isCustomDimension ? undefined : state.hauteurVerre,
-        hauteurEncastrement: mc.isCustomDimension ? undefined : encastrementStr,
+        largeurVerre: mc.isCustomDimension ? undefined : (isSurMesure ? state.largeur : state.largeurVerre),
+        hauteurVerre: mc.isCustomDimension ? undefined : (isSurMesure ? state.profondeur : state.hauteurVerre),
+        hauteurEncastrement: mc.isCustomDimension ? undefined : (isSurMesure ? (state.profondeur ? `${state.profondeur + 80} - ${state.profondeur + 120} mm` : "") : encastrementStr),
         largeur: state.largeur,
         hauteur: state.profondeur,
       });
@@ -1320,6 +1327,8 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
           {step === 2 && modele && modele.typeModele === "coulissant" && (() => {
             const mc = modele as ModeleCoulissant;
             const buttons = [];
+            const selectedTarif = mc.tarifsPanneau.find(t => t.id === state.tarifPanneauId);
+            const isSurMesure = selectedTarif?.label.toLowerCase().includes("sur mesure");
             
             const allowedVantaux = mc.isCustomDimension
               ? (mc.grillesVantaux ? Object.keys(mc.grillesVantaux).map(Number).sort((a, b) => a - b) : [2, 4])
@@ -1369,7 +1378,12 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => setState({ ...state, tarifPanneauId: t.id })}
+                          onClick={() => {
+                            const isSM = t.label.toLowerCase().includes("sur mesure");
+                            const nextLargeur = (isSM && state.largeur === 4000) ? 980 : state.largeur;
+                            const nextProfondeur = (isSM && state.profondeur === 3000) ? 2000 : state.profondeur;
+                            setState({ ...state, tarifPanneauId: t.id, largeur: nextLargeur, profondeur: nextProfondeur });
+                          }}
                           className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
                             state.tarifPanneauId === t.id
                               ? "border-accent bg-accent/5 shadow-sm"
@@ -1417,6 +1431,46 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                         onChange={(e) => setState({ ...state, profondeur: parseInt(e.target.value) || 0 })}
                         className="form-input w-full font-mono text-lg text-center"
                       />
+                    </div>
+                  </div>
+                ) : isSurMesure ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-lg bg-muted/20 border border-border">
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Largeur panneau (mm)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={1030}
+                        value={state.largeur || ""}
+                        onChange={(e) => setState({ ...state, largeur: parseInt(e.target.value) || 0 })}
+                        className="form-input w-full font-mono text-lg text-center"
+                        placeholder="Ex: 980"
+                      />
+                      {state.largeur > 1030 && (
+                        <p className="text-xs text-destructive mt-1">Largeur maximale : 1030 mm</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2 block">
+                        Hauteur panneau (mm)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={2700}
+                        value={state.profondeur || ""}
+                        onChange={(e) => setState({ ...state, profondeur: parseInt(e.target.value) || 0 })}
+                        className="form-input w-full font-mono text-lg text-center"
+                        placeholder="Ex: 2100"
+                      />
+                      {state.profondeur > 2700 && (
+                        <p className="text-xs text-destructive mt-1">Hauteur maximale : 2700 mm</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Encastrement : {state.profondeur ? state.profondeur + 80 : 0} mm - {state.profondeur ? state.profondeur + 120 : 0} mm
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -1912,18 +1966,20 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
                           .map(o => o.nom);
                         const selectedColor = mc.couleurs?.find(c => c.id === state.couleurId);
                         const couleurNom = selectedColor ? selectedColor.nom : "—";
+                        const isSurMesure = tarif?.label.toLowerCase().includes("sur mesure");
+                        const encastrementVal = isSurMesure
+                          ? (state.profondeur ? `${state.profondeur + 80} - ${state.profondeur + 120} mm` : "")
+                          : (ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)
+                              ? `${ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)!.encastrementMin} - ${ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)!.encastrementMax} cm`
+                              : "");
                         return genererDescriptionCoulissant(mc, {
                           vantaux: state.vantaux || 3,
                           tarifPanneau: tarif?.label || "—",
                           couleur: couleurNom,
                           options: opts,
-                          largeurVerre: mc.isCustomDimension ? undefined : state.largeurVerre,
-                          hauteurVerre: mc.isCustomDimension ? undefined : state.hauteurVerre,
-                          hauteurEncastrement: mc.isCustomDimension ? undefined : (
-                            ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)
-                              ? `${ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)!.encastrementMin} - ${ABAQUE_COULISSANT.find(a => a.hauteurVerre === state.hauteurVerre)!.encastrementMax}`
-                              : ""
-                          ),
+                          largeurVerre: mc.isCustomDimension ? undefined : (isSurMesure ? state.largeur : state.largeurVerre),
+                          hauteurVerre: mc.isCustomDimension ? undefined : (isSurMesure ? state.profondeur : state.hauteurVerre),
+                          hauteurEncastrement: mc.isCustomDimension ? undefined : encastrementVal,
                           largeur: state.largeur,
                           hauteur: state.profondeur,
                         });
