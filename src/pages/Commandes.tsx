@@ -18,6 +18,8 @@ import {
 } from "@/lib/commande-data";
 import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
 import { dbSaveFacture, dbLoadFactures } from "@/lib/supabase-data/factures";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+
 
 // ── localStorage helpers (Bypassed for Supabase) ──
 function loadFactures(): any[] { return []; }
@@ -683,13 +685,30 @@ export default function Commandes() {
                         >
                           <Eye size={14} className="text-muted-foreground" />
                         </button>
-                        <button
-                          onClick={() => deleteCommande(c)}
-                          className="p-2 rounded hover:bg-muted transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={14} className="text-muted-foreground" />
-                        </button>
+                        {c.factures && c.factures.length > 0 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                disabled
+                                className="p-2 rounded opacity-35 cursor-not-allowed text-muted-foreground"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Impossible de supprimer une commande avec une facture émise</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <button
+                            onClick={() => deleteCommande(c)}
+                            className="p-2 rounded hover:bg-muted transition-colors text-muted-foreground"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

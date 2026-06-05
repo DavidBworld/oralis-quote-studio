@@ -121,7 +121,7 @@ export function getProchainEcheancier(commande: Commande): typeof ECHEANCIER_DEF
 
 // ── Créer une commande depuis un devis accepté ──
 
-export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, dateLivraison: string, commandes?: Commande[]): Commande {
+export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, dateLivraison: string, commandes?: Commande[], dateCreation?: string): Commande {
   const totals = calcTotals(quote.lignes);
   return {
     id: uid(),
@@ -132,7 +132,7 @@ export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, 
     lignes: quote.lignes,
     referenceAffaire,
     dateLivraison,
-    dateCreation: new Date().toISOString().split("T")[0],
+    dateCreation: dateCreation || new Date().toISOString().split("T")[0],
     statut: "en_cours",
     totalHT: totals.sousTotal,
     totalTTC: totals.totalTTC,

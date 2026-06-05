@@ -284,3 +284,28 @@ CREATE OR REPLACE TRIGGER update_factures_updated_at BEFORE UPDATE ON public.fac
 CREATE OR REPLACE TRIGGER update_fournisseurs_updated_at BEFORE UPDATE ON public.fournisseurs FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 CREATE OR REPLACE TRIGGER update_modeles_updated_at BEFORE UPDATE ON public.modeles FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 CREATE OR REPLACE TRIGGER update_settings_updated_at BEFORE UPDATE ON public.settings FOR EACH ROW EXECUTE FUNCTION update_modified_column();
+
+
+-- ==========================================================
+-- TRIGGER: protect commandes from deletion if factures exist
+-- ==========================================================
+CREATE OR REPLACE FUNCTION public.check_commande_delete_protection()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM public.factures 
+        WHERE commande_id = OLD.id::text
+    ) OR (
+        OLD.factures IS NOT NULL AND jsonb_array_length(OLD.factures) > 0
+    ) THEN
+        RAISE EXCEPTION 'Impossible de supprimer une commande avec une facture émise';
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER protect_commande_deletion
+BEFORE DELETE ON public.commandes
+FOR EACH ROW
+EXECUTE FUNCTION public.check_commande_delete_protection();
+

@@ -41,6 +41,7 @@ export default function QuotesList() {
   const [activeTab, setActiveTab] = useState<Quote["statut"] | "tous">("tous");
   const [convertModal, setConvertModal] = useState<Quote | null>(null);
   const [convertRef, setConvertRef] = useState("");
+  const [convertDate, setConvertDate] = useState(new Date().toISOString().split("T")[0]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<{
     isOpen: boolean;
@@ -73,7 +74,7 @@ export default function QuotesList() {
       await dbSaveQuote(updatedQuote);
       
       const cmds = await dbLoadCommandes();
-      const cmd = createCommandeFromDevis(convertModal, convertRef, "", cmds);
+      const cmd = createCommandeFromDevis(convertModal, convertRef, "", cmds, convertDate);
       await dbSaveCommande(cmd);
       
       toast.success(`Commande ${cmd.numero} créée ✓`);
@@ -282,7 +283,11 @@ export default function QuotesList() {
                         </button>
                         {q.statut === "accepte" && !hasCmdForQuote(q.id) && (
                           <button
-                            onClick={() => { setConvertRef(""); setConvertModal(q); }}
+                            onClick={() => {
+                              setConvertRef("");
+                              setConvertDate(new Date().toISOString().split("T")[0]);
+                              setConvertModal(q);
+                            }}
                             className="px-3 py-1.5 rounded text-[12px] font-semibold bg-accent text-accent-foreground hover:opacity-90 transition-opacity flex items-center gap-1"
                             title="Convertir en commande"
                           >
@@ -325,6 +330,15 @@ export default function QuotesList() {
               <p className="font-medium">Conditions de paiement appliquées :</p>
               <p className="text-muted-foreground mt-1">50% à la commande · 45% à la livraison · 5% fin de travaux</p>
             </div>
+            <div className="mb-4">
+              <label className="form-label">Date de la commande</label>
+              <input
+                type="date"
+                className="form-input mt-1"
+                value={convertDate}
+                onChange={(e) => setConvertDate(e.target.value)}
+              />
+            </div>
             <div className="mb-5">
               <label className="form-label">Référence affaire (optionnel)</label>
               <input
@@ -337,7 +351,7 @@ export default function QuotesList() {
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setConvertModal(null)} className="btn-outline-gold">Annuler</button>
-              <button onClick={handleConvert} className="btn-gold">Convertir en commande</button>
+              <button onClick={handleConvert} className="btn-gold">Confirmer</button>
             </div>
           </div>
         </div>
