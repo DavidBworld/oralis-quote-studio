@@ -241,7 +241,7 @@ function ConfigurateurWizard({ initialState, onApply, onClose }: {
     if (defaultModele && !state.modeleId) {
       setState({
         modeleId: defaultModele.id,
-        toitureId: defaultModele.toitures?.[0]?.id || "",
+        toitureId: ("toitures" in defaultModele && Array.isArray((defaultModele as any).toitures)) ? ((defaultModele as any).toitures[0]?.id || "") : "",
         couleurId: defaultModele.couleurs?.[0]?.id || "",
         largeur: 4000,
         profondeur: 3000,

@@ -16,7 +16,7 @@ import {
   nextFactureNumberOR,
   type Commande, type CommandeFacture,
 } from "@/lib/commande-data";
-import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
+import { dbLoadCommandes, dbSaveCommande, dbDeleteCommande } from "@/lib/supabase-data/commandes";
 import { dbSaveFacture, dbLoadFactures } from "@/lib/supabase-data/factures";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 

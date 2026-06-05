@@ -369,7 +369,14 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
         dateEcheance,
         modePaiement,
         statut: "non_payee" as const,
-        reglements: addReglement ? [{ montant: montantRecu, date: dateReception }] : [],
+        reglements: addReglement ? [{
+          id: uid(),
+          mode: modePaiement,
+          libelle: "Règlement acompte",
+          dateReception: dateReception,
+          dateEnregistrement: new Date().toISOString().split("T")[0],
+          montant: montantRecu
+        }] : [],
         dateCreation: new Date().toISOString().split("T")[0],
         tvaBreakdown,
       };
