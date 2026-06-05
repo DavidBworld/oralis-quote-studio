@@ -3221,6 +3221,53 @@ export default function QuoteForm() {
             />
           </div>
         </div>
+
+        {/* Éditeur des tranches de paiement */}
+        {(quote.montantsPaiement && quote.montantsPaiement.length > 0) && (
+          <div className="mb-4 bg-muted/30 border border-border/60 rounded-lg p-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-accent mb-3">Détail des échéances de règlement</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {quote.montantsPaiement.map((step, idx) => {
+                const isLast = idx === quote.montantsPaiement.length - 1;
+                return (
+                  <div key={idx} className="flex flex-col gap-1.5 p-2.5 bg-card border border-border/40 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase">{step.label}</span>
+                      <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 bg-muted rounded text-accent">{step.pourcentage}%</span>
+                    </div>
+                    <div className="relative flex items-center">
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={step.montant}
+                        disabled={isLast}
+                        onChange={(e) => handlePaymentAmountChange(idx, parseFloat(e.target.value) || 0)}
+                        className={`form-input pr-8 font-mono text-[13px] ${isLast ? 'bg-muted/40 cursor-not-allowed opacity-90 border-dashed' : ''}`}
+                      />
+                      <span className="absolute right-3 text-xs text-muted-foreground font-mono">€</span>
+                    </div>
+                    {isLast && (
+                      <span className="text-[9px] text-muted-foreground italic mt-0.5">Solde (calculé automatiquement)</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {(() => {
+              const sumPreceding = (quote.montantsPaiement || []).slice(0, -1).reduce((sum, m) => sum + m.montant, 0);
+              const isOverpaid = sumPreceding > totals.totalTTC;
+              if (isOverpaid) {
+                return (
+                  <div className="mt-3 text-xs text-destructive font-medium bg-destructive/10 border border-destructive/20 rounded p-2.5 flex items-center gap-2">
+                    ⚠️ La somme des acomptes ({formatEUR(sumPreceding)}) dépasse le montant total TTC ({formatEUR(totals.totalTTC)}) !
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        )}
+
         <div className="mb-4"><label className="form-label">Notes / Remarques</label><textarea value={quote.notes} onChange={(e)=>update({notes:e.target.value})} className="form-input resize-none" rows={3}/></div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">Devis valable {quote.validite} jours. TVA selon pays du chantier. {getLegalMention(settings)}</p>
       </section>
