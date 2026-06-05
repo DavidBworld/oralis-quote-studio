@@ -580,22 +580,34 @@ export default function QuotePreview() {
       const dynamicTextsArray = Array.from(textsToTranslate);
       const textsList = [...letterParagraphs, ...dynamicTextsArray];
 
-      const apiKey = import.meta.env.VITE_DEEPL_API_KEY;
-      if (!apiKey) {
-        throw new Error("Clé API DeepL manquante.");
-      }
-
-      const response = await fetch("https://api-free.deepl.com/v2/translate", {
+      let response = await fetch("/api/translate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `DeepL-Auth-Key ${apiKey}`,
         },
         body: JSON.stringify({
-          text: textsList,
-          target_lang: lang,
+          texts: textsList,
+          targetLang: lang,
         }),
       });
+
+      // Fallback for local development if serverless function is not hosted (e.g. running via vite directly)
+      if (response.status === 404) {
+        const apiKey = import.meta.env.VITE_DEEPL_API_KEY;
+        if (apiKey) {
+          response = await fetch("https://api-free.deepl.com/v2/translate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `DeepL-Auth-Key ${apiKey}`,
+            },
+            body: JSON.stringify({
+              text: textsList,
+              target_lang: lang,
+            }),
+          });
+        }
+      }
 
       if (!response.ok) {
         const errText = await response.text();
