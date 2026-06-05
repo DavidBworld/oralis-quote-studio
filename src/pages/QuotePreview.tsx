@@ -794,23 +794,23 @@ export default function QuotePreview() {
       {/* ══════════════════════════════════════════════════════
           PAGE CGV — CONDITIONS GÉNÉRALES DE VENTE
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "8mm 10mm 25mm 10mm" }}>
+      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "8mm 10mm 20mm 10mm" }}>
 
         {/* CGV Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 24, fontWeight: 900, letterSpacing: 3 }}>ORALIS</div>
           <div style={{ fontSize: 11, color: "#555", textAlign: "right" }}>
             <div style={{ fontWeight: 600 }}>CRÉATEUR D'ESPACES EXTÉRIEURS</div>
             <div>{c.rue} — {c.codePostal} {c.ville.toUpperCase()}</div>
           </div>
         </div>
-        <div style={{ borderTop: "2px solid #1a1a1a", marginBottom: 16 }} />
+        <div style={{ borderTop: "2px solid #1a1a1a", marginBottom: 12 }} />
 
         {/* CGV content in 2 columns */}
-        <div style={{ columnCount: 2, columnGap: 24, fontSize: 9, lineHeight: 1.5, color: "#333" }}>
+        <div style={{ columnCount: 2, columnGap: 24, fontSize: "7px", lineHeight: "1.3", color: "#333" }}>
           {CGV_ARTICLES.map((art, i) => (
-            <div key={i} style={{ breakInside: "avoid", marginBottom: 10 }}>
-              <div style={{ fontWeight: 700, fontSize: 9, marginBottom: 3, textTransform: "uppercase" }}>
+            <div key={i} style={{ breakInside: "avoid", marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: "7.5px", marginBottom: 2, textTransform: "uppercase" }}>
                 {art.title}
               </div>
               <div>{art.text}</div>
@@ -819,28 +819,28 @@ export default function QuotePreview() {
         </div>
 
         {/* CGV Footer */}
-        <div style={{ marginTop: 20, borderTop: "1px solid #ddd", paddingTop: 12 }}>
+        <div style={{ marginTop: 12, borderTop: "1px solid #ddd", paddingTop: 10 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 9, color: "#555", lineHeight: 1.6 }}>
+            <div style={{ fontSize: "8px", color: "#555", lineHeight: 1.4 }}>
               <div style={{ fontWeight: 700 }}>La SAS TOUT POUR MA TERRASSE est une SASU immatriculée en FRANCE</div>
               <div>TOUT POUR MA TERRASSE — {c.rue} {c.codePostal} St MAX — FRANCE</div>
               <div>ORALIS "Marque premium de SAS Tout pour ma terrasse"</div>
               <div>SIRET : {c.siret} — Code APE : 4791B — NUMÉRO DE TVA : {c.tvaIntra}</div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 16, minWidth: 140 }}>
-              <div style={{ fontSize: 10, color: "#555" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12, minWidth: 140 }}>
+              <div style={{ fontSize: "9px", color: "#555" }}>
                 DATE: <span style={{ borderBottom: "1px solid #333", display: "inline-block", width: 80 }} />
               </div>
-              <div style={{ fontSize: 10, color: "#555" }}>
+              <div style={{ fontSize: "9px", color: "#555" }}>
                 SIGNATURE: <span style={{ borderBottom: "1px solid #333", display: "inline-block", width: 60 }} />
               </div>
             </div>
           </div>
-          <div style={{ textAlign: "center", marginTop: 12 }}>
-            <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 30, fontWeight: 900, letterSpacing: 4, color: "#1a1a1a" }}>
+          <div style={{ textAlign: "center", marginTop: 8 }}>
+            <div style={{ fontFamily: "Cormorant Garamond, serif", fontSize: 24, fontWeight: 900, letterSpacing: 4, color: "#1a1a1a", lineHeight: 1 }}>
               ORALIS
             </div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: "#555", textTransform: "uppercase" }}>
+            <div style={{ fontSize: "8px", letterSpacing: 3, color: "#555", textTransform: "uppercase", marginTop: 2 }}>
               Créateur d'espaces extérieurs
             </div>
           </div>
