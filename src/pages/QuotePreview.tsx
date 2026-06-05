@@ -660,32 +660,93 @@ export default function QuotePreview() {
     return defaultParagraphs;
   };
 
+  // Estimations précises des dimensions de la page A4 (hauteur 297mm ≈ 1122px, top padding 10mm ≈ 38px)
+  // et du positionnement du bas de page avec la marge de sécurité pour éviter le chevauchement du footer.
+  function estimerHauteurHeader(): number {
+    let leftHeight = settings?.logo ? 85 : 45;
+    leftHeight += 6; // margin-bottom
+    
+    let leftLines = 1; // Votre contact
+    if (quote.notes) leftLines += 1;
+    if (quote.delai || quote.delaiRealisation) leftLines += 1;
+    leftLines += 1; // Offre valable 1 mois...
+    leftHeight += leftLines * 18; // fontSize 11, lineHeight 1.6 => 18px par ligne
+    
+    let rightHeight = 75; // Bloc contact + margin
+    rightHeight += 38; // Devis N° + Date
+    
+    let clientLines = 1; // Nom du client
+    if (quote.client?.societe) clientLines += 1;
+    if (quote.client?.rue) clientLines += 1;
+    clientLines += 1; // CP + Ville
+    if (quote.client?.pays) clientLines += 1;
+    rightHeight += 8 + clientLines * 19; // marginTop: 8, fontSize 13, lineHeight 1.7 => 19px par ligne
+    rightHeight += 17; // Devis n° X du Y
+    
+    return Math.max(leftHeight, rightHeight);
+  }
+
   // Fonction d'estimation de la hauteur d'une ligne de produit pour la pagination
   function estimerHauteurLigne(line: any): number {
-    let height = 40; // Hauteur minimale (désignation, prix...)
+    // 1. Ligne de description de groupe (Row A)
+    let rowAHeight = 0;
     if (line._showGroupDescription && line._descriptionGenerale) {
-      const descLinesFromBreaks = line._descriptionGenerale.split("\n").length;
-      const descLinesFromLength = Math.ceil(line._descriptionGenerale.length / 75);
-      height += Math.max(descLinesFromBreaks, descLinesFromLength) * 15 + 20;
+      const desc = line._descriptionGenerale || "";
+      // Remplissage horizontal sur la largeur du tableau (~115 caractères par ligne)
+      const lines = desc.split("\n").reduce((acc: number, part: string) => {
+        return acc + Math.max(1, Math.ceil(part.length / 115));
+      }, 0);
+      rowAHeight = 20 + 20 + lines * 17; // padding + titre + lignes de texte (lineHeight 1.5 * 11px)
     }
+
+    // 2. Ligne produit principale (Row B)
+    const paddingRowB = 24; // padding vertical 12px haut + 12px bas
+    const minImageHeight = line.image ? 60 : 0;
+    
+    // Hauteur de la désignation (fontSize 12px, lineHeight standard ~18px)
+    const des = line.designation || "";
+    const designationLines = Math.max(1, Math.ceil(des.length / 55));
+    const designationHeight = designationLines * 18 + 4; // lignes + margin-bottom
+
+    // Hauteur de la description (fontSize 10px, lineHeight 1.5 => 15px)
+    let descriptionHeight = 0;
     if (line.description) {
-      const linesFromBreaks = line.description.split("\n").length;
-      const linesFromLength = Math.ceil(line.description.length / 55);
-      height += Math.max(linesFromBreaks, linesFromLength) * 15;
+      const lines = line.description.split("\n").reduce((acc: number, part: string) => {
+        return acc + Math.max(1, Math.ceil(part.length / 65));
+      }, 0);
+      descriptionHeight = lines * 15 + 6; // lignes + margin-bottom
     }
+
+    // Hauteur des options (fontSize 10px, lineHeight 1.6 => 16px)
+    let optionsHeight = 0;
     if (line.options && line.options.length > 0) {
-      height += line.options.length * 18;
+      const lines = line.options.reduce((acc: number, opt: any) => {
+        const optStr = `${opt.designation || ""} — ${formatEUR(opt.prixHT)}`;
+        return acc + Math.max(1, Math.ceil(optStr.length / 65));
+      }, 0);
+      optionsHeight = lines * 16 + 4; // lignes + margin-top
     }
-    if (line.image) {
-      height = Math.max(height, 80);
-    }
-    return height + 20; // marge/padding entre les lignes
+
+    const textColumnHeight = designationHeight + descriptionHeight + optionsHeight;
+    const rowBHeight = paddingRowB + Math.max(minImageHeight, textColumnHeight);
+
+    return rowAHeight + rowBHeight;
   }
+
+  // Calcul du MAX_PAGE_HEIGHT disponible pour les lignes de produit :
+  // Page A4 = 1122.5px. Footer absolute top = ~108px du bas. 
+  // Marge de sécurité de 18mm (≈ 68px) avant le footer pour éviter tout débordement.
+  const footerTopFromPageBottom = 108;
+  const safetyMargin = 68; // 18mm en pixels
+  const maxTableBottom = 1122.5 - footerTopFromPageBottom - safetyMargin; // 946.5px
+  
+  const headerHeight = estimerHauteurHeader();
+  const tableHeaderHeight = 44; // marginTop 12px + thead height ~32px
+  const MAX_PAGE_HEIGHT = maxTableBottom - 38 - headerHeight - tableHeaderHeight; // ~38px de top padding
 
   const pagesProduits: any[][] = [];
   let currentPage: any[] = [];
   let currentHeight = 0;
-  const MAX_PAGE_HEIGHT = 580; // pixels maximum par page de produits
 
   linesWithGroupFlags.forEach((line) => {
     const lineHt = estimerHauteurLigne(line);
