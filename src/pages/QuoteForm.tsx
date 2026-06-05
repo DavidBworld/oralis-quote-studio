@@ -2573,17 +2573,6 @@ export default function QuoteForm() {
     initQuote();
   }, [id, settings, navigate]);
 
-  if (loading || !quote) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
-          <p className="text-xs text-muted-foreground font-body">Chargement du devis...</p>
-        </div>
-      </div>
-    );
-  }
-
   const update = (patch: Partial<Quote> | ((prev: Quote) => Partial<Quote>)) => {
     setQuote(prev => {
       if (!prev) return null;
@@ -2591,6 +2580,7 @@ export default function QuoteForm() {
       return { ...prev, ...resolvedPatch };
     });
   };
+
   const updateClient = (patch: Partial<Quote["client"]> | ((prev: Quote["client"]) => Partial<Quote["client"]>)) => {
     setQuote(prev => {
       if (!prev) return null;
@@ -2676,6 +2666,18 @@ export default function QuoteForm() {
     }
     update({ montantsPaiement: newMontants });
   };
+
+  if (loading || !quote) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-4 border-accent border-t-transparent animate-spin"></div>
+          <p className="text-xs text-muted-foreground font-body">Chargement du devis...</p>
+        </div>
+      </div>
+    );
+  }
+
   const updateLine = (lineId: string, patch: Partial<QuoteLine>) => {
     let finalPatch = { ...patch };
     if (patch.designation !== undefined) {
