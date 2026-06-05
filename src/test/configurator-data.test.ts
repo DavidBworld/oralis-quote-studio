@@ -178,7 +178,7 @@ Poteaux: {{poteaux}} (hauteur {{hauteur_poteaux}})`;
     expect(desc).toContain("Poteaux: 3 (hauteur 2800 mm)");
   });
 
-  it("should apply fallback auto-injection of post height if missing from template", () => {
+  it("should NOT apply fallback auto-injection of post height if missing from template", () => {
     const template = `{{nom}} sur mesure
 Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} poteaux`;
     const ctx = {
@@ -192,7 +192,7 @@ Dimensions : Largeur {{largeur}} × Profondeur {{profondeur}} — {{poteaux}} po
       hauteurPoteauxMm: 2600,
     };
     const desc = genererDescription(template, ctx);
-    expect(desc).toContain("Dimensions : Largeur 4000 mm × Profondeur 3000 mm — 2 poteaux (hauteur 2600 mm)");
+    expect(desc).toBe("Pergola Design sur mesure\nDimensions : Largeur 4000 mm × Profondeur 3000 mm — 2 poteaux");
   });
 });
 
@@ -425,7 +425,7 @@ describe("Option pricing modes (ml and m2)", () => {
       toitures: [],
       couleurs: [],
       reglesPoteau: [{ largeurMinMm: 0, largeurMaxMm: 6000, nombrePoteaux: 2 }],
-      templateDescription: "{{nom}} — {{poteaux}} poteaux",
+      templateDescription: "{{nom}} — {{poteaux}} poteaux (hauteur {{hauteur_poteaux}})\n{{poteaux_supp}}",
       sectionPoteaux: "150x150 mm",
       tarifPoteauSuppHT: 45, // 45€ / ml HT
     };
@@ -628,7 +628,7 @@ describe("ModeleCoulissant calculations & description", () => {
     expect(desc).toContain("Serrure + éléments d'entraînement incluse");
   });
 
-  it("should use fallback auto-injection if template lacks glass size variables", () => {
+  it("should NOT use fallback auto-injection if template lacks glass size variables", () => {
     const model = blankModeleCoulissant();
     model.nom = "ORALIS";
     model.templateDescription = `Configuration : {{vantaux}} vantaux coulissants\nVerre : {{tarif_panneau}}`;
@@ -643,8 +643,7 @@ describe("ModeleCoulissant calculations & description", () => {
       hauteurEncastrement: "208 - 212",
     });
 
-    expect(desc).toContain("Configuration : 3 vantaux coulissants (verre 90 × 200 cm) — Encastrement : 208 - 212 cm");
-    expect(desc).toContain("Verre : Verre clair standard");
+    expect(desc).toBe("Configuration : 3 vantaux coulissants\nVerre : Verre clair standard");
   });
 
   it("should validate abacus definitions", () => {
@@ -862,7 +861,7 @@ describe("MB PRIME model configuration and pricing", () => {
       expect(result.surchargeOptionsSuppHT).toBe(500);
 
       // Testing description generation output
-      const desc = genererDescription(model.templateDescription, {
+      const desc = genererDescription(model.templateDescription + "\nOptions : {{options_supp}}", {
         nom: model.nom,
         largeurMm: 4000,
         profondeurMm: 3000,

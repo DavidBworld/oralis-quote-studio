@@ -702,47 +702,10 @@ export function genererDescription(
   const optionsSuppText = ctx.optionsSupp && ctx.optionsSupp.length > 0 ? ctx.optionsSupp.join(", ") : "";
 
   let resultTemplate = template || "";
-  if (resultTemplate.trim() && !resultTemplate.includes("{{hauteur_poteaux}}")) {
-    if (resultTemplate.includes("{{poteaux}} poteaux")) {
-      resultTemplate = resultTemplate.replace("{{poteaux}} poteaux", "{{poteaux}} poteaux (hauteur {{hauteur_poteaux}})");
-    } else if (resultTemplate.includes("{{poteaux}}")) {
-      resultTemplate = resultTemplate.replace("{{poteaux}}", "{{poteaux}} (hauteur {{hauteur_poteaux}})");
-    } else {
-      resultTemplate = resultTemplate + "\nHauteur poteaux : {{hauteur_poteaux}}";
-    }
-  }
-
-  const isAdaptAir = ctx.nom.toLowerCase().includes("adapt air");
-  const labelSecondColor = isAdaptAir ? "Couleur toile" : "Couleur lames";
-  const varSecondColor = isAdaptAir ? "{{couleur_toile}}" : "{{couleur_lames}}";
-
-  if (ctx.couleurLames && !isAdaptAir && !resultTemplate.includes("{{couleur_lames}}") && !resultTemplate.includes("{{couleur_toile}}")) {
-    if (resultTemplate.includes("Couleur structure : {{couleur}}")) {
-      resultTemplate = resultTemplate.replace("Couleur structure : {{couleur}}", `Couleur structure : {{couleur}}\n${labelSecondColor} : ${varSecondColor}`);
-    } else if (resultTemplate.includes("Couleur : {{couleur}}")) {
-      resultTemplate = resultTemplate.replace("Couleur : {{couleur}}", `Couleur structure : {{couleur}}\n${labelSecondColor} : ${varSecondColor}`);
-    } else if (resultTemplate.includes("{{couleur}}")) {
-      resultTemplate = resultTemplate.replace("{{couleur}}", `{{couleur}} (${isAdaptAir ? "Toile" : "Lames"} : ${varSecondColor})`);
-    } else {
-      resultTemplate = resultTemplate + `\n${labelSecondColor} : ${varSecondColor}`;
-    }
-  }
-
-  if (ctx.typePose && !resultTemplate.includes("{{type_pose}}")) {
-    if (resultTemplate.includes("sur mesure")) {
-      resultTemplate = resultTemplate.replace("sur mesure", "sur mesure ({{type_pose}})");
-    } else {
-      resultTemplate = resultTemplate + "\nPose : {{type_pose}}";
-    }
-  }
 
   const showLamesOrientation = ctx.nom.toLowerCase().includes("prime") || ctx.nom.toLowerCase().includes("advanced");
 
-  if (showLamesOrientation) {
-    if (!isAdaptAir && ctx.lamesOrientation && !resultTemplate.includes("{{orientation_lames}}")) {
-      resultTemplate = resultTemplate + "\nOrientation des lames : {{orientation_lames}}";
-    }
-  } else {
+  if (!showLamesOrientation) {
     // Suppress any mention of orientation_lames for non-PRIME/non-ADVANCED models
     resultTemplate = resultTemplate
       .split("\n")
@@ -787,16 +750,16 @@ export function genererDescription(
   if (ctx.poteauxSupp && ctx.poteauxSupp > 0) {
     const details = section ? `section ${section}, hauteur ${longueurPoteauxSuppFormate}` : `hauteur ${longueurPoteauxSuppFormate}`;
     const lineText = `— ${ctx.poteauxSupp} poteau${ctx.poteauxSupp > 1 ? "x" : ""} supplémentaire${ctx.poteauxSupp > 1 ? "s" : ""} (${details})`;
-    if (!desc.includes("poteaux supplémentaire") && !desc.includes("poteau supplémentaire")) {
-      desc = desc + "\n" + lineText;
-    } else {
-      desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteaux\s*supplémentaires/gi, lineText);
-      desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteau\s*supplémentaire/gi, lineText);
+    
+    // Only inject/append if the template has variables related to extra posts
+    if (template.includes("{{poteaux_supp}}") || template.includes("{{longueur_poteaux_supp}}")) {
+      if (!desc.includes("poteaux supplémentaire") && !desc.includes("poteau supplémentaire")) {
+        desc = desc + "\n" + lineText;
+      } else {
+        desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteaux\s*supplémentaires/gi, lineText);
+        desc = desc.replace(/\{\{poteaux_supp\}\}\s*poteau\s*supplémentaire/gi, lineText);
+      }
     }
-  }
-
-  if (optionsSuppText && !resultTemplate.includes("{{options_supp}}")) {
-    desc = desc + "\nOptions : " + optionsSuppText;
   }
 
   return desc;
@@ -1065,20 +1028,7 @@ export function genererDescriptionCoulissant(
     .replace(/\{\{hauteur_encastrement\}\}/g, ctx.hauteurEncastrement ? String(ctx.hauteurEncastrement) : "")
     .trim();
 
-  // Règle de repli (Fallback auto-injection) si le template ne contient pas les dimensions du verre
-  if (ctx.largeurVerre && ctx.hauteurVerre && !template.includes("{{largeur_verre}}") && !template.includes("{{hauteur_verre}}")) {
-    const encText = ctx.hauteurEncastrement ? ` — Encastrement : ${ctx.hauteurEncastrement} cm` : "";
-    const glassLine = `Dimensions verre : ${ctx.largeurVerre} cm (largeur) × ${ctx.hauteurVerre} cm (hauteur)${encText}`;
-    if (/Configuration\s*:/i.test(desc)) {
-      desc = desc.replace(/Configuration\s*:\s*[^\n]*/i, `Configuration : ${ctx.vantaux} vantaux coulissants (verre ${ctx.largeurVerre} × ${ctx.hauteurVerre} cm)${encText}`);
-    } else {
-      desc = desc + "\n" + glassLine;
-    }
-  }
 
-  if (optionsText && !modele.templateDescription.includes("{{options_texte}}")) {
-    desc += "\n" + optionsText;
-  }
   
   // Remove empty line if options_texte is empty or clean up excess newlines
   desc = desc.replace(/\n\n+/g, "\n");
