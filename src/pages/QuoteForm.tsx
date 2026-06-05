@@ -22,6 +22,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadModeles } from "@/lib/supabase-data/modeles";
 import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
 import { dbLoadClients } from "@/lib/supabase-data/clients";
+import { dbLoadFournisseurs } from "@/lib/supabase-data/fournisseurs";
 
 const CATEGORIES = [
   "Pergola bioclimatique",
@@ -2293,6 +2294,7 @@ export default function QuoteForm() {
   const { id } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [modeles, setModeles] = useState<AnyModele[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{
@@ -2315,27 +2317,34 @@ export default function QuoteForm() {
   const [defaultTva, setDefaultTva] = useState<number>(TVA_RATES[0] || 20);
   const catalogDesignations = useMemo(() => settings.catalogProduits.map((p) => p.designation), [settings]);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("oralis_fournisseurs");
-      if (raw) setSuppliers(JSON.parse(raw));
-    } catch (e) {
-      console.error("Error loading suppliers in QuoteForm:", e);
-    }
-  }, []);
-
-  const supplierProductDesignations = suppliers.flatMap((s) => (s.produits || []).map((p: any) => p.designation));
-
-  const allProductSuggestions = [
-    ...PRODUCT_CATALOG,
-    ...catalogDesignations.filter((d) => !PRODUCT_CATALOG.includes(d)),
-    ...supplierProductDesignations.filter((d) => !PRODUCT_CATALOG.includes(d) && !catalogDesignations.includes(d))
-  ];
+  const allProductSuggestions = useMemo(() => {
+    const fromModeles = modeles.map((m) => m.nom);
+    const fromSuppliers = suppliers.flatMap((s) => (s.produits || []).map((p: any) => p.designation));
+    const fromCatalog = settings.catalogProduits.map((p) => p.designation);
+    
+    // Combine them and remove duplicates
+    const combined = [
+      ...fromSuppliers,
+      ...fromModeles,
+      ...fromCatalog,
+      ...PRODUCT_CATALOG
+    ];
+    return Array.from(new Set(combined));
+  }, [suppliers, modeles, settings]);
 
   useEffect(() => {
     async function initQuote() {
       try {
         setLoading(true);
+        
+        // Load suppliers and models from Supabase in parallel
+        const [loadedSuppliers, loadedModeles] = await Promise.all([
+          dbLoadFournisseurs(),
+          dbLoadModeles()
+        ]);
+        setSuppliers(loadedSuppliers);
+        setModeles(loadedModeles);
+
         if (!id || id === "nouveau") {
           const allQuotes = await dbLoadQuotes();
           const nq = createEmptyQuote(allQuotes);
