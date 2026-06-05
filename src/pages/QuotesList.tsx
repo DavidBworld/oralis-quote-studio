@@ -4,6 +4,7 @@ import { Search, Plus, Eye, Pencil, Copy, FileText, ArrowRightCircle, Trash2 } f
 import {
   formatEUR,
   formatDate,
+  formatClientName,
   calcTotals,
   STATUT_LABELS,
   uid,
@@ -245,7 +246,7 @@ export default function QuotesList() {
                       {q.numero}
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-semibold text-[15px]">{q.client.prenom} {q.client.nom}</span>
+                      <span className="font-semibold text-[15px]">{formatClientName(q.client)}</span>
                       {q.client.societe && (
                         <span className="text-muted-foreground ml-1.5 text-[13px]">
                           — {q.client.societe}
@@ -324,7 +325,7 @@ export default function QuotesList() {
           <div className="bg-card border border-border rounded-xl shadow-2xl w-full max-w-md p-6">
             <h2 className="font-display text-xl font-semibold mb-1">Convertir le devis en commande</h2>
             <p className="text-[14px] text-muted-foreground mb-4">
-              {convertModal.numero} — {convertModal.client.prenom} {convertModal.client.nom}
+              {convertModal.numero} — {formatClientName(convertModal.client)}
             </p>
             <div className="bg-accent/10 border border-accent/20 rounded-lg px-4 py-3 mb-4 text-[14px] text-foreground">
               <p className="font-medium">Conditions de paiement appliquées :</p>

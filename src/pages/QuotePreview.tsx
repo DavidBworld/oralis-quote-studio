@@ -4,6 +4,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import {
   formatEUR,
   formatDate,
+  formatClientName,
   calcTotals,
   lineMontantHT,
   type Quote,
@@ -215,7 +216,7 @@ function PageHeader({
         </div>
         <div style={{ marginTop: 8, textAlign: "right" }}>
           <strong style={{ fontSize: 13, color: "#111" }}>
-            {quote.client.civilite} {quote.client.prenom} {quote.client.nom}
+            {formatClientName(quote.client)}
           </strong><br />
           {quote.client.societe && <span>{quote.client.societe}<br /></span>}
           {quote.client.rue && <span>{quote.client.rue}<br /></span>}
@@ -718,7 +719,7 @@ export default function QuotePreview() {
           <ArrowLeft size={16} /> Retour
         </button>
         <div className="flex-1" />
-        <span className="text-sm font-medium text-muted-foreground">{quote.numero} — {quote.client.prenom} {quote.client.nom}</span>
+        <span className="text-sm font-medium text-muted-foreground">{quote.numero} — {formatClientName(quote.client)}</span>
         <div className="flex-1" />
 
         {/* Language Selector */}
@@ -805,7 +806,7 @@ export default function QuotePreview() {
             </div>
             <div style={{ fontSize: 12, lineHeight: 1.8, textAlign: "right" }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "#111" }}>
-                {quote.client.civilite} {quote.client.prenom} {quote.client.nom}
+                {formatClientName(quote.client)}
               </div>
               {quote.client.societe && <div style={{ fontWeight: 600 }}>{quote.client.societe}</div>}
               <div style={{ fontWeight: 700 }}>{quote.client.rue}</div>

@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  loadQuotes, formatEUR, formatDate, calcTotals, uid,
+  loadQuotes, formatEUR, formatDate, formatClientName, calcTotals, uid,
   type Quote, type QuoteLine,
 } from "@/lib/quote-data";
 import { loadSettings, getLegalMention, defaultComptabilite } from "@/lib/settings-data";
@@ -405,7 +405,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
               {facture.numero}
             </h1>
             <p className="text-[13px] text-muted-foreground mt-0.5 font-body">
-              {facture.client.prenom} {facture.client.nom} — {facture.libelle}
+              {formatClientName(facture.client)} — {facture.libelle}
             </p>
           </div>
         </div>
@@ -463,7 +463,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
             <div className="luxury-card space-y-4">
               <h3 className="section-title">Client & Références</h3>
               <div className="bg-muted/30 rounded p-4 text-sm space-y-1">
-                <p className="font-semibold">{facture.client.prenom} {facture.client.nom}</p>
+                <p className="font-semibold">{formatClientName(facture.client)}</p>
                 {facture.client.societe && <p>{facture.client.societe}</p>}
                 <p>{facture.client.rue}</p>
                 <p>{facture.client.codePostal} {facture.client.ville}, {facture.client.pays}</p>
@@ -1047,7 +1047,7 @@ export default function Factures() {
                     </td>
                     <td className="px-4 py-2 text-muted-foreground">{formatDate(f.dateFacture)}</td>
                     <td className="px-4 py-2">
-                      <span className="font-medium">{f.client.prenom} {f.client.nom}</span>
+                      <span className="font-medium">{formatClientName(f.client)}</span>
                       {f.client.societe && <span className="text-muted-foreground ml-1 text-xs">— {f.client.societe}</span>}
                     </td>
                     <td className="px-4 py-2 text-muted-foreground text-[12px]">{f.referenceAffaire || "—"}</td>
@@ -1156,7 +1156,7 @@ function RappelModal({
           <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X size={16} /></button>
         </div>
         <p className="text-sm text-muted-foreground mb-4 font-body">
-          Facture N° <span className="font-mono font-medium text-foreground">{facture.numero}</span> — Client : <span className="font-medium text-foreground">{facture.client.prenom} {facture.client.nom}</span>
+          Facture N° <span className="font-mono font-medium text-foreground">{facture.numero}</span> — Client : <span className="font-medium text-foreground">{formatClientName(facture.client)}</span>
         </p>
 
         <div className="space-y-4 font-body">
@@ -1260,8 +1260,8 @@ function generateReminderPDF(facture: Facture, type: 1 | 2, dateRappel1Input?: s
   doc.setFont("helvetica", "bold");
   doc.text("DESTINATAIRE :", 120, 28);
   const clientName = facture.client.societe
-    ? `${facture.client.societe} (${facture.client.prenom} ${facture.client.nom})`
-    : `${facture.client.prenom} ${facture.client.nom}`;
+    ? `${facture.client.societe} (${formatClientName(facture.client)})`
+    : formatClientName(facture.client);
   doc.text(clientName, 120, 33);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(80, 80, 80);

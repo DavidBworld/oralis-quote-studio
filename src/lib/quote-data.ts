@@ -104,6 +104,23 @@ export function formatDate(d: string): string {
   return new Date(d).toLocaleDateString("fr-FR");
 }
 
+export function formatClientName(client?: { civilite?: string; nom?: string; prenom?: string } | null): string {
+  if (!client) return "";
+  const civ = (client.civilite || "").trim();
+  const nom = (client.nom || "").trim().toUpperCase();
+  const prenom = (client.prenom || "").trim();
+  
+  if (civ && prenom) {
+    return `${civ} ${nom} ${prenom}`;
+  } else if (civ) {
+    return `${civ} ${nom}`;
+  } else if (prenom) {
+    return `${nom} ${prenom}`;
+  } else {
+    return nom;
+  }
+}
+
 export function expiryDate(date: string, validite: number): string {
   const d = new Date(date);
   d.setDate(d.getDate() + validite);

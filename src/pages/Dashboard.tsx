@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import {
   formatEUR,
   formatDate,
+  formatClientName,
   calcTotals,
   STATUT_LABELS,
   uid,
@@ -295,7 +296,7 @@ function ConvertCommandeModal({ quote, commandes, onClose, onDone }: { quote: Qu
           <button onClick={onClose} className="p-1 hover:bg-muted rounded"><X size={16} /></button>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Devis N° <span className="font-mono font-medium text-foreground">{quote.numero}</span> — Client : <span className="font-medium text-foreground">{quote.client.prenom} {quote.client.nom}</span>
+          Devis N° <span className="font-mono font-medium text-foreground">{quote.numero}</span> — Client : <span className="font-medium text-foreground">{formatClientName(quote.client)}</span>
         </p>
         <div className="space-y-4">
           <div>
@@ -780,7 +781,7 @@ export default function Dashboard() {
                       </div>
                     </td>
                     <td className="px-4 py-2">
-                      <span className="font-medium">{q.client.prenom} {q.client.nom}</span>
+                      <span className="font-medium">{formatClientName(q.client)}</span>
                       {q.client.societe && (
                         <span className="text-muted-foreground ml-1.5 text-xs">
                           — {q.client.societe}
@@ -871,7 +872,7 @@ export default function Dashboard() {
                 <tbody>
                   {relances.map((q, i) => (
                     <tr key={q.id} className={`border-b border-border last:border-0 ${i % 2 === 1 ? "bg-background" : "bg-card"}`}>
-                      <td className="px-4 py-2 font-medium">{q.client.prenom} {q.client.nom}</td>
+                      <td className="px-4 py-2 font-medium">{formatClientName(q.client)}</td>
                       <td className="px-4 py-2 font-mono text-[13px]">{q.numero}</td>
                       <td className="px-4 py-2 text-muted-foreground">{formatDate(q.date)}</td>
                       <td className="px-4 py-2 text-center">
@@ -881,7 +882,7 @@ export default function Dashboard() {
                       </td>
                       <td className="px-4 py-2 text-right">
                         <a
-                          href={`mailto:${q.client.email}?subject=Relance devis ${q.numero}&body=Bonjour ${q.client.prenom}, suite à notre devis ${q.numero}, nous souhaitions savoir si vous aviez des questions. Cordialement, ORALIS`}
+                          href={`mailto:${q.client.email}?subject=Relance devis ${q.numero}&body=Bonjour ${formatClientName(q.client)}, suite à notre devis ${q.numero}, nous souhaitions savoir si vous aviez des questions. Cordialement, ORALIS`}
                           className="btn-outline-gold !px-3 !py-1.5 !text-[11px] inline-flex items-center gap-1.5"
                         >
                           <Mail size={12} /> Relancer

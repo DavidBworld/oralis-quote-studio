@@ -147,6 +147,7 @@ export async function migrateLocalStorageToSupabase(): Promise<MigrationResult> 
         type: c.type,
         statut: c.statut,
         favori: c.favori || false,
+        civilite: c.civilite,
         prenom: c.prenom,
         nom: c.nom,
         societe: c.societe,

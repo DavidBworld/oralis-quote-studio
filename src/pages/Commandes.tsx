@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  formatEUR, formatDate, calcTotals, uid, type Quote
+  formatEUR, formatDate, formatClientName, calcTotals, uid, type Quote
 } from "@/lib/quote-data";
 import {
   COMMANDE_STATUT_LABELS, COMMANDE_STATUT_CLASS,
@@ -292,7 +292,7 @@ function CommandeDetail({ commande, onBack, onReload }: {
               {commande.numero}
             </h1>
             <p className="text-[13px] text-muted-foreground mt-0.5 font-body">
-              {commande.client.prenom} {commande.client.nom}
+              {formatClientName(commande.client)}
               {commande.referenceAffaire && <> — {commande.referenceAffaire}</>}
             </p>
           </div>
@@ -407,7 +407,7 @@ function CommandeDetail({ commande, onBack, onReload }: {
         <div className="luxury-card">
           <h3 className="section-title">Client</h3>
           <div className="text-sm space-y-1">
-            <p className="font-semibold">{commande.client.prenom} {commande.client.nom}</p>
+            <p className="font-semibold">{formatClientName(commande.client)}</p>
             {commande.client.societe && <p>{commande.client.societe}</p>}
             <p>{commande.client.rue}</p>
             <p>{commande.client.codePostal} {commande.client.ville}, {commande.client.pays}</p>
@@ -645,7 +645,7 @@ export default function Commandes() {
                   >
                     <td className="px-4 py-3 font-mono text-[13px] font-medium">{c.numero}</td>
                     <td className="px-4 py-3">
-                      <span className="font-medium">{c.client.prenom} {c.client.nom}</span>
+                      <span className="font-medium">{formatClientName(c.client)}</span>
                       {c.referenceAffaire && <span className="text-muted-foreground ml-1.5 text-xs">— {c.referenceAffaire}</span>}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(c.dateCreation)}</td>

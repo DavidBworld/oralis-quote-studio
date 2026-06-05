@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Printer } from "lucide-react";
-import { formatEUR, formatDate, calcTotals, lineMontantHT } from "@/lib/quote-data";
+import { formatEUR, formatDate, formatClientName, calcTotals, lineMontantHT } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
 import { dbLoadFactures } from "@/lib/supabase-data/factures";
 import { toast } from "sonner";
@@ -117,7 +117,7 @@ function FactureHeader({ facture, c, logo, typeTitle }: { facture: any; c: any; 
         </div>
         <div style={{ marginTop: 8, textAlign: "right" }}>
           <strong style={{ fontSize: 13, color: "#111" }}>
-            {facture.client.civilite} {facture.client.prenom} {facture.client.nom}
+            {formatClientName(facture.client)}
           </strong><br />
           {facture.client.societe && <span>{facture.client.societe}<br /></span>}
           {facture.client.rue && <span>{facture.client.rue}<br /></span>}
@@ -239,7 +239,7 @@ export default function FacturePreview() {
           <ArrowLeft size={16} /> Retour
         </button>
         <div className="flex-1" />
-        <span className="text-sm font-medium text-muted-foreground">{facture.numero} — {facture.client.prenom} {facture.client.nom}</span>
+        <span className="text-sm font-medium text-muted-foreground">{facture.numero} — {formatClientName(facture.client)}</span>
         <div className="flex-1" />
         <button onClick={() => navigate(`/factures/${facture.id}`)} className="btn-outline-gold text-xs">Modifier</button>
         <button onClick={() => window.print()} className="btn-gold flex items-center gap-2 text-xs"><Printer size={14} /> Imprimer / PDF</button>

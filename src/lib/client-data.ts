@@ -35,6 +35,7 @@ export interface Client {
   type: "particulier" | "professionnel";
   statut: "prospect" | "client" | "inactif";
   favori: boolean;
+  civilite?: string;
   prenom: string;
   nom: string;
   societe?: string;
@@ -92,6 +93,7 @@ export function emptyClient(clients: Client[]): Client {
     type: "particulier",
     statut: "prospect",
     favori: false,
+    civilite: "",
     prenom: "",
     nom: "",
     societe: "",

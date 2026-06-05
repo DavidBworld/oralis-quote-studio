@@ -11,7 +11,7 @@ import {
   PIPELINE_STAGES, INTERACTION_TYPES, PHOTO_CATEGORIES,
   PROFIL_LABELS, STATUT_CLIENT_LABELS,
 } from "@/lib/client-data";
-import { loadQuotes, formatEUR, formatDate, calcTotals, STATUT_LABELS, uid } from "@/lib/quote-data";
+import { loadQuotes, formatEUR, formatDate, formatClientName, calcTotals, STATUT_LABELS, uid } from "@/lib/quote-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadClients, dbSaveClient, dbDeleteClient } from "@/lib/supabase-data/clients";
 import { toast } from "sonner";
@@ -360,7 +360,7 @@ export default function Clients() {
                 </td>
                 <td className="px-4 py-2 font-mono text-[12px] font-medium">{c.code}</td>
                 <td className="px-4 py-2">
-                  <span className="font-medium">{c.prenom} {c.nom}</span>
+                  <span className="font-medium">{formatClientName(c)}</span>
                   {c.societe && <span className="text-muted-foreground ml-1.5 text-xs">— {c.societe}</span>}
                 </td>
                 <td className="px-4 py-2 text-muted-foreground">{c.codePostal}</td>
@@ -491,7 +491,7 @@ function ClientDetail({
             ← Retour à la liste
           </button>
           <h1 className="font-display text-[32px] font-semibold text-foreground tracking-tight">
-            {form.prenom} {form.nom}
+            {formatClientName(form)}
           </h1>
           <p className="text-[13px] text-muted-foreground mt-1 font-body">
             {form.code} — {STATUT_CLIENT_LABELS[form.statut]}
@@ -575,7 +575,16 @@ function TabCoordonnees({ form, setForm, onSave, onBack }: { form: Client; setFo
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="form-label">Civilité</label>
+              <select value={form.civilite || ""} onChange={(e) => set("civilite", e.target.value)} className="form-input">
+                <option value="">—</option>
+                <option value="Mr">Mr</option>
+                <option value="Mme">Mme</option>
+                <option value="Mr et Mme">Mr et Mme</option>
+              </select>
+            </div>
             <div>
               <label className="form-label">Prénom</label>
               <input value={form.prenom} onChange={(e) => set("prenom", e.target.value)} className="form-input" />

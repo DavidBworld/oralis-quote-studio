@@ -2870,7 +2870,16 @@ export default function QuoteForm() {
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="form-label">Civilité</label>
+            <select value={quote.client.civilite || ""} onChange={(e)=>updateClient({civilite:e.target.value})} className="form-input">
+              <option value="">—</option>
+              <option value="Mr">Mr</option>
+              <option value="Mme">Mme</option>
+              <option value="Mr et Mme">Mr et Mme</option>
+            </select>
+          </div>
           <div><label className="form-label">Prénom</label><input type="text" value={quote.client.prenom} onChange={(e)=>updateClient({prenom:e.target.value})} className="form-input"/></div>
           <div><label className="form-label">Nom *</label><input type="text" value={quote.client.nom} onChange={(e)=>updateClient({nom:e.target.value})} className="form-input" required/></div>
           {quote.client.type==="professionnel" && <div className="md:col-span-2"><label className="form-label">Société</label><input type="text" value={quote.client.societe} onChange={(e)=>updateClient({societe:e.target.value})} className="form-input"/></div>}
