@@ -3101,7 +3101,14 @@ export default function QuoteForm() {
               return;
             }
             localStorage.setItem("oralis_preview_quote", JSON.stringify(quote));
-            navigate(`/devis/${quote.id}/apercu`);
+            if (!id || id === "nouveau") {
+              navigate(`/devis/${quote.id}`, { replace: true });
+              setTimeout(() => {
+                navigate(`/devis/${quote.id}/apercu`);
+              }, 0);
+            } else {
+              navigate(`/devis/${quote.id}/apercu`);
+            }
           }}
           className="btn-outline-gold"
         >
