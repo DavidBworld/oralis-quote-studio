@@ -269,6 +269,53 @@ Fabrication entièrement sur mesure`,
 export function migrateModeles(modeles: AnyModele[]): AnyModele[] {
   let migrated = false;
   const fixed = modeles.map((m) => {
+    if (m.id === "9a6dcf8e-161b-4f9e-a89e-29219e918451") {
+      let copy = { ...m } as ModeleCoulissant;
+      copy.typeModele = "coulissant";
+      copy.nom = "BAIE COULISSANTE";
+      copy.nomFournisseur = "PAROIS COULISSANTES MB";
+      copy.fournisseurId = "e57d1ba7-66df-4c35-b3d9-9a5656ec095d";
+      copy.fournisseurNom = "MB";
+      copy.margeDefaut = 2.7;
+      copy.vantauxMin = 2;
+      copy.vantauxMax = 4;
+      copy.isCustomDimension = true;
+      if (!copy.tarifsPanneau || copy.tarifsPanneau.length === 0) {
+        copy.tarifsPanneau = [
+          {
+            id: "standard-442",
+            label: "Verre de sécurité retardateur d'effraction 44.2",
+            prixHT: 0,
+            description: "Inclus de série"
+          }
+        ];
+      }
+      if (!copy.options || copy.options.length === 0) {
+        copy.options = [
+          { id: "opt-ventilation", nom: "Grille de ventilation", surchargeHT: 210, surchargePct: 0 },
+          { id: "opt-poignees", nom: "Poignées intégrées", surchargeHT: 45, surchargePct: 0 }
+        ];
+      }
+      if (!copy.couleurs || copy.couleurs.length === 0) {
+        copy.couleurs = [
+          { id: "col-ral9016", nom: "RAL 9016 Blanc", surchargeHT: 0, surchargePct: 0 },
+          { id: "col-ral9007", nom: "RAL 9007 Gris Métallique", surchargeHT: 0, surchargePct: 0 },
+          { id: "col-db703", nom: "DB703 Gris Pailleté", surchargeHT: 0, surchargePct: 0 },
+          { id: "col-ral7016", nom: "RAL 7016 Anthracite", surchargeHT: 0, surchargePct: 0 },
+          { id: "col-ral9005", nom: "RAL 9005 Noir", surchargeHT: 0, surchargePct: 0 }
+        ];
+      }
+      if (!copy.templateDescription) {
+        copy.templateDescription = 
+`{{nom}} sur mesure
+Configuration : {{vantaux}} vantaux coulissants
+Dimensions : Largeur {{largeur}} mm × Hauteur {{hauteur}} mm
+Verre : Verre de sécurité retardateur d'effraction 44.2
+Couleur structure : {{couleur}}
+Fabrication entièrement sur mesure`;
+      }
+      return copy;
+    }
     if (m.typeModele === "coulissant") {
       let copy = { ...m } as ModeleCoulissant;
       if (!copy.couleurs || copy.couleurs.length === 0) {
