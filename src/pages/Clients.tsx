@@ -55,8 +55,21 @@ export default function Clients() {
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
   const [filterTab, setFilterTab] = useState<FilterTab>("tous");
-  const [profilFilter, setProfilFilter] = useState("tous");
   const [statutFilter, setStatutFilter] = useState("tous");
+  const [showAddProspectModal, setShowAddProspectModal] = useState(false);
+  const [prospectForm, setProspectForm] = useState({
+    civilite: "",
+    prenom: "",
+    nom: "",
+    email: "",
+    telephone: "",
+    mobile: "",
+    societe: "",
+    adresse: "",
+    codePostal: "",
+    ville: "",
+  });
+  const [prospectErrors, setProspectErrors] = useState<Record<string, boolean>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [origineFilter, setOrigineFilter] = useState("tous");
   const [paysFilter, setPaysFilter] = useState("tous");
@@ -114,7 +127,6 @@ export default function Clients() {
       if (filterTab === "favori") return c.favori;
       return c.statut === filterTab;
     })
-    .filter((c) => profilFilter === "tous" || c.profil === profilFilter)
     .filter((c) => statutFilter === "tous" || c.statut === statutFilter)
     .filter((c) => !showAdvanced || origineFilter === "tous" || c.origine === origineFilter)
     .filter((c) => !showAdvanced || paysFilter === "tous" || c.pays === paysFilter)
@@ -159,15 +171,61 @@ export default function Clients() {
     }
   };
 
-  const addNewClient = async () => {
-    const newC = emptyClient(clients);
+  const addNewClient = () => {
+    setProspectForm({
+      civilite: "",
+      prenom: "",
+      nom: "",
+      email: "",
+      telephone: "",
+      mobile: "",
+      societe: "",
+      adresse: "",
+      codePostal: "",
+      ville: "",
+    });
+    setProspectErrors({});
+    setShowAddProspectModal(true);
+  };
+
+  const handleSaveProspect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: Record<string, boolean> = {};
+    if (!prospectForm.nom.trim()) {
+      errors.nom = true;
+    }
+    if (!prospectForm.email.trim()) {
+      errors.email = true;
+    }
+    setProspectErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      toast.error("Veuillez remplir les champs obligatoires.");
+      return;
+    }
+
     try {
-      await dbSaveClient(newC);
-      toast.success("Client créé.");
-      await fetchClients();
-      navigate(`/clients/${newC.id}`);
+      const newC = emptyClient(clients);
+      const clientData: Client = {
+        ...newC,
+        civilite: prospectForm.civilite,
+        prenom: prospectForm.prenom,
+        nom: prospectForm.nom.trim(),
+        email: prospectForm.email.trim(),
+        telephone: prospectForm.telephone.trim(),
+        mobile: prospectForm.mobile.trim(),
+        societe: prospectForm.societe.trim(),
+        adresse: prospectForm.adresse.trim(),
+        codePostal: prospectForm.codePostal.trim(),
+        ville: prospectForm.ville.trim(),
+        statut: "prospect",
+      };
+      await dbSaveClient(clientData);
+      toast.success("Prospect créé.");
+      setShowAddProspectModal(false);
+      fetchClients();
     } catch (err: any) {
-      toast.error("Erreur lors de la création du client.");
+      toast.error("Erreur lors de la création du prospect.");
     }
   };
 
@@ -222,7 +280,7 @@ export default function Clients() {
         </div>
         <button onClick={addNewClient} className="btn-gold flex items-center gap-2">
           <Plus size={16} />
-          Nouveau client
+          Nouveau Prospect
         </button>
       </div>
 
@@ -272,16 +330,6 @@ export default function Clients() {
             className="form-input pl-11 pr-4 h-10"
           />
         </div>
-        <select
-          value={profilFilter}
-          onChange={(e) => setProfilFilter(e.target.value)}
-          className="form-input h-10"
-        >
-          <option value="tous">Tous les profils</option>
-          <option value="standard">Standard</option>
-          <option value="vip">VIP</option>
-          <option value="grand_compte">Grand compte</option>
-        </select>
       </div>
       <div className="grid grid-cols-2 gap-3 mb-2">
         <input
@@ -445,6 +493,145 @@ export default function Clients() {
         }}
         onCancel={() => setConfirmDelete({ isOpen: false, message: "", onConfirm: () => {} })}
       />
+      {showAddProspectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm">
+          <div className="bg-card border border-border p-8 w-full max-w-lg shadow-elevated rounded-lg flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6 shrink-0">
+              <h2 className="font-display text-xl font-semibold">Nouveau Prospect</h2>
+              <button onClick={() => setShowAddProspectModal(false)} className="p-1 rounded hover:bg-muted">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveProspect} className="space-y-4 overflow-y-auto pr-1 flex-1">
+              <div>
+                <label className="form-label">Civilité</label>
+                <select
+                  value={prospectForm.civilite}
+                  onChange={(e) => setProspectForm({ ...prospectForm, civilite: e.target.value })}
+                  className="form-input"
+                >
+                  <option value="">—</option>
+                  <option value="Mr">Mr</option>
+                  <option value="Mme">Mme</option>
+                  <option value="Mr et Mme">Mr et Mme</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Prénom</label>
+                  <input
+                    type="text"
+                    value={prospectForm.prenom}
+                    onChange={(e) => setProspectForm({ ...prospectForm, prenom: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Nom *</label>
+                  <input
+                    type="text"
+                    value={prospectForm.nom}
+                    onChange={(e) => {
+                      setProspectForm({ ...prospectForm, nom: e.target.value });
+                      if (e.target.value.trim()) {
+                        setProspectErrors(prev => ({ ...prev, nom: false }));
+                      }
+                    }}
+                    className={`form-input ${prospectErrors.nom ? "border-destructive focus:ring-destructive/20" : ""}`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">Email *</label>
+                <input
+                  type="email"
+                  value={prospectForm.email}
+                  onChange={(e) => {
+                    setProspectForm({ ...prospectForm, email: e.target.value });
+                    if (e.target.value.trim()) {
+                      setProspectErrors(prev => ({ ...prev, email: false }));
+                    }
+                  }}
+                  className={`form-input ${prospectErrors.email ? "border-destructive focus:ring-destructive/20" : ""}`}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Téléphone</label>
+                  <input
+                    type="text"
+                    value={prospectForm.telephone}
+                    onChange={(e) => setProspectForm({ ...prospectForm, telephone: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Mobile</label>
+                  <input
+                    type="text"
+                    value={prospectForm.mobile}
+                    onChange={(e) => setProspectForm({ ...prospectForm, mobile: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">Société</label>
+                <input
+                  type="text"
+                  value={prospectForm.societe}
+                  onChange={(e) => setProspectForm({ ...prospectForm, societe: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+              <div>
+                <label className="form-label">Adresse</label>
+                <input
+                  type="text"
+                  value={prospectForm.adresse}
+                  onChange={(e) => setProspectForm({ ...prospectForm, adresse: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Code postal</label>
+                  <input
+                    type="text"
+                    value={prospectForm.codePostal}
+                    onChange={(e) => setProspectForm({ ...prospectForm, codePostal: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Ville</label>
+                  <input
+                    type="text"
+                    value={prospectForm.ville}
+                    onChange={(e) => setProspectForm({ ...prospectForm, ville: e.target.value })}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4 shrink-0">
+                <button type="submit" className="btn-gold flex-1">
+                  Enregistrer le prospect
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddProspectModal(false);
+                    setProspectErrors({});
+                  }}
+                  className="btn-ghost border border-border flex-1"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

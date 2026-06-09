@@ -21,8 +21,9 @@ import {
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadModeles } from "@/lib/supabase-data/modeles";
 import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
-import { dbLoadClients } from "@/lib/supabase-data/clients";
+import { dbLoadClients, dbSaveClient } from "@/lib/supabase-data/clients";
 import { dbLoadFournisseurs } from "@/lib/supabase-data/fournisseurs";
+import { emptyClient } from "@/lib/client-data";
 
 const CATEGORIES = [
   "Pergola bioclimatique",
@@ -2905,6 +2906,39 @@ export default function QuoteForm() {
     setSaving(true);
     try {
       await dbSaveQuote(quote);
+
+      // Synchro prospect/client depuis le devis
+      const clientEmail = quote.client.email?.trim();
+      const clientNom = quote.client.nom?.trim();
+      if (clientEmail && clientNom) {
+        try {
+          const allClients = await dbLoadClients();
+          const existing = allClients.find(
+            (c) => c.email?.toLowerCase() === clientEmail.toLowerCase() &&
+                   c.nom?.toLowerCase() === clientNom.toLowerCase()
+          );
+          const isAlreadyClient = existing?.statut === 'client';
+          const clientData = {
+            ...(existing || emptyClient(allClients)),
+            civilite: quote.client.civilite || existing?.civilite || '',
+            prenom: quote.client.prenom || existing?.prenom || '',
+            nom: clientNom,
+            email: clientEmail,
+            telephone: quote.client.telephone || existing?.telephone || '',
+            societe: quote.client.societe || existing?.societe || '',
+            adresse: quote.client.rue || existing?.adresse || '',
+            codePostal: quote.client.codePostal || existing?.codePostal || '',
+            ville: quote.client.ville || existing?.ville || '',
+            pays: quote.client.pays || existing?.pays || 'France',
+            statut: isAlreadyClient ? 'client' : (quote.statut === 'accepte' ? 'client' : 'prospect'),
+          };
+          await dbSaveClient(clientData);
+        } catch (errClient) {
+          console.error('Erreur synchro client:', errClient);
+          // Ne pas bloquer la sauvegarde du devis si la synchro échoue
+        }
+      }
+
       toast.success("Devis enregistré !");
       localStorage.removeItem("oralis_preview_quote");
       if (redirectAfter) {
