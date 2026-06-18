@@ -17,6 +17,7 @@ import {
 import { uid } from "@/lib/quote-data";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadSettings, dbSaveSettings } from "@/lib/supabase-data/settings";
+import { dbLoadCommerciaux, dbSaveCommercial, dbDeleteCommercial, type Commercial } from "@/lib/supabase-data/commerciaux";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export default function Settings() {
 
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"entreprise" | "comptabilite" | "tarifs" | "bibliotheque" | "sauvegarde">("entreprise");
+  const [activeTab, setActiveTab] = useState<"entreprise" | "comptabilite" | "tarifs" | "bibliotheque" | "equipe" | "sauvegarde">("entreprise");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     isOpen: boolean;
@@ -76,6 +77,7 @@ export default function Settings() {
     { key: "comptabilite" as const, label: "Comptabilité" },
     { key: "tarifs" as const, label: "Tarifs" },
     { key: "bibliotheque" as const, label: "Bibliothèque" },
+    { key: "equipe" as const, label: "Équipe" },
     { key: "sauvegarde" as const, label: "Sauvegarde & Restauration" },
   ];
 
@@ -231,6 +233,11 @@ export default function Settings() {
         <BibliothequeTab
           settings={settings}
           update={update}
+          setConfirmDelete={setConfirmDelete}
+        />
+      )}
+      {activeTab === "equipe" && (
+        <EquipeTab
           setConfirmDelete={setConfirmDelete}
         />
       )}
@@ -1273,6 +1280,159 @@ function ComptabiliteTab({
             <label className="form-label">BIC</label>
             <input type="text" value={c.bic} onChange={(e) => updateCompta({ bic: e.target.value })} className="form-input font-mono" />
           </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// TAB 5 — ÉQUIPE
+// ══════════════════════════════════════════════
+
+function EquipeTab({
+  setConfirmDelete,
+}: {
+  setConfirmDelete: React.Dispatch<React.SetStateAction<{ isOpen: boolean; message: string; onConfirm: () => void }>>;
+}) {
+  const [commerciaux, setCommerciaux] = useState<Commercial[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const data = await dbLoadCommerciaux();
+      setCommerciaux(data);
+    } catch (err) {
+      toast.error("Erreur lors du chargement de l'équipe.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdd = () => {
+    const newMember: Commercial = {
+      id: uid(),
+      prenom: "",
+      nom: "",
+      email: "",
+      telephone: "",
+      role: "commercial",
+      pays: "France",
+      actif: true,
+    };
+    setCommerciaux([newMember, ...commerciaux]);
+  };
+
+  const handleChange = (id: string, patch: Partial<Commercial>) => {
+    setCommerciaux((prev) => prev.map(c => c.id === id ? { ...c, ...patch } : c));
+  };
+
+  const handleSave = async (c: Commercial) => {
+    try {
+      if (!c.prenom || !c.nom) {
+        toast.error("Le prénom et le nom sont obligatoires.");
+        return;
+      }
+      await dbSaveCommercial(c);
+      toast.success("Membre enregistré avec succès.");
+      fetchData(); // reload
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement.");
+    }
+  };
+
+  const handleDelete = (c: Commercial) => {
+    setConfirmDelete({
+      isOpen: true,
+      message: `Voulez-vous vraiment supprimer ${c.prenom} ${c.nom} de l'équipe ?`,
+      onConfirm: async () => {
+        try {
+          await dbDeleteCommercial(c.id);
+          toast.success("Membre supprimé.");
+          setCommerciaux((prev) => prev.filter(x => x.id !== c.id));
+        } catch (err) {
+          toast.error("Erreur lors de la suppression.");
+        }
+      }
+    });
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground font-body">Chargement de l'équipe...</p>;
+
+  return (
+    <div className="space-y-6">
+      <section className="luxury-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-title mb-0">Gestion de l'équipe</h2>
+          <button onClick={handleAdd} className="text-xs text-accent hover:text-accent-hover font-medium flex items-center gap-1 transition-colors">
+            <Plus size={12} /> Ajouter un membre
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-6 font-body">
+          Gérez les membres de votre équipe (commerciaux, comptables, managers). Ces profils pourront être assignés aux devis et factures.
+        </p>
+
+        <div className="space-y-4">
+          {commerciaux.map((c) => (
+            <div key={c.id} className="border border-border/80 rounded-lg p-4 bg-muted/10 font-body relative">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="form-label">Prénom</label>
+                  <input type="text" value={c.prenom} onChange={(e) => handleChange(c.id, { prenom: e.target.value })} className="form-input" />
+                </div>
+                <div>
+                  <label className="form-label">Nom</label>
+                  <input type="text" value={c.nom} onChange={(e) => handleChange(c.id, { nom: e.target.value })} className="form-input" />
+                </div>
+                <div>
+                  <label className="form-label">Rôle</label>
+                  <select value={c.role} onChange={(e) => handleChange(c.id, { role: e.target.value as any })} className="form-input">
+                    <option value="manager">Manager</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="comptable">Comptable</option>
+                    <option value="acheteur">Acheteur</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Email</label>
+                  <input type="email" value={c.email || ""} onChange={(e) => handleChange(c.id, { email: e.target.value })} className="form-input" />
+                </div>
+                <div>
+                  <label className="form-label">Téléphone</label>
+                  <input type="tel" value={c.telephone || ""} onChange={(e) => handleChange(c.id, { telephone: e.target.value })} className="form-input" />
+                </div>
+                <div>
+                  <label className="form-label">Pays</label>
+                  <input type="text" value={c.pays || ""} onChange={(e) => handleChange(c.id, { pays: e.target.value })} className="form-input" />
+                </div>
+                <div className="flex items-center gap-3 mt-2 lg:mt-0">
+                  <label className="text-sm font-medium">Actif</label>
+                  <button
+                    onClick={() => handleChange(c.id, { actif: !c.actif })}
+                    className={`w-11 h-6 rounded-full transition-colors ${c.actif ? "bg-accent" : "bg-border"}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full bg-card transition-transform shadow-sm ${c.actif ? "translate-x-5" : "translate-x-0.5"}`} />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button onClick={() => handleDelete(c)} className="px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10 rounded transition-colors flex items-center gap-1">
+                  <Trash2 size={14} /> Supprimer
+                </button>
+                <button onClick={() => handleSave(c)} className="btn-gold px-4 py-1.5 text-xs">
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          ))}
+          {commerciaux.length === 0 && (
+            <p className="text-center text-muted-foreground text-sm py-8 font-body">Aucun membre dans l'équipe pour le moment.</p>
+          )}
         </div>
       </section>
     </div>
