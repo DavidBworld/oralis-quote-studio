@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -186,6 +187,7 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
     try {
       const updated = { ...quote, statut: s };
       await dbSaveQuote(updated);
+      await syncClientStatut((quote as any).clientId, s, quote.id);
       setOpen(false);
       onUpdate();
       toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
@@ -582,6 +584,7 @@ export default function Dashboard() {
     try {
       const updated = { ...q, statut: s };
       await dbSaveQuote(updated);
+      await syncClientStatut((q as any).clientId, s, q.id);
       await reload();
       toast.success(`Statut changé : ${STATUT_LABELS[s]}`);
     } catch (err) {
@@ -927,4 +930,104 @@ export default function Dashboard() {
       />
     </div>
   );
+}
+
+async function syncClientStatut(clientId: string | undefined, newDevisStatut: string, currentDevisId: string) {
+  try {
+    let resolvedClientId = clientId;
+
+    // If clientId is undefined or not a UUID, let's resolve it using currentDevisId
+    if (!resolvedClientId) {
+      const { data: devisData } = await supabase
+        .from("devis")
+        .select("client")
+        .eq("id", currentDevisId)
+        .single();
+      
+      if (devisData?.client) {
+        const clientObj = devisData.client as any;
+        const email = clientObj?.email?.trim();
+        const nom = clientObj?.nom?.trim();
+        if (email && nom) {
+          const { data: clientData } = await supabase
+            .from("clients")
+            .select("id")
+            .eq("email", email)
+            .eq("nom", nom)
+            .limit(1);
+          if (clientData && clientData.length > 0) {
+            resolvedClientId = clientData[0].id;
+          }
+        }
+      }
+    }
+
+    if (!resolvedClientId) {
+      console.warn("syncClientStatut: Impossible de résoudre le clientId pour le devis", currentDevisId);
+      return;
+    }
+
+    if (newDevisStatut === "accepte") {
+      // Fetch current client status
+      const { data: client, error: clientErr } = await supabase
+        .from("clients")
+        .select("statut")
+        .eq("id", resolvedClientId)
+        .single();
+      
+      if (clientErr) throw clientErr;
+      
+      if (client?.statut === "prospect") {
+        const { error: updateErr } = await supabase
+          .from("clients")
+          .update({ statut: "client" })
+          .eq("id", resolvedClientId);
+        
+        if (updateErr) throw updateErr;
+      }
+    } else if (newDevisStatut === "refuse" || newDevisStatut === "brouillon") {
+      // Fetch all devis for the same client to see if there is another accepted one
+      const { data: client, error: clientErr } = await supabase
+        .from("clients")
+        .select("nom, email, statut")
+        .eq("id", resolvedClientId)
+        .single();
+      
+      if (clientErr) throw clientErr;
+      if (!client) return;
+
+      const email = client.email?.trim();
+      const nom = client.nom?.trim();
+
+      if (email && nom) {
+        // Query devis of the same client
+        const { data: allAcceptedDevis, error: allDevisErr } = await supabase
+          .from("devis")
+          .select("id, client")
+          .eq("statut", "accepte")
+          .neq("id", currentDevisId);
+        
+        if (allDevisErr) throw allDevisErr;
+
+        const count = (allAcceptedDevis || []).filter((d: any) => {
+          const dEmail = d.client?.email?.trim();
+          const dNom = d.client?.nom?.trim();
+          return dEmail && dNom && dEmail.toLowerCase() === email.toLowerCase() && dNom.toLowerCase() === nom.toLowerCase();
+        }).length;
+
+        if (count === 0) {
+          if (client.statut === "client") {
+            const { error: updateErr } = await supabase
+              .from("clients")
+              .update({ statut: "prospect" })
+              .eq("id", resolvedClientId);
+            
+            if (updateErr) throw updateErr;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Erreur dans syncClientStatut:", err);
+  }
 }
