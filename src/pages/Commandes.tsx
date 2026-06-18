@@ -545,24 +545,23 @@ export default function Commandes() {
         dbLoadFactures()
       ]);
 
-      const facturesIds = new Set(facturesDB.map(f => f.id));
-      let needsSave = false;
-
-      const updatedCommandes = list.map(c => {
-        const validFactures = c.factures.filter(cf => facturesIds.has(cf.factureId));
-        if (validFactures.length !== c.factures.length) {
-          needsSave = true;
-          return { ...c, factures: validFactures };
-        }
-        return c;
-      });
-
-      if (needsSave) {
-        for (const c of updatedCommandes) {
-          const original = list.find(o => o.id === c.id);
-          if (original && original.factures.length !== c.factures.length) {
-            await dbSaveCommande(c).catch(console.error);
+      const factureIds = new Set(facturesDB.map(f => f.id));
+      
+      const updatedCommandes = [];
+      for (const c of list) {
+        const currentFactures = c.factures || [];
+        const validFactures = currentFactures.filter(cf => factureIds.has(cf.factureId));
+        
+        if (validFactures.length !== currentFactures.length) {
+          const updatedCommande = { ...c, factures: validFactures };
+          try {
+            await dbSaveCommande(updatedCommande);
+          } catch (e) {
+            console.error("Erreur nettoyage base commande:", e);
           }
+          updatedCommandes.push(updatedCommande);
+        } else {
+          updatedCommandes.push(c);
         }
       }
 
