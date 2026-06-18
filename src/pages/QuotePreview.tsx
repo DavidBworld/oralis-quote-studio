@@ -12,6 +12,7 @@ import {
 import { loadSettings, type AppSettings } from "@/lib/settings-data";
 import { dbLoadQuotes } from "@/lib/supabase-data/devis";
 import { dbLoadModeles } from "@/lib/supabase-data/modeles";
+import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
 import { type AnyModele } from "@/lib/configurator-data";
 import { toast } from "sonner";
 
@@ -181,6 +182,7 @@ function PageHeader({
   c: any;
   devisNumero: string;
   logo?: string;
+  commercial?: Commercial | null;
   translateText: (str: string | undefined) => string;
   t: (key: keyof typeof TRANSLATIONS["FR"]) => string;
 }) {
@@ -196,7 +198,7 @@ function PageHeader({
           </div>
         )}
         <div style={{ fontSize: 11, color: "#555", lineHeight: 1.6 }}>
-          <div>{translateText("Votre contact :")} <strong>David BOILON</strong></div>
+          <div>{translateText("Votre contact :")} <strong>{commercial ? `${commercial.prenom} ${commercial.nom}` : "David BOILON"}</strong></div>
           {quote.notes && <div>{translateText("Référence :")} {translateText(quote.notes)}</div>}
           {(quote.delai || quote.delaiRealisation) && <div>{t("delai")} : {translateText(quote.delai || quote.delaiRealisation)}</div>}
           <div style={{ fontWeight: 600, marginTop: 4 }}>{translateText("Offre valable 1 mois hors promotion")}</div>
@@ -206,8 +208,8 @@ function PageHeader({
       <div style={{ textAlign: "right", fontSize: 11, color: "#555", lineHeight: 1.7 }}>
         <div style={{ border: "1px solid #ddd", borderRadius: 4, padding: "4px 10px", marginBottom: 8, display: "inline-block" }}>
           <strong>{translateText("Contact")}</strong><br />
-          Tél. : {c.telephone}<br />
-          Email : {c.email}<br />
+          Tél. : {commercial?.telephone || c.telephone}<br />
+          Email : {commercial?.email || c.email}<br />
           Site : www.{c.siteWeb}
         </div>
         <div>
@@ -327,6 +329,7 @@ export default function QuotePreview() {
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [modeles, setModeles] = useState<AnyModele[]>([]);
+  const [commercial, setCommercial] = useState<Commercial | null>(null);
 
   // States for translation
   const [currentLang, setCurrentLang] = useState<"FR" | "EN" | "DE" | "IT" | "PT">("FR");
@@ -364,9 +367,10 @@ export default function QuotePreview() {
             console.error("Error parsing preview quote from localStorage", e);
           }
         }
-        const [allQuotes, loadedModeles] = await Promise.all([
+        const [allQuotes, loadedModeles, loadedComms] = await Promise.all([
           found ? Promise.resolve([]) : dbLoadQuotes(),
           dbLoadModeles(),
+          dbLoadCommerciaux(),
         ]);
         setModeles(loadedModeles);
 
@@ -376,6 +380,10 @@ export default function QuotePreview() {
 
         if (found) {
           setQuote(found);
+          if (found.commercialId) {
+            const comm = loadedComms.find(c => c.id === found?.commercialId);
+            if (comm) setCommercial(comm);
+          }
         } else {
           toast.error("Devis introuvable.");
           navigate("/");
@@ -653,7 +661,7 @@ export default function QuotePreview() {
     const defaultParagraphs = [
       "Madame, Monsieur,",
       "Vous nous avez confié l'analyse de votre projet et nous vous en remercions chaleureusement. Vous trouverez en pièce jointe le devis correspondant. Ce document présente de manière claire et détaillée tous les éléments que nous avons définis ensemble. Les illustrations qu'il contient vous aideront à visualiser les produits que nous vous proposons, et nous sommes convaincus qu'elles vous permettront également de confirmer les excellents choix que vous avez faits.",
-      `Pour toute information supplémentaire, qu'elle soit d'ordre technique ou commercial, n'hésitez pas à nous contacter par email à ${c.email} ou à appeler votre conseiller au ${c.telephone}.`,
+      `Pour toute information supplémentaire, qu'elle soit d'ordre technique ou commercial, n'hésitez pas à nous contacter par email à ${commercial?.email || c.email} ou à appeler votre conseiller au ${commercial?.telephone || c.telephone}.`,
       "Dans l'attente de notre prochain échange, veuillez recevoir, Madame, Monsieur, mes salutations les plus distinguées."
     ];
     if (currentLang === "FR") {
@@ -923,7 +931,7 @@ export default function QuotePreview() {
 
         {/* Signature */}
         <div style={{ textAlign: "right", fontSize: 12, color: "#333", marginBottom: 16 }}>
-          <div style={{ fontWeight: 600 }}>David BOILON</div>
+          <div style={{ fontWeight: 600 }}>{commercial ? `${commercial.prenom} ${commercial.nom}` : "David BOILON"}</div>
           <div style={{ color: "#777" }}>{translateText("Votre expert conseil")}</div>
         </div>
 
@@ -939,7 +947,7 @@ export default function QuotePreview() {
       {pagesProduits.map((lignesPage, pIdx) => (
         <div key={pIdx} className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
 
-          <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} translateText={translateText} t={t} />
+          <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} commercial={commercial} translateText={translateText} t={t} />
 
           <ProductTable translateText={translateText}>
             {lignesPage.map((line) => (
@@ -1023,7 +1031,7 @@ export default function QuotePreview() {
       ══════════════════════════════════════════════════════ */}
       <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
 
-        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} translateText={translateText} t={t} />
+        <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} commercial={commercial} translateText={translateText} t={t} />
 
         {/* ── TVA detail table ── */}
         <div style={{ marginTop: 24, display: "flex", gap: 24, alignItems: "flex-start" }}>

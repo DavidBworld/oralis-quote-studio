@@ -4,6 +4,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { formatEUR, formatDate, formatClientName, calcTotals, lineMontantHT } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
 import { dbLoadFactures } from "@/lib/supabase-data/factures";
+import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
 import { toast } from "sonner";
 
 const IBAN = "SAS TOUT POUR MA TERRASSE — IBAN FR76 1695 8000 0129 8680 2762 960";
@@ -209,7 +210,8 @@ function FactureHeader({
   logo,
   typeTitle,
   t,
-  translateText
+  translateText,
+  comptable
 }: {
   facture: any;
   c: any;
@@ -217,6 +219,7 @@ function FactureHeader({
   typeTitle: string;
   t: (key: keyof typeof TRANSLATIONS["FR"]) => string;
   translateText: (str: string | undefined) => string;
+  comptable?: Commercial | null;
 }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16 }}>
@@ -233,8 +236,8 @@ function FactureHeader({
           <div><strong>{c.nom}</strong></div>
           <div>{c.rue}</div>
           <div>{c.codePostal} {c.ville.toUpperCase()}</div>
-          <div>{translateText("Tél. :")} {c.telephone}</div>
-          <div>{translateText("Email :")} {c.email}</div>
+          <div>{translateText("Tél. :")} {comptable?.telephone || c.telephone}</div>
+          <div>{translateText("Email :")} {comptable?.email || c.email}</div>
           <div>{translateText("Site :")} www.{c.siteWeb}</div>
         </div>
       </div>
@@ -270,6 +273,7 @@ export default function FacturePreview() {
   const [settings, setSettings] = useState<any>(null);
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [comptable, setComptable] = useState<Commercial | null>(null);
 
   // States for translation
   const [currentLang, setCurrentLang] = useState<"FR" | "EN" | "DE" | "IT" | "PT">("FR");
@@ -422,10 +426,18 @@ export default function FacturePreview() {
     async function loadData() {
       try {
         setLoading(true);
-        const all = await dbLoadFactures();
+        const [all, commerciaux] = await Promise.all([
+          dbLoadFactures(),
+          dbLoadCommerciaux()
+        ]);
         const found = all.find((f: any) => f.id === id);
         if (found) {
           setFacture(found);
+          const paysClient = found.client?.pays;
+          if (paysClient) {
+            const compt = commerciaux.find(c => c.role === "comptable" && c.pays.toLowerCase() === paysClient.toLowerCase());
+            if (compt) setComptable(compt);
+          }
         } else {
           toast.error("Facture introuvable.");
           navigate("/factures");
@@ -555,7 +567,7 @@ export default function FacturePreview() {
       {/* A4 printable page */}
       <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
         
-        <FactureHeader facture={facture} c={c} logo={logoUrl || settings.logo} typeTitle={typeTitle} t={t} translateText={translateText} />
+        <FactureHeader facture={facture} c={c} logo={logoUrl || settings.logo} typeTitle={typeTitle} t={t} translateText={translateText} comptable={comptable} />
 
         <div style={{ height: "1px", background: "#1a1a1a", margin: "14px 0 14px 0" }} />
 
