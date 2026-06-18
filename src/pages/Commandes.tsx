@@ -540,8 +540,33 @@ export default function Commandes() {
   const reload = useCallback(async () => {
     try {
       setLoading(true);
-      const list = await dbLoadCommandes();
-      setCommandes(list);
+      const [list, facturesDB] = await Promise.all([
+        dbLoadCommandes(),
+        dbLoadFactures()
+      ]);
+
+      const facturesIds = new Set(facturesDB.map(f => f.id));
+      let needsSave = false;
+
+      const updatedCommandes = list.map(c => {
+        const validFactures = c.factures.filter(cf => facturesIds.has(cf.factureId));
+        if (validFactures.length !== c.factures.length) {
+          needsSave = true;
+          return { ...c, factures: validFactures };
+        }
+        return c;
+      });
+
+      if (needsSave) {
+        for (const c of updatedCommandes) {
+          const original = list.find(o => o.id === c.id);
+          if (original && original.factures.length !== c.factures.length) {
+            await dbSaveCommande(c).catch(console.error);
+          }
+        }
+      }
+
+      setCommandes(updatedCommandes);
     } catch (err) {
       toast.error("Erreur lors du chargement des commandes.");
     } finally {
