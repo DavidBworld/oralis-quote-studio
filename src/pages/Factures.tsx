@@ -203,7 +203,27 @@ function FStatutDropdown({ facture, onUpdate }: { facture: Facture; onUpdate: ()
 
   const changeStatus = async (s: Facture["statut"]) => {
     try {
-      const updatedFacture = { ...facture, statut: s };
+      let updatedFacture = { ...facture, statut: s };
+
+      if (s === "payee") {
+        const totalExistant = facture.reglements.reduce((acc, r) => acc + r.montant, 0);
+        if (totalExistant < facture.montantAcompte) {
+          const resteAPayer = Math.round((facture.montantAcompte - totalExistant) * 100) / 100;
+          const today = new Date().toISOString().split("T")[0];
+          updatedFacture.reglements = [
+            ...facture.reglements,
+            {
+              id: uid(),
+              mode: facture.modePaiement || "Virement",
+              libelle: "Règlement automatique",
+              dateReception: today,
+              dateEnregistrement: today,
+              montant: resteAPayer
+            }
+          ];
+        }
+      }
+
       await dbSaveFacture(updatedFacture);
       setOpen(false);
       onUpdate();
