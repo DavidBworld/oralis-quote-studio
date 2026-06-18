@@ -22,6 +22,7 @@ export interface Commande {
   referenceAffaire: string;
   dateLivraison: string;
   dateCreation: string;
+  dateCommande?: string;
   statut: "en_cours" | "livree" | "terminee" | "annulee";
   totalHT: number;
   totalTTC: number;
@@ -138,7 +139,7 @@ export function getProchainEcheancier(commande: Commande): { type: "acompte_comm
 
 // ── Créer une commande depuis un devis accepté ──
 
-export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, dateLivraison: string, commandes?: Commande[], dateCreation?: string): Commande {
+export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, dateLivraison: string, commandes?: Commande[], dateCommande?: string): Commande {
   const totals = calcTotals(quote.lignes);
   return {
     id: uid(),
@@ -149,7 +150,8 @@ export function createCommandeFromDevis(quote: Quote, referenceAffaire: string, 
     lignes: quote.lignes,
     referenceAffaire,
     dateLivraison,
-    dateCreation: dateCreation || new Date().toISOString().split("T")[0],
+    dateCreation: new Date().toISOString().split("T")[0],
+    dateCommande: dateCommande || new Date().toISOString().split("T")[0],
     statut: "en_cours",
     totalHT: totals.sousTotal,
     totalTTC: totals.totalTTC,

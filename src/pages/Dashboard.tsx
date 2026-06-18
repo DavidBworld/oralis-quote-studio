@@ -272,10 +272,11 @@ function StatusDropdown({ quote, onUpdate }: { quote: Quote; onUpdate: () => voi
 function ConvertCommandeModal({ quote, commandes, onClose, onDone }: { quote: Quote; commandes: Commande[]; onClose: () => void; onDone: () => void }) {
   const [refAffaire, setRefAffaire] = useState("");
   const [dateLivraison, setDateLivraison] = useState("");
+  const [dateCommande, setDateCommande] = useState(new Date().toISOString().split("T")[0]);
 
   const handleConvert = async () => {
     try {
-      const cmd = createCommandeFromDevis(quote, refAffaire, dateLivraison, commandes);
+      const cmd = createCommandeFromDevis(quote, refAffaire, dateLivraison, commandes, dateCommande);
       await dbSaveCommande(cmd);
 
       const updatedQuote = { ...quote, statut: "accepte" as const };
@@ -304,6 +305,10 @@ function ConvertCommandeModal({ quote, commandes, onClose, onDone }: { quote: Qu
           <div>
             <label className="form-label">Référence affaire</label>
             <input className="form-input" placeholder="Ex: Villa Müller - Pergola" value={refAffaire} onChange={(e) => setRefAffaire(e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">Date de commande</label>
+            <input type="date" className="form-input" value={dateCommande} onChange={(e) => setDateCommande(e.target.value)} />
           </div>
           <div>
             <label className="form-label">Date livraison/pose prévue</label>

@@ -666,7 +666,7 @@ export default function Commandes() {
                       <span className="font-medium">{formatClientName(c.client)}</span>
                       {c.referenceAffaire && <span className="text-muted-foreground ml-1.5 text-xs">— {c.referenceAffaire}</span>}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(c.dateCreation)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatDate(c.dateCommande || c.dateCreation)}</td>
                     <td className="px-4 py-3 text-right font-mono font-medium">{formatEUR(c.totalTTC)}</td>
                     <td className="px-4 py-3 text-right font-mono text-[13px]">{formatEUR(totalFact)}</td>
                     <td className="px-4 py-3">
