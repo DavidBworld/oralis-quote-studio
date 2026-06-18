@@ -23,6 +23,7 @@ import { dbLoadModeles } from "@/lib/supabase-data/modeles";
 import { dbLoadQuotes, dbSaveQuote } from "@/lib/supabase-data/devis";
 import { dbLoadClients, dbSaveClient } from "@/lib/supabase-data/clients";
 import { dbLoadFournisseurs } from "@/lib/supabase-data/fournisseurs";
+import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
 import { emptyClient } from "@/lib/client-data";
 
 const CATEGORIES = [
@@ -2447,6 +2448,7 @@ export default function QuoteForm() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [modeles, setModeles] = useState<AnyModele[]>([]);
+  const [commerciaux, setCommerciaux] = useState<Commercial[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{
@@ -2490,12 +2492,14 @@ export default function QuoteForm() {
         setLoading(true);
         
         // Load suppliers and models from Supabase in parallel
-        const [loadedSuppliers, loadedModeles] = await Promise.all([
+        const [loadedSuppliers, loadedModeles, loadedCommerciaux] = await Promise.all([
           dbLoadFournisseurs(),
-          dbLoadModeles()
+          dbLoadModeles(),
+          dbLoadCommerciaux()
         ]);
         setSuppliers(loadedSuppliers);
         setModeles(loadedModeles);
+        setCommerciaux(loadedCommerciaux.filter(c => c.role === "commercial" && c.actif === true));
 
         if (!id || id === "nouveau") {
           const allQuotes = await dbLoadQuotes();
@@ -2573,6 +2577,18 @@ export default function QuoteForm() {
     }
     initQuote();
   }, [id, settings, navigate]);
+
+  useEffect(() => {
+    if (!quote || commerciaux.length === 0) return;
+    const clientPays = quote.client.pays;
+    if (clientPays) {
+      const matched = commerciaux.find(c => c.pays.toLowerCase() === clientPays.toLowerCase());
+      const currentComm = commerciaux.find(c => c.id === quote.commercialId);
+      if (matched && (!currentComm || currentComm.pays.toLowerCase() !== clientPays.toLowerCase())) {
+        setQuote(prev => prev ? { ...prev, commercialId: matched.id } : null);
+      }
+    }
+  }, [quote?.client.pays, commerciaux]);
 
   const update = (patch: Partial<Quote> | ((prev: Quote) => Partial<Quote>)) => {
     setQuote(prev => {
@@ -3007,6 +3023,26 @@ export default function QuoteForm() {
             <select value={quote.statut} onChange={(e)=>update({statut:e.target.value as Quote["statut"]})} className="form-input">
               {(Object.keys(STATUT_LABELS) as Quote["statut"][]).map((s)=><option key={s} value={s}>{STATUT_LABELS[s]}</option>)}
             </select>
+          </div>
+          <div className="w-64 relative">
+            <label className="form-label">Commercial</label>
+            <select
+              value={quote.commercialId || ""}
+              onChange={(e) => update({ commercialId: e.target.value })}
+              className="form-input"
+            >
+              <option value="">— Aucun —</option>
+              {commerciaux.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.prenom} {c.nom} — {c.pays}
+                </option>
+              ))}
+            </select>
+            {quote.commercialId && commerciaux.find(c => c.id === quote.commercialId)?.pays.toLowerCase() !== quote.client.pays?.toLowerCase() && (
+              <div className="text-amber-500 text-[11px] font-medium mt-1 leading-tight">
+                Attention : le pays du commercial ({commerciaux.find(c => c.id === quote.commercialId)?.pays}) ne correspond pas au pays du client ({quote.client.pays})
+              </div>
+            )}
           </div>
           <div className="w-64">
             <label className="form-label text-accent font-semibold">TVA par défaut du document</label>

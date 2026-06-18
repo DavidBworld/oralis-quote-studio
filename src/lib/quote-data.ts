@@ -56,6 +56,7 @@ export interface Quote {
   notes: string;
   delai?: string;
   montantsPaiement?: PaymentStepAmount[];
+  commercialId?: string;
 }
 
 // Catalogs
