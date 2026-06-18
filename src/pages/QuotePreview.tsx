@@ -203,6 +203,20 @@ function PageHeader({
           {quote.notes && <div>{translateText("Référence :")} {translateText(quote.notes)}</div>}
           {(quote.delai || quote.delaiRealisation) && <div>{t("delai")} : {translateText(quote.delai || quote.delaiRealisation)}</div>}
           <div style={{ fontWeight: 600, marginTop: 4 }}>{translateText("Offre valable 1 mois hors promotion")}</div>
+          {(() => {
+            const al = quote.adresseLivraison;
+            if (al && al.identique === false) {
+              const parts = [al.nom, al.rue, `${al.codePostal || ""} ${al.ville || ""}`.trim(), al.pays].filter(p => p && p.trim().length > 0);
+              if (parts.length > 0) {
+                return (
+                  <div style={{ marginTop: 8, fontWeight: 600, color: "#111" }}>
+                    {translateText("Adresse de chantier :")} {parts.join(" — ")}
+                  </div>
+                );
+              }
+            }
+            return null;
+          })()}
         </div>
       </div>
       {/* Right: Contact + Devis num + Client */}
@@ -869,6 +883,20 @@ export default function QuotePreview() {
               <div>Siret : {c.siret}</div>
               <div>Code APE : 4791B</div>
               <div>Numéro de TVA : {c.tvaIntra}</div>
+              {(() => {
+                const al = quote.adresseLivraison;
+                if (al && al.identique === false) {
+                  const parts = [al.nom, al.rue, `${al.codePostal || ""} ${al.ville || ""}`.trim(), al.pays].filter(p => p && p.trim().length > 0);
+                  if (parts.length > 0) {
+                    return (
+                      <div style={{ marginTop: 12, fontWeight: 700, color: "#111" }}>
+                        {translateText("Adresse de chantier :")} {parts.join(" — ")}
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
             </div>
           </div>
           {/* Right: website pill + client info */}

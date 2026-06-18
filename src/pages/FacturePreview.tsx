@@ -4,6 +4,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { formatEUR, formatDate, formatClientName, calcTotals, lineMontantHT } from "@/lib/quote-data";
 import { loadSettings, getLegalMention } from "@/lib/settings-data";
 import { dbLoadFactures } from "@/lib/supabase-data/factures";
+import { dbLoadQuotes } from "@/lib/supabase-data/devis";
 import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
 import { toast } from "sonner";
 
@@ -239,6 +240,20 @@ function FactureHeader({
           <div>{translateText("Tél. :")} {comptable?.telephone || c.telephone}</div>
           <div>{translateText("Email :")} {comptable?.email || c.email}</div>
           <div>{translateText("Site :")} www.{c.siteWeb}</div>
+          {(() => {
+            const al = facture.adresseLivraison;
+            if (al && al.identique === false) {
+              const parts = [al.nom, al.rue, `${al.codePostal || ""} ${al.ville || ""}`.trim(), al.pays].filter(p => p && p.trim().length > 0);
+              if (parts.length > 0) {
+                return (
+                  <div style={{ marginTop: 8, fontWeight: 600, color: "#111" }}>
+                    {translateText("Adresse de chantier :")} {parts.join(" — ")}
+                  </div>
+                );
+              }
+            }
+            return null;
+          })()}
         </div>
       </div>
       {/* Right: Contact + Devis num + Client */}
@@ -432,6 +447,17 @@ export default function FacturePreview() {
         ]);
         const found = all.find((f: any) => f.id === id);
         if (found) {
+          if (found.devisId) {
+            try {
+              const allQuotes = await dbLoadQuotes();
+              const devis = allQuotes.find(q => q.id === found.devisId);
+              if (devis && devis.adresseLivraison) {
+                found.adresseLivraison = devis.adresseLivraison;
+              }
+            } catch (err) {
+              console.error("Erreur lors du chargement du devis lié:", err);
+            }
+          }
           setFacture(found);
           let compt = null;
           if (found.comptableId) {

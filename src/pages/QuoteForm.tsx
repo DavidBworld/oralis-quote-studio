@@ -2527,6 +2527,18 @@ export default function QuoteForm() {
                   codePostal: matchedClient.codePostal || "",
                   pays: matchedClient.pays || "France",
                 };
+                
+                if (matchedClient.livraisonIdentique === false) {
+                  nq.adresseLivraison = {
+                    identique: false,
+                    nom: matchedClient.livraisonNom || "",
+                    rue: matchedClient.livraisonRue || "",
+                    ville: matchedClient.livraisonVille || "",
+                    codePostal: matchedClient.livraisonCodePostal || "",
+                    pays: matchedClient.livraisonPays || "France",
+                  };
+                }
+
                 if (matchedClient.tvaDefaut !== undefined) {
                   setDefaultTva(matchedClient.tvaDefaut);
                   if (nq.lignes && nq.lignes.length > 0) {
@@ -2603,6 +2615,14 @@ export default function QuoteForm() {
       if (!prev) return null;
       const resolvedPatch = typeof patch === "function" ? patch(prev.client) : patch;
       return { ...prev, client: { ...prev.client, ...resolvedPatch } };
+    });
+  };
+
+  const updateAdresseLivraison = (patch: Partial<NonNullable<Quote["adresseLivraison"]>>) => {
+    setQuote(prev => {
+      if (!prev) return null;
+      const current = prev.adresseLivraison || { identique: true };
+      return { ...prev, adresseLivraison: { ...current, ...patch } };
     });
   };
 
@@ -3098,6 +3118,46 @@ export default function QuoteForm() {
             <select value={quote.client.pays} onChange={(e)=>updateClient({pays:e.target.value})} className="form-input">
               {PAYS_OPTIONS.map((p)=><option key={p} value={p}>{p}</option>)}
             </select></div>
+        </div>
+
+        <div className="mt-6 border-t pt-5">
+          <h3 className="text-sm font-semibold mb-3">Adresse de livraison / Chantier</h3>
+          <label className="flex items-center gap-2 text-sm cursor-pointer mb-4">
+            <input 
+              type="checkbox" 
+              checked={quote.adresseLivraison?.identique ?? true} 
+              onChange={(e)=>updateAdresseLivraison({identique: e.target.checked})} 
+              className="accent-[hsl(var(--accent))]" 
+            />
+            Identique à l'adresse de facturation
+          </label>
+          
+          {!(quote.adresseLivraison?.identique ?? true) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-3">
+                <label className="form-label">Nom / Société de livraison</label>
+                <input type="text" value={quote.adresseLivraison?.nom || ""} onChange={(e)=>updateAdresseLivraison({nom:e.target.value})} className="form-input"/>
+              </div>
+              <div className="md:col-span-3">
+                <label className="form-label">Rue / Adresse</label>
+                <input type="text" value={quote.adresseLivraison?.rue || ""} onChange={(e)=>updateAdresseLivraison({rue:e.target.value})} className="form-input"/>
+              </div>
+              <div>
+                <label className="form-label">Ville</label>
+                <input type="text" value={quote.adresseLivraison?.ville || ""} onChange={(e)=>updateAdresseLivraison({ville:e.target.value})} className="form-input"/>
+              </div>
+              <div>
+                <label className="form-label">Code postal</label>
+                <input type="text" value={quote.adresseLivraison?.codePostal || ""} onChange={(e)=>updateAdresseLivraison({codePostal:e.target.value})} className="form-input"/>
+              </div>
+              <div>
+                <label className="form-label">Pays</label>
+                <select value={quote.adresseLivraison?.pays || "France"} onChange={(e)=>updateAdresseLivraison({pays:e.target.value})} className="form-input">
+                  {PAYS_OPTIONS.map((p)=><option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

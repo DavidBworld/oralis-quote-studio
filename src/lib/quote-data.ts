@@ -57,6 +57,14 @@ export interface Quote {
   delai?: string;
   montantsPaiement?: PaymentStepAmount[];
   commercialId?: string;
+  adresseLivraison?: {
+    identique: boolean;
+    nom?: string;
+    rue?: string;
+    ville?: string;
+    codePostal?: string;
+    pays?: string;
+  };
 }
 
 // Catalogs
@@ -244,6 +252,7 @@ export function createEmptyQuote(quotes: Quote[]): Quote {
     delaiRealisation: "6 à 8 semaines",
     notes: "",
     delai: "De 8 à 10 semaines",
+    adresseLivraison: { identique: true },
   };
 }
 
