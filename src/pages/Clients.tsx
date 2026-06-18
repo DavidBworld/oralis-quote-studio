@@ -836,6 +836,49 @@ function TabCoordonnees({ form, setForm, onSave, onBack }: { form: Client; setFo
               {PAYS_LIST.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+          
+          <div className="luxury-card space-y-4">
+            <h3 className="section-title">Adresse de livraison / Chantier</h3>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={form.livraisonIdentique ?? true} 
+                onChange={(e) => set("livraisonIdentique", e.target.checked)} 
+                className="accent-[hsl(var(--accent))]" 
+              />
+              Identique à l'adresse de facturation
+            </label>
+            
+            {!(form.livraisonIdentique ?? true) && (
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="form-label">Nom / Société de livraison</label>
+                  <input value={form.livraisonNom || ""} onChange={(e) => set("livraisonNom", e.target.value)} className="form-input" />
+                </div>
+                <div>
+                  <label className="form-label">Rue / Adresse</label>
+                  <input value={form.livraisonRue || ""} onChange={(e) => set("livraisonRue", e.target.value)} className="form-input" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="form-label">Ville</label>
+                    <input value={form.livraisonVille || ""} onChange={(e) => set("livraisonVille", e.target.value)} className="form-input" />
+                  </div>
+                  <div>
+                    <label className="form-label">Code postal</label>
+                    <input value={form.livraisonCodePostal || ""} onChange={(e) => set("livraisonCodePostal", e.target.value)} className="form-input" />
+                  </div>
+                </div>
+                <div>
+                  <label className="form-label">Pays</label>
+                  <select value={form.livraisonPays || "France"} onChange={(e) => set("livraisonPays", e.target.value)} className="form-input">
+                    {PAYS_LIST.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="form-label">TVA par défaut</label>
             <select value={form.tvaDefaut} onChange={(e) => set("tvaDefaut", Number(e.target.value))} className="form-input">

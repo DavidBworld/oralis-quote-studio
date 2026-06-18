@@ -46,6 +46,12 @@ export interface Client {
   ville: string;
   codePostal: string;
   pays: string;
+  livraisonIdentique?: boolean;
+  livraisonNom?: string;
+  livraisonRue?: string;
+  livraisonVille?: string;
+  livraisonCodePostal?: string;
+  livraisonPays?: string;
   tvaDefaut: 0 | 3 | 10 | 17 | 20;
   modeReglement: string;
   origine: string;
@@ -104,6 +110,12 @@ export function emptyClient(clients: Client[]): Client {
     ville: "",
     codePostal: "",
     pays: "France",
+    livraisonIdentique: true,
+    livraisonNom: "",
+    livraisonRue: "",
+    livraisonVille: "",
+    livraisonCodePostal: "",
+    livraisonPays: "France",
     tvaDefaut: 20,
     modeReglement: "Virement",
     origine: "",
