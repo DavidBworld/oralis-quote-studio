@@ -175,6 +175,7 @@ function PageHeader({
   c,
   devisNumero,
   logo,
+  commercial,
   translateText,
   t
 }: {
