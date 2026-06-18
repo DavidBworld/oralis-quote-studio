@@ -433,11 +433,13 @@ export default function FacturePreview() {
         const found = all.find((f: any) => f.id === id);
         if (found) {
           setFacture(found);
-          const paysClient = found.client?.pays;
-          if (paysClient) {
-            const compt = commerciaux.find(c => c.role === "comptable" && c.pays.toLowerCase() === paysClient.toLowerCase());
-            if (compt) setComptable(compt);
+          let compt = null;
+          if (found.comptableId) {
+            compt = commerciaux.find((c: any) => c.id === found.comptableId);
+          } else if (found.client?.pays) {
+            compt = commerciaux.find((c: any) => c.role === "comptable" && c.pays.toLowerCase() === found.client.pays.toLowerCase());
           }
+          if (compt) setComptable(compt);
         } else {
           toast.error("Facture introuvable.");
           navigate("/factures");
