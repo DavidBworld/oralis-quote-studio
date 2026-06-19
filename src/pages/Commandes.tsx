@@ -536,6 +536,20 @@ export default function Commandes() {
   const [search, setSearch] = useState("");
   const [factureModalCmd, setFactureModalCmd] = useState<Commande | null>(null);
   const [loading, setLoading] = useState(true);
+  const [kpiPeriod, setKpiPeriod] = useState<"mois" | "mois_prec" | "annee" | "tout">("mois");
+
+  const periodFilter = (dateStr?: string) => {
+    if (!dateStr) return true;
+    const dt = new Date(dateStr);
+    const now = new Date();
+    if (kpiPeriod === "mois") return dt.getMonth() === now.getMonth() && dt.getFullYear() === now.getFullYear();
+    if (kpiPeriod === "mois_prec") {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return dt.getMonth() === lastMonth.getMonth() && dt.getFullYear() === lastMonth.getFullYear();
+    }
+    if (kpiPeriod === "annee") return dt.getFullYear() === now.getFullYear();
+    return true;
+  };
 
   const reload = useCallback(async () => {
     try {
@@ -579,11 +593,16 @@ export default function Commandes() {
 
   const filtered = commandes.filter(
     (c) =>
-      c.client.nom.toLowerCase().includes(search.toLowerCase()) ||
+      (kpiPeriod === "tout" || periodFilter(c.dateCommande || c.dateCreation)) &&
+      (c.client.nom.toLowerCase().includes(search.toLowerCase()) ||
       c.client.prenom.toLowerCase().includes(search.toLowerCase()) ||
       c.numero.toLowerCase().includes(search.toLowerCase()) ||
-      (c.referenceAffaire || "").toLowerCase().includes(search.toLowerCase())
+      (c.referenceAffaire || "").toLowerCase().includes(search.toLowerCase()))
   );
+
+  const sumTotalTTC = filtered.reduce((acc, c) => acc + c.totalTTC, 0);
+  const sumFacture = filtered.reduce((acc, c) => acc + getCommandeTotalFacture(c), 0);
+  const sumReste = filtered.reduce((acc, c) => acc + getCommandeResteAFacturer(c), 0);
 
   const selectedCommande = id ? commandes.find((c) => c.id === id) : null;
 
@@ -635,6 +654,20 @@ export default function Commandes() {
         </div>
       </div>
 
+      {/* KPI Period selector */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <span className="text-[11px] text-muted-foreground uppercase tracking-wide font-body mr-1">Période :</span>
+        {(["mois", "mois_prec", "annee", "tout"] as const).map((p) => {
+          const labels: Record<string, string> = { mois: "Ce mois", mois_prec: "Mois préc.", annee: "Cette année", tout: "Tout" };
+          return (
+            <button key={p} onClick={() => setKpiPeriod(p)}
+              className={`px-3 py-1 text-[12px] rounded font-body transition-colors border ${kpiPeriod === p ? "bg-accent text-accent-foreground border-accent" : "bg-card text-muted-foreground border-border hover:text-foreground hover:border-accent/50"}`}>
+              {labels[p]}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search */}
       <div className="relative mb-6">
         <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -667,6 +700,7 @@ export default function Commandes() {
                 <th className="text-left">Date</th>
                 <th className="text-right">Total TTC</th>
                 <th className="text-right">Facturé</th>
+                <th className="text-right">Reste à facturer</th>
                 <th className="text-center">Avancement</th>
                 <th className="text-center">Statut</th>
                 <th className="text-right">Actions</th>
@@ -693,6 +727,7 @@ export default function Commandes() {
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(c.dateCommande || c.dateCreation)}</td>
                     <td className="px-4 py-3 text-right font-mono font-medium">{formatEUR(c.totalTTC)}</td>
                     <td className="px-4 py-3 text-right font-mono text-[13px]">{formatEUR(totalFact)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-[13px] text-muted-foreground">{formatEUR(reste)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 justify-center">
                         <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -757,6 +792,17 @@ export default function Commandes() {
                 );
               })}
             </tbody>
+            {filtered.length > 0 && (
+              <tfoot className="bg-muted/30 font-semibold text-foreground border-t-[2px] border-border">
+                <tr>
+                  <td colSpan={3} className="px-4 py-3 text-right uppercase tracking-wide text-[11px] text-muted-foreground">Totaux</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatEUR(sumTotalTTC)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatEUR(sumFacture)}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatEUR(sumReste)}</td>
+                  <td colSpan={3}></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}
