@@ -1074,6 +1074,7 @@ export default function Factures() {
                 <th className="text-right">Montant HT</th>
                 <th className="text-right">Montant TTC</th>
                 <th className="text-center">Acompte %</th>
+                <th className="text-right">Montant acompte</th>
                 <th className="text-right">Solde</th>
                 <th className="text-center">Statut</th>
                 <th className="text-right">Actions</th>
@@ -1101,6 +1102,7 @@ export default function Factures() {
                     <td className="px-4 py-2 text-right font-mono text-[13px]">{formatEUR(f.totalHT)}</td>
                     <td className="px-4 py-2 text-right font-mono text-[13px] font-medium">{formatEUR(f.totalTTC)}</td>
                     <td className="px-4 py-2 text-center font-mono text-[13px]">{f.montantAcomptePct}%</td>
+                    <td className="px-4 py-2 text-right font-mono text-[13px]">{formatEUR(f.montantAcompte)}</td>
                     <td className="px-4 py-2 text-right font-mono text-[13px]">{formatEUR(solde > 0 ? solde : 0)}</td>
                     <td className="px-4 py-2 text-center">
                       <FStatutDropdown facture={f} onUpdate={reload} />
