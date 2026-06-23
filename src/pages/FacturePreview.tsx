@@ -7,6 +7,7 @@ import { dbLoadFactures } from "@/lib/supabase-data/factures";
 import { dbLoadQuotes } from "@/lib/supabase-data/devis";
 import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
 import { toast } from "sonner";
+import { normaliserPourNomFichier } from "@/lib/utils";
 
 const IBAN = "SAS TOUT POUR MA TERRASSE — IBAN FR76 1695 8000 0129 8680 2762 960";
 
@@ -289,6 +290,7 @@ export default function FacturePreview() {
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [comptable, setComptable] = useState<Commercial | null>(null);
+  const [acompteIndex, setAcompteIndex] = useState<number>(1);
 
   // States for translation
   const [currentLang, setCurrentLang] = useState<"FR" | "EN" | "DE" | "IT" | "PT">("FR");
@@ -459,6 +461,27 @@ export default function FacturePreview() {
             }
           }
           setFacture(found);
+          
+          if (found.type === "acompte" && found.devisId) {
+            const relatedAcomptes = all
+              .filter((f: any) => f.devisId === found.devisId && f.type === "acompte")
+              .sort((a: any, b: any) => {
+                const dateDiff = new Date(a.dateFacture).getTime() - new Date(b.dateFacture).getTime();
+                if (dateDiff !== 0) return dateDiff;
+                const aCreation = a.dateCreation ? new Date(a.dateCreation).getTime() : 0;
+                const bCreation = b.dateCreation ? new Date(b.dateCreation).getTime() : 0;
+                if (aCreation !== bCreation) return aCreation - bCreation;
+                return (a.numero || "").localeCompare(b.numero || "");
+              });
+            const idx = relatedAcomptes.findIndex((f: any) => f.id === found.id);
+            if (idx === -1) {
+              console.warn(`[FacturePreview] Facture ${found.id} de type acompte non trouvée dans relatedAcomptes — fallback sur index 1. Vérifier devisId/type.`);
+              setAcompteIndex(1);
+            } else {
+              setAcompteIndex(idx + 1);
+            }
+          }
+          
           let compt = null;
           if (found.comptableId) {
             compt = commerciaux.find((c: any) => c.id === found.comptableId);
@@ -501,6 +524,27 @@ export default function FacturePreview() {
     }
     loadData();
   }, [id, navigate]);
+
+  useEffect(() => {
+    if (facture) {
+      const originalTitle = document.title;
+      const clientName = formatClientName(facture.client);
+      const nomNormalized = normaliserPourNomFichier(clientName);
+      let title = "";
+      
+      if (facture.type === "acompte") {
+        title = `FACTURE ACOMPTE ${acompteIndex} N°${facture.numero} - ${nomNormalized}`;
+      } else {
+        title = `FACTURE N°${facture.numero} - ${nomNormalized}`;
+      }
+      
+      document.title = title;
+      
+      return () => {
+        document.title = originalTitle;
+      };
+    }
+  }, [facture, acompteIndex]);
 
   // Auto-print when opened via the "Imprimer" button from FactureDetail
   useEffect(() => {

@@ -13,6 +13,7 @@ import { loadSettings, type AppSettings } from "@/lib/settings-data";
 import { dbLoadQuotes } from "@/lib/supabase-data/devis";
 import { dbLoadModeles } from "@/lib/supabase-data/modeles";
 import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
+import { normaliserPourNomFichier } from "@/lib/utils";
 import { type AnyModele } from "@/lib/configurator-data";
 import { toast } from "sonner";
 
@@ -434,6 +435,20 @@ export default function QuotePreview() {
     }
     loadData();
   }, [id, navigate]);
+
+  useEffect(() => {
+    if (quote) {
+      const originalTitle = document.title;
+      const clientName = formatClientName(quote.client);
+      const nomNormalized = normaliserPourNomFichier(clientName);
+      
+      document.title = `OFFRE N°${quote.numero} ORALIS - ${nomNormalized}`;
+      
+      return () => {
+        document.title = originalTitle;
+      };
+    }
+  }, [quote]);
 
   if (loading || !quote || !settings) {
     return (
