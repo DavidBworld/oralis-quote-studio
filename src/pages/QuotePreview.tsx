@@ -744,8 +744,8 @@ export default function QuotePreview() {
     }
 
     // 2. Ligne produit principale (Row B)
-    const paddingRowB = 24; // padding vertical 12px haut + 12px bas
-    const minImageHeight = line.image ? 60 : 0;
+    const paddingRowB = 25; // padding vertical 12px haut + 12px bas + border
+    const minImageHeight = 60; // Le placeholder gris a une hauteur fixe de 60px
     
     // Hauteur de la désignation (fontSize 12px, lineHeight standard ~18px)
     const des = line.designation || "";
@@ -781,7 +781,7 @@ export default function QuotePreview() {
   // Page A4 = 1122.5px. Footer absolute top = ~108px du bas. 
   // Marge de sécurité de 18mm (≈ 68px) avant le footer pour éviter tout débordement.
   const footerTopFromPageBottom = 108;
-  const safetyMargin = 68; // 18mm en pixels
+  const safetyMargin = 120; // Increased to prevent any possibility of physical page overflow
   const maxTableBottom = 1122.5 - footerTopFromPageBottom - safetyMargin; // 946.5px
   
   const headerHeight = estimerHauteurHeader();
@@ -872,7 +872,7 @@ export default function QuotePreview() {
       {/* ══════════════════════════════════════════════════════
           PAGE 1 — LETTRE DE PRÉSENTATION
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "12mm 10mm 25mm 10mm" }}>
+      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "12mm 10mm 25mm 10mm", overflow: "hidden", breakInside: "avoid" }}>
 
         {/* Header page 1 */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -989,7 +989,7 @@ export default function QuotePreview() {
           PAGES PRODUITS (une ligne = un bloc auto-paginated)
       ══════════════════════════════════════════════════════ */}
       {pagesProduits.map((lignesPage, pIdx) => (
-        <div key={pIdx} className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
+        <div key={pIdx} className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm", overflow: "hidden", breakInside: "avoid" }}>
 
           <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} commercial={commercial} translateText={translateText} t={t} />
 
@@ -1073,7 +1073,7 @@ export default function QuotePreview() {
       {/* ══════════════════════════════════════════════════════
           PAGE RÉCAPITULATIF — TOTAUX + CONDITIONS + SIGNATURE
       ══════════════════════════════════════════════════════ */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
+      <div className="print-page bg-white mx-auto my-8 shadow-lg relative" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm", overflow: "hidden", breakInside: "avoid" }}>
 
         <PageHeader quote={quote} c={c} devisNumero={devisNumeroDisplay} logo={logoUrl || settings.logo} commercial={commercial} translateText={translateText} t={t} />
 

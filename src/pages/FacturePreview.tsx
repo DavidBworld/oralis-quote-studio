@@ -636,15 +636,11 @@ export default function FacturePreview() {
         <button onClick={() => window.print()} className="btn-gold flex items-center gap-2 text-xs"><Printer size={14} /> Imprimer / PDF</button>
       </div>
 
-      {/* A4 printable page */}
-      <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
-        
-        <FactureHeader facture={facture} c={c} logo={logoUrl || settings.logo} typeTitle={typeTitle} t={t} translateText={translateText} comptable={comptable} />
-
-        <div style={{ height: "1px", background: "#1a1a1a", margin: "14px 0 14px 0" }} />
-
-        {isAcompte ? (
-          /* Simplified table for deposits */
+      {isAcompte ? (
+        <div className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm" }}>
+          <FactureHeader facture={facture} c={c} logo={logoUrl || settings.logo} typeTitle={typeTitle} t={t} translateText={translateText} comptable={comptable} />
+          <div style={{ height: "1px", background: "#1a1a1a", margin: "14px 0 14px 0" }} />
+          {/* Simplified table for deposits */}
           <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 12 }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #1a1a1a", borderTop: "2px solid #1a1a1a" }}>
@@ -683,21 +679,192 @@ export default function FacturePreview() {
               })}
             </tbody>
           </table>
-        ) : (
-          /* Detailed table for solde, situation, avoir */
-          <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 12 }}>
-            <thead>
-              <tr style={{ borderBottom: "2px solid #1a1a1a", borderTop: "2px solid #1a1a1a" }}>
-                <th style={{ textAlign: "left", padding: "8px 8px", width: 90, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{translateText("Visuel")}</th>
-                <th style={{ textAlign: "left", padding: "8px 8px", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{t("designation")}</th>
-                <th style={{ textAlign: "center", padding: "8px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("qte")}</th>
-                <th style={{ textAlign: "right", padding: "8px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("pu_ht")}</th>
-                <th style={{ textAlign: "right", padding: "8px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("total_ht")}</th>
-                <th style={{ textAlign: "center", padding: "8px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("tva")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {facture.lignes.map((line: any, i: number) => (
+          
+          {/* Totals block for acompte */}
+          <div style={{ marginTop: 20, display: "flex", gap: 24, alignItems: "flex-start" }}>
+            <div style={{ flex: 1 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, border: "1px solid #ddd" }}>
+                <thead>
+                  <tr style={{ background: "#f5f5f5" }}>
+                    <td style={{ padding: "6px 10px", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{t("detail_tva")}</td>
+                    {tvaColumns.map(r => (
+                      <td key={r} style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{r} %</td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{t("base_ht")}</td>
+                    {tvaColumns.map(r => (
+                      <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
+                        {formatEUR((baseHTByRate[r] ?? 0) * ratio)}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd" }}>{t("montant_tva")}</td>
+                    {tvaColumns.map(r => (
+                      <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd" }}>
+                        {formatEUR((totals.tvaMap[r] ?? 0) * ratio)}
+                      </td>
+                    ))}
+                  </tr>
+                </thead>
+              </table>
+
+              <div style={{ marginTop: 12, border: "1px solid #ddd", padding: "10px 12px", fontSize: 11, lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                  {t("reglement")} {facture.modePaiement === "Virement" || facture.modePaiement === "Virement bancaire" ? t("virement") : translateText(facture.modePaiement || "Virement")}
+                </div>
+                <div>{t("echeance")} : {formatDate(facture.dateEcheance)}</div>
+                <div style={{ marginTop: 6, fontSize: 10, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>💳 {IBAN}</div>
+              </div>
+
+              <div style={{ marginTop: 10, fontSize: 10, color: "#555", lineHeight: 1.5 }}>
+                {t("mention_tva")}.<br />
+                {translateText(getLegalMention(settings))}
+              </div>
+            </div>
+
+            <div style={{ width: 230, flexShrink: 0 }}>
+              <div style={{ border: "1px solid #ddd", overflow: "hidden", borderRadius: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
+                  <span>{t("montant_ht")} :</span>
+                  <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.sousTotal * ratio)}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
+                  <span>{t("montant_tva")} :</span>
+                  <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTVA * ratio)}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#1a1a1a", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                  <span>{t("total_ttc")} :</span>
+                  <span style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(facture.montantAcompte)}</span>
+                </div>
+                {totalRecu > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11, color: "green" }}>
+                    <span>{translateText("Règlements reçus")} :</span>
+                    <strong style={{ fontFamily: "DM Mono, monospace" }}>-{formatEUR(totalRecu)}</strong>
+                  </div>
+                )}
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#f5f5f5", borderTop: "2px solid #ddd", fontSize: 13, fontWeight: 700 }}>
+                  <span>{t("net_a_payer")} :</span>
+                  <span style={{ fontFamily: "DM Mono, monospace", color: "hsl(var(--accent))" }}>{formatEUR(Math.max(netAPayer, 0))}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
+            1 {translateText("sur")} 1
+          </div>
+          <PageFooter c={c} translateText={translateText} />
+        </div>
+      ) : (
+        (() => {
+          // Pagination logic
+          function estimerHauteurHeader() {
+            let leftHeight = (logoUrl || settings.logo) ? 91 : 44; 
+            leftHeight += 6 * 18; // nom, rue, cp, tel, email, site
+            if (facture.adresseLivraison && !facture.adresseLivraison.identique) {
+              const al = facture.adresseLivraison;
+              const parts = [al.nom, al.rue, `${al.codePostal || ""} ${al.ville || ""}`.trim(), al.pays].filter(p => p && p.trim().length > 0);
+              if (parts.length > 0) leftHeight += 26; 
+            }
+
+            let rightHeight = 20 + 18 + 18 + 18 + 18; // titre, numero, date, echeance, devis
+            if (facture.referenceAffaire) rightHeight += 18;
+            
+            rightHeight += 8 + 22; // mt 8 + nom
+            if (facture.client?.societe) rightHeight += 19;
+            if (facture.client?.rue) rightHeight += 19;
+            rightHeight += 19; // cp
+            if (facture.client?.pays) rightHeight += 19;
+
+            return Math.max(leftHeight, rightHeight);
+          }
+
+          function estimerHauteurLigne(line: any): number {
+            const paddingRowB = 25; 
+            const minImageHeight = 60;
+            
+            const des = line.designation || "";
+            const designationLines = Math.max(1, Math.ceil(des.length / 55));
+            const designationHeight = designationLines * 18 + 4;
+
+            let descriptionHeight = 0;
+            if (line.description) {
+              const lines = line.description.split("\n").reduce((acc: number, part: string) => acc + Math.max(1, Math.ceil(part.length / 65)), 0);
+              descriptionHeight = lines * 15 + 6;
+            }
+
+            let optionsHeight = 0;
+            if (line.options && line.options.length > 0) {
+              const lines = line.options.reduce((acc: number, opt: any) => {
+                const optStr = `${opt.designation || ""} — ${formatEUR(opt.prixHT)}`;
+                return acc + Math.max(1, Math.ceil(optStr.length / 65));
+              }, 0);
+              optionsHeight = lines * 16 + 4;
+            }
+
+            const textColumnHeight = designationHeight + descriptionHeight + optionsHeight;
+            return paddingRowB + Math.max(minImageHeight, textColumnHeight);
+          }
+
+          const footerTopFromPageBottom = 108;
+          const safetyMargin = 120; // Increased to absolutely prevent any physical overflow
+          const maxTableBottom = 1122.5 - footerTopFromPageBottom - safetyMargin; 
+
+          const headerHeight = estimerHauteurHeader();
+          const tableHeaderHeight = 44; 
+          const MAX_PAGE_HEIGHT = maxTableBottom - 38 - headerHeight - tableHeaderHeight; 
+          const TOTALS_BLOCK_HEIGHT = 260; // Estimated height of totals block
+
+          const pagesProduits: any[][] = [];
+          let currentPage: any[] = [];
+          let currentHeight = 0;
+
+          facture.lignes.forEach((line: any) => {
+            const lineHt = estimerHauteurLigne(line);
+            if (currentPage.length > 0 && currentHeight + lineHt > MAX_PAGE_HEIGHT) {
+              pagesProduits.push(currentPage);
+              currentPage = [line];
+              currentHeight = lineHt;
+            } else {
+              currentPage.push(line);
+              currentHeight += lineHt;
+            }
+          });
+          
+          if (currentPage.length > 0) {
+            if (currentHeight + TOTALS_BLOCK_HEIGHT > MAX_PAGE_HEIGHT) {
+              pagesProduits.push(currentPage);
+              pagesProduits.push([]); // Empty page for totals
+            } else {
+              pagesProduits.push(currentPage);
+            }
+          } else {
+            pagesProduits.push([]); // Fallback
+          }
+
+          const totalPages = pagesProduits.length;
+
+          return pagesProduits.map((pageLines, pIdx) => (
+            <div key={pIdx} className="print-page bg-white mx-auto my-8 shadow-lg" style={{ maxWidth: "210mm", padding: "10mm 10mm 25mm 10mm", overflow: "hidden", pageBreakInside: "avoid", breakInside: "avoid" }}>
+              <FactureHeader facture={facture} c={c} logo={logoUrl || settings.logo} typeTitle={typeTitle} t={t} translateText={translateText} comptable={comptable} />
+              <div style={{ height: "1px", background: "#1a1a1a", margin: "14px 0 14px 0" }} />
+              
+              {pageLines.length > 0 && (
+                <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", marginTop: 12 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #1a1a1a", borderTop: "2px solid #1a1a1a" }}>
+                      <th style={{ textAlign: "left", padding: "8px 8px", width: 90, fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{translateText("Visuel")}</th>
+                      <th style={{ textAlign: "left", padding: "8px 8px", fontWeight: 600, fontSize: 10, textTransform: "uppercase", letterSpacing: 1 }}>{t("designation")}</th>
+                      <th style={{ textAlign: "center", padding: "8px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("qte")}</th>
+                      <th style={{ textAlign: "right", padding: "8px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("pu_ht")}</th>
+                      <th style={{ textAlign: "right", padding: "8px 4px", width: 80, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("total_ht")}</th>
+                      <th style={{ textAlign: "center", padding: "8px 4px", width: 40, fontWeight: 600, fontSize: 10, textTransform: "uppercase" }}>{t("tva")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+              {pageLines.map((line: any, i: number) => (
                 <React.Fragment key={line.id}>
                   <tr style={{ pageBreakInside: "avoid", breakInside: "avoid" }}>
                     <td style={{ verticalAlign: "top", padding: "12px 8px", borderBottom: "1px solid #eee" }}>
@@ -747,10 +914,10 @@ export default function FacturePreview() {
                     <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontFamily: "DM Mono, monospace" }}>
                       {formatEUR(line.prixUnitaireHT)}
                     </td>
-                    <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 700, fontFamily: "DM Mono, monospace" }}>
+                    <td style={{ textAlign: "right", padding: "12px 4px", borderBottom: "1px solid #eee", fontWeight: 700, fontFamily: "DM Mono, monospace", verticalAlign: "top" }}>
                       {formatEUR(lineMontantHT(line))}
                     </td>
-                    <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee" }}>
+                    <td style={{ textAlign: "center", padding: "12px 4px", borderBottom: "1px solid #eee", verticalAlign: "top" }}>
                       {line.tva}%
                     </td>
                   </tr>
@@ -758,120 +925,97 @@ export default function FacturePreview() {
               ))}
             </tbody>
           </table>
-        )}
-
-        {/* Totals and details section */}
-        <div style={{ marginTop: 20, display: "flex", gap: 24, alignItems: "flex-start" }}>
-          {/* Left: TVA grid & Payment conditions */}
-          <div style={{ flex: 1 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, border: "1px solid #ddd" }}>
-              <thead>
-                <tr style={{ background: "#f5f5f5" }}>
-                  <td style={{ padding: "6px 10px", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
-                    {t("detail_tva")}
-                  </td>
-                  {tvaColumns.map(r => (
-                    <td key={r} style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
-                      {r} %
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{t("base_ht")}</td>
-                  {tvaColumns.map(r => (
-                    <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
-                      {formatEUR(isAcompte ? (baseHTByRate[r] ?? 0) * ratio : (baseHTByRate[r] ?? 0))}
-                    </td>
-                  ))}
-                </tr>
-                <tr>
-                  <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd" }}>{t("montant_tva")}</td>
-                  {tvaColumns.map(r => (
-                    <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd" }}>
-                      {formatEUR(isAcompte ? (totals.tvaMap[r] ?? 0) * ratio : (totals.tvaMap[r] ?? 0))}
-                    </td>
-                  ))}
-                </tr>
-              </thead>
-            </table>
-
-            {/* Payment conditions */}
-            <div style={{ marginTop: 12, border: "1px solid #ddd", padding: "10px 12px", fontSize: 11, lineHeight: 1.8 }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                {t("reglement")} {facture.modePaiement === "Virement" || facture.modePaiement === "Virement bancaire" ? t("virement") : translateText(facture.modePaiement || "Virement")}
-              </div>
-              <div>{t("echeance")} : {formatDate(facture.dateEcheance)}</div>
-              <div style={{ marginTop: 6, fontSize: 10, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
-                💳 {IBAN}
-              </div>
-            </div>
-
-            {/* Legal Mention */}
-            <div style={{ marginTop: 10, fontSize: 10, color: "#555", lineHeight: 1.5 }}>
-              {t("mention_tva")}.
-              <br />
-              {translateText(getLegalMention(settings))}
-            </div>
-          </div>
-
-          {/* Right: Totals */}
-          <div style={{ width: 230, flexShrink: 0 }}>
-            <div style={{ border: "1px solid #ddd", overflow: "hidden", borderRadius: 4 }}>
-              {isAcompte ? (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
-                    <span>{t("montant_ht")} :</span>
-                    <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.sousTotal * ratio)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
-                    <span>{t("montant_tva")} :</span>
-                    <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTVA * ratio)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#1a1a1a", color: "#fff", fontSize: 13, fontWeight: 700 }}>
-                    <span>{t("total_ttc")} :</span>
-                    <span style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(facture.montantAcompte)}</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
-                    <span>{translateText("Total HT Devis")} :</span>
-                    <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.sousTotal)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
-                    <span>{translateText("Total TVA Devis")} :</span>
-                    <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTVA)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
-                    <span>{translateText("TOTAL TTC Devis")} :</span>
-                    <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTTC)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11, color: "red" }}>
-                    <span>{translateText("Déduction Acompte(s)")} :</span>
-                    <strong style={{ fontFamily: "DM Mono, monospace" }}>-{formatEUR(totals.totalTTC - facture.montantAcompte)}</strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#1a1a1a", color: "#fff", fontSize: 13, fontWeight: 700 }}>
-                    <span>{translateText("SOLDE À PAYER")} :</span>
-                    <span style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(facture.montantAcompte)}</span>
-                  </div>
-                </>
               )}
-              {totalRecu > 0 && (
-                <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11, color: "green" }}>
-                  <span>{translateText("Règlements reçus")} :</span>
-                  <strong style={{ fontFamily: "DM Mono, monospace" }}>-{formatEUR(totalRecu)}</strong>
+
+              {pIdx === totalPages - 1 && (
+                <div style={{ marginTop: 20, display: "flex", gap: 24, alignItems: "flex-start" }}>
+                  <div style={{ flex: 1 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, border: "1px solid #ddd" }}>
+                      <thead>
+                        <tr style={{ background: "#f5f5f5" }}>
+                          <td style={{ padding: "6px 10px", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{t("detail_tva")}</td>
+                          {tvaColumns.map(r => (
+                            <td key={r} style={{ padding: "6px 10px", textAlign: "center", fontWeight: 700, borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{r} %</td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>{t("base_ht")}</td>
+                          {tvaColumns.map(r => (
+                            <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd", borderBottom: "1px solid #ddd" }}>
+                              {formatEUR(baseHTByRate[r] ?? 0)}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <td style={{ padding: "6px 10px", borderRight: "1px solid #ddd" }}>{t("montant_tva")}</td>
+                          {tvaColumns.map(r => (
+                            <td key={r} style={{ padding: "6px 10px", textAlign: "right", fontFamily: "DM Mono, monospace", borderRight: "1px solid #ddd" }}>
+                              {formatEUR(totals.tvaMap[r] ?? 0)}
+                            </td>
+                          ))}
+                        </tr>
+                      </thead>
+                    </table>
+
+                    <div style={{ marginTop: 12, border: "1px solid #ddd", padding: "10px 12px", fontSize: 11, lineHeight: 1.8 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                        {t("reglement")} {facture.modePaiement === "Virement" || facture.modePaiement === "Virement bancaire" ? t("virement") : translateText(facture.modePaiement || "Virement")}
+                      </div>
+                      <div>{t("echeance")} : {formatDate(facture.dateEcheance)}</div>
+                      <div style={{ marginTop: 6, fontSize: 10, color: "#555", display: "flex", alignItems: "center", gap: 6 }}>💳 {IBAN}</div>
+                    </div>
+
+                    <div style={{ marginTop: 10, fontSize: 10, color: "#555", lineHeight: 1.5 }}>
+                      {t("mention_tva")}.<br />
+                      {translateText(getLegalMention(settings))}
+                    </div>
+                  </div>
+
+                  <div style={{ width: 230, flexShrink: 0 }}>
+                    <div style={{ border: "1px solid #ddd", overflow: "hidden", borderRadius: 4 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
+                        <span>{translateText("Total HT Devis")} :</span>
+                        <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.sousTotal)}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
+                        <span>{translateText("Total TVA Devis")} :</span>
+                        <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTVA)}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11 }}>
+                        <span>{translateText("TOTAL TTC Devis")} :</span>
+                        <strong style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(totals.totalTTC)}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11, color: "red" }}>
+                        <span>{translateText("Déduction Acompte(s)")} :</span>
+                        <strong style={{ fontFamily: "DM Mono, monospace" }}>-{formatEUR(totals.totalTTC - facture.montantAcompte)}</strong>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#1a1a1a", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+                        <span>{translateText("SOLDE À PAYER")} :</span>
+                        <span style={{ fontFamily: "DM Mono, monospace" }}>{formatEUR(facture.montantAcompte)}</span>
+                      </div>
+                      {totalRecu > 0 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 12px", borderBottom: "1px solid #eee", fontSize: 11, color: "green" }}>
+                          <span>{translateText("Règlements reçus")} :</span>
+                          <strong style={{ fontFamily: "DM Mono, monospace" }}>-{formatEUR(totalRecu)}</strong>
+                        </div>
+                      )}
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#f5f5f5", borderTop: "2px solid #ddd", fontSize: 13, fontWeight: 700 }}>
+                        <span>{t("net_a_payer")} :</span>
+                        <span style={{ fontFamily: "DM Mono, monospace", color: "hsl(var(--accent))" }}>{formatEUR(Math.max(netAPayer, 0))}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#f5f5f5", borderTop: "2px solid #ddd", fontSize: 13, fontWeight: 700 }}>
-                <span>{t("net_a_payer")} :</span>
-                <span style={{ fontFamily: "DM Mono, monospace", color: "hsl(var(--accent))" }}>{formatEUR(Math.max(netAPayer, 0))}</span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <PageFooter c={c} translateText={translateText} />
-      </div>
+              <div style={{ position: "absolute", bottom: "4mm", left: 0, right: 0, textAlign: "center", fontSize: 10, color: "#aaa" }}>
+                {pIdx + 1} {translateText("sur")} {totalPages}
+              </div>
+              <PageFooter c={c} translateText={translateText} />
+            </div>
+          ));
+        })()
+      )}
     </div>
   );
 }
