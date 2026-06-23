@@ -16,6 +16,7 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { jsPDF } from "jspdf";
 import { dbLoadFactures, dbSaveFacture, dbDeleteFacture } from "@/lib/supabase-data/factures";
 import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
+import { dbGetNextSequenceNumber, dbResyncSequenceNumber } from "@/lib/supabase-data/sequences";
 
 // ── Facture types ──
 export interface Reglement {
@@ -227,6 +228,7 @@ function FStatutDropdown({ facture, onUpdate }: { facture: Facture; onUpdate: ()
       }
 
       await dbSaveFacture(updatedFacture);
+      await dbResyncSequenceNumber(updatedFacture.numero, "facture");
       setOpen(false);
       onUpdate();
       toast.success(`Statut changé : ${STATUT_FACTURE_LABELS[s]}`);
@@ -302,6 +304,7 @@ function ReglementModal({ facture, onClose, onDone }: { facture: Facture; onClos
       };
       
       await dbSaveFacture(updatedFacture);
+      await dbResyncSequenceNumber(updatedFacture.numero, "facture");
       toast.success("Règlement enregistré ✓");
       onDone();
       onClose();
@@ -389,6 +392,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
           if (autoC) {
             found.comptableId = autoC.id;
             await dbSaveFacture(found);
+            await dbResyncSequenceNumber(found.numero, "facture");
           }
         }
         setFacture(found);
@@ -407,6 +411,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
     try {
       const updatedFacture = { ...facture, [field]: value };
       await dbSaveFacture(updatedFacture);
+      await dbResyncSequenceNumber(updatedFacture.numero, "facture");
       setFacture(updatedFacture);
     } catch (err) {
       toast.error("Erreur lors de la mise à jour de la facture.");
@@ -716,6 +721,7 @@ function FactureDetail({ factureId, onBack }: { factureId: string; onBack: () =>
                                   statut: newStatut
                                 };
                                 await dbSaveFacture(updatedFacture);
+                                await dbResyncSequenceNumber(updatedFacture.numero, "facture");
                                 toast.success("Règlement supprimé ✓");
                                 reload();
                               } catch (err) {
@@ -881,7 +887,7 @@ export default function Factures() {
       case "reglement": setReglementModal(f); break;
       case "duplicate": {
         try {
-          const nextNum = nextFactureNumberOR(factures);
+          const nextNum = await dbGetNextSequenceNumber("facture");
           const dup: Facture = {
             ...JSON.parse(JSON.stringify(f)),
             id: uid(),
@@ -891,6 +897,7 @@ export default function Factures() {
             dateCreation: new Date().toISOString().split("T")[0]
           };
           await dbSaveFacture(dup);
+          await dbResyncSequenceNumber(dup.numero, "facture");
           await reload();
           toast.success("Facture dupliquée ✓");
         } catch (err) {
@@ -900,7 +907,7 @@ export default function Factures() {
       }
       case "create_situation": {
         try {
-          const nextNum = nextFactureNumberOR(factures);
+          const nextNum = await dbGetNextSequenceNumber("facture");
           const sit: Facture = {
             ...JSON.parse(JSON.stringify(f)),
             id: uid(),
@@ -913,6 +920,7 @@ export default function Factures() {
             dateCreation: new Date().toISOString().split("T")[0],
           };
           await dbSaveFacture(sit);
+          await dbResyncSequenceNumber(sit.numero, "facture");
           await reload();
           toast.success("Facture de situation créée ✓");
         } catch (err) {
@@ -922,7 +930,7 @@ export default function Factures() {
       }
       case "create_avoir": {
         try {
-          const nextNum = nextFactureNumberOR(factures);
+          const nextNum = await dbGetNextSequenceNumber("facture");
           const avoir: Facture = {
             ...JSON.parse(JSON.stringify(f)),
             id: uid(),
@@ -936,6 +944,7 @@ export default function Factures() {
             libelle: `Avoir sur facture ${f.numero}`,
           };
           await dbSaveFacture(avoir);
+          await dbResyncSequenceNumber(avoir.numero, "facture");
           await reload();
           toast.success("Facture d'annulation créée ✓");
         } catch (err) {
@@ -948,6 +957,7 @@ export default function Factures() {
           try {
             const updated = { ...f, statut: sub as Facture["statut"] };
             await dbSaveFacture(updated);
+            await dbResyncSequenceNumber(updated.numero, "facture");
             await reload();
             toast.success(`Statut changé : ${STATUT_FACTURE_LABELS[sub]}`);
           } catch (err) {

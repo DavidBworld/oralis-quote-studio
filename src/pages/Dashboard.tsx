@@ -28,6 +28,7 @@ import {
 import { dbLoadQuotes, dbSaveQuote, dbDeleteQuote } from "@/lib/supabase-data/devis";
 import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
 import { dbLoadFactures, dbSaveFacture } from "@/lib/supabase-data/factures";
+import { dbGetNextSequenceNumber, dbResyncSequenceNumber } from "@/lib/supabase-data/sequences";
 
 const statusClass: Record<Quote["statut"], string> = {
   brouillon: "status-brouillon",
@@ -339,7 +340,7 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
   const [pct, setPct] = useState(initialPct);
   const [usePercent, setUsePercent] = useState(!hasCustomPayments);
   const [montantDirect, setMontantDirect] = useState(initialMontant);
-  const [factureNumero, setFactureNumero] = useState(() => nextFactureNumberOR(factures));
+  const [factureNumero, setFactureNumero] = useState("");
   const [libelle, setLibelle] = useState(`Acompte sur devis ${quote.numero}`);
   const [dateFacture, setDateFacture] = useState(new Date().toISOString().split("T")[0]);
   const [dateEcheance, setDateEcheance] = useState(() => {
@@ -351,6 +352,10 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
   const [dateReception, setDateReception] = useState(new Date().toISOString().split("T")[0]);
 
   const montantAcompte = usePercent ? totals.totalTTC * (pct / 100) : montantDirect;
+
+  useEffect(() => {
+    dbGetNextSequenceNumber("facture").then(setFactureNumero);
+  }, []);
 
   const handleCreate = async () => {
     try {
@@ -394,6 +399,7 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
       };
 
       await dbSaveFacture(facture);
+      await dbResyncSequenceNumber(facture.numero, "facture");
       toast.success("Facture d'acompte créée ✓");
       onDone();
       onClose();
@@ -526,14 +532,16 @@ export default function Dashboard() {
 
   const duplicateQuote = async (q: Quote) => {
     try {
+      const nextNum = await dbGetNextSequenceNumber("devis");
       const dup: Quote = {
         ...JSON.parse(JSON.stringify(q)),
         id: uid(),
-        numero: `${q.numero}-COPIE`,
+        numero: nextNum,
         statut: "brouillon" as const,
         date: new Date().toISOString().split("T")[0],
       };
       await dbSaveQuote(dup);
+      await dbResyncSequenceNumber(dup.numero, "devis");
       await reload();
       toast.success("Devis dupliqué ✓");
     } catch (err) {

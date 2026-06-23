@@ -25,6 +25,8 @@ import { dbLoadClients, dbSaveClient } from "@/lib/supabase-data/clients";
 import { dbLoadFournisseurs } from "@/lib/supabase-data/fournisseurs";
 import { dbLoadCommerciaux, type Commercial } from "@/lib/supabase-data/commerciaux";
 import { emptyClient } from "@/lib/client-data";
+import { dbGetNextSequenceNumber, dbResyncSequenceNumber } from "@/lib/supabase-data/sequences";
+import { createEmptyQuoteWithNumber } from "@/lib/quote-data";
 
 const CATEGORIES = [
   "Pergola bioclimatique",
@@ -2502,8 +2504,8 @@ export default function QuoteForm() {
         setCommerciaux(loadedCommerciaux.filter(c => c.role === "commercial" && c.actif === true));
 
         if (!id || id === "nouveau") {
-          const allQuotes = await dbLoadQuotes();
-          const nq = createEmptyQuote(allQuotes);
+          const nextNum = await dbGetNextSequenceNumber("devis");
+          const nq = createEmptyQuoteWithNumber(nextNum);
           nq.conditionsPaiement = settings.company.conditionsPaiement || nq.conditionsPaiement;
           nq.delaiRealisation = settings.company.delaiRealisation || nq.delaiRealisation;
 
@@ -2942,6 +2944,7 @@ export default function QuoteForm() {
     setSaving(true);
     try {
       await dbSaveQuote(quote);
+      await dbResyncSequenceNumber(quote.numero, "devis");
 
       // Synchro prospect/client depuis le devis
       const clientEmail = quote.client.email?.trim();

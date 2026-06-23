@@ -256,6 +256,24 @@ export function createEmptyQuote(quotes: Quote[]): Quote {
   };
 }
 
+export function createEmptyQuoteWithNumber(numero: string): Quote {
+  return {
+    id: uid(),
+    numero,
+    date: new Date().toISOString().split("T")[0],
+    validite: 30,
+    statut: "brouillon",
+    client: emptyClient(),
+    lignes: [emptyLine()],
+    conditionsPaiement: "50% à la commande, 45% à la livraison, 5% à la réception des travaux",
+    paymentConditionId: "std-50-45-5",
+    delaiRealisation: "6 à 8 semaines",
+    notes: "",
+    delai: "De 8 à 10 semaines",
+    adresseLivraison: { identique: true },
+  };
+}
+
 // Sample data
 export function getSampleQuote(): Quote {
   return {

@@ -10,14 +10,15 @@ import {
   uid,
   type Quote,
 } from "@/lib/quote-data";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { dbLoadQuotes, dbSaveQuote, dbDeleteQuote } from "@/lib/supabase-data/devis";
+import { dbGetNextSequenceNumber, dbResyncSequenceNumber } from "@/lib/supabase-data/sequences";
 import { dbLoadCommandes, dbSaveCommande } from "@/lib/supabase-data/commandes";
 import { useCallback } from "react";
 import {
   createCommandeFromDevis,
 } from "@/lib/commande-data";
 import { toast } from "sonner";
-import { ConfirmModal } from "@/components/ConfirmModal";
 
 const statusClass: Record<Quote["statut"], string> = {
   brouillon: "status-brouillon",
@@ -102,14 +103,16 @@ export default function QuotesList() {
 
   const duplicateQuote = async (q: Quote) => {
     try {
+      const nextNum = await dbGetNextSequenceNumber("devis");
       const dup: Quote = {
         ...JSON.parse(JSON.stringify(q)),
         id: uid(),
-        numero: `${q.numero}-COPIE`,
+        numero: nextNum,
         statut: "brouillon" as const,
         date: new Date().toISOString().split("T")[0],
       };
       await dbSaveQuote(dup);
+      await dbResyncSequenceNumber(dup.numero, "devis");
       toast.success("Devis dupliqué !");
       await fetchQuotes();
     } catch (err) {

@@ -18,6 +18,7 @@ import {
 } from "@/lib/commande-data";
 import { dbLoadCommandes, dbSaveCommande, dbDeleteCommande } from "@/lib/supabase-data/commandes";
 import { dbSaveFacture, dbLoadFactures } from "@/lib/supabase-data/factures";
+import { dbGetNextSequenceNumber, dbResyncSequenceNumber } from "@/lib/supabase-data/sequences";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 
@@ -67,8 +68,8 @@ function CreerFactureModal({ commande, onClose, onDone }: {
   useEffect(() => {
     async function fetchNextNum() {
       try {
-        const list = await dbLoadFactures();
-        setFactureNumero(nextFactureNumberOR(list));
+        const nextNum = await dbGetNextSequenceNumber("facture");
+        setFactureNumero(nextNum);
       } catch (err) {
         console.error("Erreur lors de la génération du numéro de facture:", err);
       }
@@ -95,6 +96,7 @@ function CreerFactureModal({ commande, onClose, onDone }: {
 
       // 1. Sauvegarder la facture dans Supabase
       await dbSaveFacture(result.facture);
+      await dbResyncSequenceNumber(result.facture.numero, "facture");
 
       // 2. Mettre à jour la commande dans Supabase
       const updatedCommandes = await dbLoadCommandes();
