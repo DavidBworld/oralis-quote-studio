@@ -335,7 +335,9 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
   const montants = quote.montantsPaiement || [];
   const hasCustomPayments = montants.length > 0;
   const initialPct = hasCustomPayments ? montants[0].pourcentage : 30;
-  const initialMontant = hasCustomPayments ? montants[0].montant : totals.totalTTC * 0.3;
+  const initialMontant = hasCustomPayments 
+    ? montants[0].montant 
+    : Math.round(totals.totalTTC * 0.3 * 100) / 100;
 
   const [pct, setPct] = useState(initialPct);
   const [usePercent, setUsePercent] = useState(!hasCustomPayments);
@@ -351,7 +353,8 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
   const [montantRecu, setMontantRecu] = useState(0);
   const [dateReception, setDateReception] = useState(new Date().toISOString().split("T")[0]);
 
-  const montantAcompte = usePercent ? totals.totalTTC * (pct / 100) : montantDirect;
+  const rawMontant = usePercent ? totals.totalTTC * (pct / 100) : montantDirect;
+  const montantAcompte = Math.round(rawMontant * 100) / 100;
 
   useEffect(() => {
     dbGetNextSequenceNumber("facture").then(setFactureNumero);
@@ -380,7 +383,7 @@ function FactureAcompteModal({ quote, factures, onClose, onDone }: { quote: Quot
         totalHT: totals.sousTotal,
         totalTTC: totals.totalTTC,
         montantAcompte,
-        montantAcomptePct: usePercent ? pct : Math.round((montantAcompte / totals.totalTTC) * 100),
+        montantAcomptePct: usePercent ? pct : Math.round((montantAcompte / totals.totalTTC) * 100 * 100) / 100,
         libelle,
         dateFacture,
         dateEcheance,

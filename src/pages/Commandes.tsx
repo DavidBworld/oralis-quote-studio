@@ -51,12 +51,12 @@ function CreerFactureModal({ commande, onClose, onDone }: {
   });
   const [montant, setMontant] = useState(() => {
     if (defaultType === "solde") {
-      return resteAFacturer;
+      return Math.round(resteAFacturer * 100) / 100;
     }
     if (prochaine && prochaine.montant !== undefined) {
-      return prochaine.montant;
+      return Math.round(prochaine.montant * 100) / 100;
     }
-    return Math.round(commande.totalTTC * defaultPct / 100 * 100) / 100;
+    return Math.round(commande.totalTTC * defaultPct) / 100;
   });
   const [dateFacture, setDateFacture] = useState(new Date().toISOString().split("T")[0]);
   const [dateEcheance, setDateEcheance] = useState(() => {
@@ -77,7 +77,7 @@ function CreerFactureModal({ commande, onClose, onDone }: {
     fetchNextNum();
   }, []);
 
-  const montantFinal = montant;
+  const montantFinal = Math.round(montant * 100) / 100;
 
   const handleCreate = async () => {
     if (montantFinal <= 0) {

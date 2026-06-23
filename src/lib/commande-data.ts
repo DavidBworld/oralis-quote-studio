@@ -110,7 +110,8 @@ export function getCommandeTotalFacture(commande: Commande): number {
 }
 
 export function getCommandeResteAFacturer(commande: Commande): number {
-  return commande.totalTTC - getCommandeTotalFacture(commande);
+  const diff = commande.totalTTC - getCommandeTotalFacture(commande);
+  return Math.round(diff * 100) / 100;
 }
 
 export function getProchainEcheancier(commande: Commande): { type: "acompte_commande" | "acompte_livraison" | "solde" | "intermediaire", label: string, pct: number, montant?: number } | null {
